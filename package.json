@@ -1,0 +1,33 @@
+{
+  "name": "skillkit",
+  "version": "0.0.1",
+  "description": "Create, evaluate, and iterate on agent skills",
+  "type": "module",
+  "bin": {
+    "skillkit": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "node build.js",
+    "dev": "node build.js --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "ai": "^6.0.0",
+    "@ai-sdk/anthropic": "^3.0.0",
+    "@ai-sdk/openai": "^3.0.0",
+    "yaml": "^2.7.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.8.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "files": [
+    "dist"
+  ],
+  "license": "MIT"
+}
