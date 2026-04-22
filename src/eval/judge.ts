@@ -1,5 +1,5 @@
-import { generateText } from "ai";
-import type { LanguageModel } from "ai";
+import { complete } from "@mariozechner/pi-ai";
+import type { Model, Context } from "@mariozechner/pi-ai";
 
 export interface JudgeResult {
   grade: string;
@@ -36,17 +36,31 @@ REASONING: <one paragraph explaining your grade>`;
  * Evaluate agent output against criteria using an LLM judge.
  */
 export async function judge(
-  model: LanguageModel,
+  model: Model<any>,
   agentOutput: string,
   criteria: string
 ): Promise<JudgeResult> {
-  const { text } = await generateText({
-    model,
-    system: JUDGE_PROMPT,
-    prompt: `## Agent Output\n\n${agentOutput}\n\n## Evaluation Criteria\n\n${criteria}`,
+  const context: Context = {
+    systemPrompt: JUDGE_PROMPT,
+    messages: [
+      {
+        role: "user",
+        content: `## Agent Output\n\n${agentOutput}\n\n## Evaluation Criteria\n\n${criteria}`,
+        timestamp: Date.now(),
+      },
+    ],
+  };
+
+  const response = await complete(model, context, {
+    maxTokens: 500,
     temperature: 0,
-    maxOutputTokens: 500,
   });
+
+  // Extract text from content blocks
+  const text = response.content
+    .filter((b) => b.type === "text")
+    .map((b) => (b as { type: "text"; text: string }).text)
+    .join("");
 
   // Parse grade
   const gradeMatch = text.match(/GRADE:\s*([A-E])/i);

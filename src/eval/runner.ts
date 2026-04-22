@@ -1,4 +1,4 @@
-import type { LanguageModel } from "ai";
+import type { Model } from "@mariozechner/pi-ai";
 import type { Skill } from "../skill/loader.js";
 import type { EvalCase, EvalFile } from "./parser.js";
 import type { CheckResult } from "./checks.js";
@@ -42,8 +42,8 @@ export interface EvalRunResult {
 
 export interface RunEvalOptions {
   skill: Skill;
-  agentModel: LanguageModel;
-  judgeModel: LanguageModel;
+  agentModel: Model<any>;
+  judgeModel: Model<any>;
   /** Called after each case completes */
   onCaseComplete?: (result: CaseResult) => void;
 }
@@ -87,8 +87,8 @@ async function runSingleCase(opts: {
   evalCase: EvalCase;
   filePath: string;
   skill: Skill;
-  agentModel: LanguageModel;
-  judgeModel: LanguageModel;
+  agentModel: Model<any>;
+  judgeModel: Model<any>;
 }): Promise<CaseResult> {
   const { evalCase, filePath, skill, agentModel, judgeModel } = opts;
   const start = Date.now();

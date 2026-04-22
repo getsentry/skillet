@@ -1,10 +1,10 @@
-import { generateText, stepCountIs } from "ai";
-import type { LanguageModel } from "ai";
-import { createTools } from "./tools.js";
+import { complete, validateToolCall } from "@mariozechner/pi-ai";
+import type { Model, Context, Tool, AssistantMessage } from "@mariozechner/pi-ai";
+import { createToolDefs, executeTool } from "./tools.js";
 import type { Skill } from "../skill/loader.js";
 
 export interface AgentRunOptions {
-  model: LanguageModel;
+  model: Model<any>;
   skill: Skill;
   workDir: string;
   turns: string[];
@@ -18,49 +18,84 @@ export interface AgentRunResult {
   toolCallCount: number;
 }
 
+const MAX_STEPS = 50;
+
 /**
  * Run the agent loop: send turns sequentially, handle tool calls,
  * collect text output.
  */
 export async function runAgent(opts: AgentRunOptions): Promise<AgentRunResult> {
   const { model, skill, workDir, turns, timeout } = opts;
-  const tools = createTools(workDir);
+  const tools = createToolDefs();
 
   const systemPrompt = buildSystemPrompt(skill, workDir);
   const outputs: string[] = [];
   let totalToolCalls = 0;
 
-  // Build up conversation history across turns
-  const messages: Array<{ role: "user" | "assistant"; content: string }> = [];
+  const context: Context = {
+    systemPrompt,
+    messages: [],
+    tools,
+  };
 
   for (const turn of turns) {
-    messages.push({ role: "user", content: turn });
+    context.messages.push({
+      role: "user",
+      content: turn,
+      timestamp: Date.now(),
+    });
 
-    const result = await Promise.race([
-      generateText({
-        model,
-        system: systemPrompt,
-        messages,
-        tools,
-        stopWhen: stepCountIs(50),
-        temperature: 0,
-      }),
-      timeoutPromise(timeout),
-    ]);
+    // Run completion loop: call model, execute tools, repeat
+    let steps = 0;
+    while (steps < MAX_STEPS) {
+      steps++;
 
-    // Count tool calls from steps
-    if (result.steps) {
-      for (const step of result.steps) {
-        if (step.toolCalls) {
-          totalToolCalls += step.toolCalls.length;
-        }
+      const response = await Promise.race([
+        complete(model, context, { temperature: 0 }),
+        timeoutPromise(timeout),
+      ]);
+
+      // Add assistant message to context
+      context.messages.push(response);
+
+      // Collect text output
+      const textParts = response.content
+        .filter((b) => b.type === "text")
+        .map((b) => (b as { type: "text"; text: string }).text);
+      if (textParts.length > 0) {
+        outputs.push(textParts.join(""));
       }
-    }
 
-    // Capture text output
-    if (result.text) {
-      outputs.push(result.text);
-      messages.push({ role: "assistant", content: result.text });
+      // Check for tool calls
+      const toolCalls = response.content.filter((b) => b.type === "toolCall");
+      if (toolCalls.length === 0 || response.stopReason !== "toolUse") {
+        break; // No tool calls, done with this turn
+      }
+
+      // Execute each tool call and add results to context
+      for (const block of toolCalls) {
+        if (block.type !== "toolCall") continue;
+        totalToolCalls++;
+
+        let resultText: string;
+        let isError = false;
+        try {
+          const validated = validateToolCall(tools, block);
+          resultText = executeTool(workDir, block.name, validated);
+        } catch (err: any) {
+          resultText = `Error: ${err.message}`;
+          isError = true;
+        }
+
+        context.messages.push({
+          role: "toolResult",
+          toolCallId: block.id,
+          toolName: block.name,
+          content: [{ type: "text", text: resultText }],
+          isError,
+          timestamp: Date.now(),
+        });
+      }
     }
   }
 

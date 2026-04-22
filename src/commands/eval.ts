@@ -22,7 +22,7 @@ export async function evalCommand(pathArg?: string): Promise<number> {
   // 2. Resolve LLM models
   let models;
   try {
-    models = await resolveModels();
+    models = resolveModels();
   } catch (err) {
     console.error(`Error: ${(err as Error).message}`);
     return 1;
