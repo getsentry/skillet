@@ -19,7 +19,7 @@ Key external references:
 - Skill-writer quality knowledge ships as bundled reference material inside skillkit
 
 **Non-Goals:**
-- Using vitest-evals as a runtime dependency (future work)
+- Using vitest-evals as a runtime dependency (future work — but we design for easy swap)
 - Using pi-agent-core for the agent loop (future simplification)
 - TUI / interactive terminal UI (not needed — consumers are agents or CI)
 - Hosting, cloud execution, or remote eval services
@@ -76,13 +76,50 @@ EvalCaseResult {
 
 **Rationale**: When vitest-evals integration happens later, the shape is already right — it's a type alignment, not a data restructure.
 
-### 5. `validate` is pure structural checks, no LLM
+### 5. Eval framework is an extractable internal boundary
+
+**Decision**: The eval engine (`eval/` module — runner, checks, judge, parser, workspace, types) is designed as a clean separable boundary with a narrow public API surface. This serves three purposes:
+
+1. **Dogfooding**: Skillkit's own tests use the eval framework to test skillkit itself (LLM-as-judge evals for the authoring loop quality, structural checks for output format).
+2. **Shared consumption**: Both `skillkit eval` (CLI) and the authoring loop's internal eval-run phase use the same engine.
+3. **Swappability**: When vitest-evals stabilizes, the eval engine can be swapped out behind the same API boundary — or extracted into its own package (e.g. `@skillkit/eval`) that both skillkit and vitest-evals consumers can use.
+
+The boundary is a single entry point: `runEvals(opts) → EvalRunResult` plus the type definitions. Nothing above this boundary knows about workspace setup, check execution, or judge internals.
+
+```
+┌─────────────────────────────────────────────┐
+│              skillkit CLI                    │
+│  ┌──────────┐  ┌──────────┐  ┌───────────┐ │
+│  │ commands │  │authoring │  │  tests    │ │
+│  │ eval.ts  │  │ loop.ts  │  │ (evals/)  │ │
+│  └────┬─────┘  └────┬─────┘  └─────┬─────┘ │
+│       │              │              │       │
+│       ▼              ▼              ▼       │
+│  ┌──────────────────────────────────────┐   │
+│  │         eval engine boundary         │   │
+│  │  runEvals() → EvalRunResult          │   │
+│  │  ┌────────┬────────┬───────┬──────┐  │   │
+│  │  │ runner │ checks │ judge │parser│  │   │
+│  │  └────────┴────────┴───────┴──────┘  │   │
+│  └──────────────────────────────────────┘   │
+│           ↕  future swap point              │
+│     ┌─────────────┐                         │
+│     │ vitest-evals│ (later)                 │
+│     └─────────────┘                         │
+└─────────────────────────────────────────────┘
+```
+
+**Alternatives considered**:
+- Extract as separate package from day one: Premature — the API surface isn't stable yet. Clean internal boundary first, extract when the shape solidifies.
+- Tightly couple eval into commands: Makes dogfooding and swapping harder.
+
+### 6. `validate` is pure structural checks, no LLM
 
 **Decision**: `validate` is fast and free — checks frontmatter parsing, required fields, eval file parsing, file references. No LLM calls. Returns structured errors.
 
 **Rationale**: Useful as a pre-flight before expensive eval runs. Agents can call `validate` first, fix structural issues, then `eval`.
 
-### 6. Module layout
+### 7. Module layout
 
 ```
 src/

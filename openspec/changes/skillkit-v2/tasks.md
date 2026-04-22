@@ -46,6 +46,16 @@
 - [ ] 5.9 Wire `authorSkill()` into `create` and `improve` commands
 - [ ] 5.10 Verify: `skillkit create "simple greeting skill"` produces a working SKILL.md with passing evals
 
-## 6. Update existing specs
+## 6. Extractable eval engine boundary
 
-- [ ] 6.1 Archive old specs and apply new/modified specs to `openspec/specs/` using `openspec archive`
+- [ ] 6.1 Create `src/eval/index.ts` as the single public entry point — re-exports `runEvals`, result types, and parser utilities only
+- [ ] 6.2 Ensure nothing outside `src/eval/` imports internal eval modules (checks, judge, workspace, requirements) directly — all access goes through the boundary
+- [ ] 6.3 Create `evals/` directory at project root for skillkit's own dogfood eval cases
+- [ ] 6.4 Write eval cases for `skillkit eval` itself: given a known skill + eval fixture, verify structured JSON output shape, check/judge results, and exit codes
+- [ ] 6.5 Write eval cases for `skillkit validate`: given valid/invalid SKILL.md fixtures, verify correct pass/fail and error messages
+- [ ] 6.6 Write eval cases for `skillkit create` (LLM-as-judge): given a description, judge whether the produced SKILL.md meets skill-writer quality bars
+- [ ] 6.7 Run skillkit's own evals via `skillkit eval` (full dogfood loop) and verify they pass
+
+## 7. Update existing specs
+
+- [ ] 7.1 Archive old specs and apply new/modified specs to `openspec/specs/` using `openspec archive`
