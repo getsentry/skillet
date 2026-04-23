@@ -21,7 +21,7 @@
 - [x] 3.1 Update `src/cli.ts` to dispatch `create`, `improve`, `eval`, `validate` commands and remove `iterate` stub
 - [x] 3.2 Create `src/commands/create.ts` stub that parses description argument and `--path`/`--max-iterations` flags
 - [x] 3.3 Create `src/commands/improve.ts` stub that parses path argument and `--max-iterations` flag
-- [ ] 3.4 Both `create` and `improve` call shared `authorSkill()` with appropriate mode
+- [x] 3.4 Both `create` and `improve` call shared `authorSkill()` with appropriate mode
 - [x] 3.5 Update `--help` output to reflect new command surface
 - [x] 3.6 Verify: `create` errors if SKILL.md exists, `improve` errors if SKILL.md missing
 
@@ -35,16 +35,16 @@
 
 ## 5. Authoring loop core
 
-- [ ] 5.1 Create `src/authoring/loop.ts` with `authorSkill()` orchestrator function accepting mode (`create`|`improve`), description, path, and iteration config
-- [ ] 5.2 Create `src/authoring/prompts.ts` with system prompt builders for each phase (skill generation, eval generation, assessment)
-- [ ] 5.3 Create `src/authoring/eval-gen.ts` with LLM-driven eval case generation from SKILL.md content
-- [ ] 5.4 Implement skill generation phase: LLM call with description + reference material → SKILL.md
-- [ ] 5.5 Implement eval generation phase: LLM call with SKILL.md + eval examples → eval YAML files
-- [ ] 5.6 Implement eval execution phase: call existing `runEvals()` and collect results
-- [ ] 5.7 Implement assessment phase: LLM call with eval results + SKILL.md → improvement suggestions
-- [ ] 5.8 Implement iteration loop: repeat phases 5.4–5.7 up to max iterations, stop early on all-pass
-- [ ] 5.9 Wire `authorSkill()` into `create` and `improve` commands
-- [ ] 5.10 Verify: `skillkit create "simple greeting skill"` produces a working SKILL.md with passing evals
+- [x] 5.1 Create `src/authoring/loop.ts` with `authorSkill()` orchestrator function accepting mode (`create`|`improve`), description, path, and iteration config
+- [x] 5.2 Create `src/authoring/prompts.ts` with system prompt builders for each phase (skill generation, eval generation, assessment)
+- [x] 5.3 Create `src/authoring/eval-gen.ts` with LLM-driven eval case generation from SKILL.md content
+- [x] 5.4 Implement skill generation phase: LLM call with description + reference material → SKILL.md
+- [x] 5.5 Implement eval generation phase: LLM call with SKILL.md + eval examples → eval YAML files
+- [x] 5.6 Implement eval execution phase: call existing `runEvals()` and collect results
+- [x] 5.7 Implement assessment phase: LLM call with eval results + SKILL.md → improvement suggestions
+- [x] 5.8 Implement iteration loop: repeat phases 5.4–5.7 up to max iterations, stop early on all-pass
+- [x] 5.9 Wire `authorSkill()` into `create` and `improve` commands
+- [ ] 5.10 Verify: `skillet create "simple greeting skill"` produces a working SKILL.md with passing evals
 
 ## 6. Extractable eval engine boundary
 

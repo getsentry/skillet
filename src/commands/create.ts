@@ -1,6 +1,6 @@
-import { resolve } from "node:path";
+import { resolve, join } from "node:path";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { authorSkill } from "../authoring/loop.js";
 
 export interface CreateOptions {
   description: string;
@@ -9,8 +9,10 @@ export interface CreateOptions {
 }
 
 const parseCreateArgs = (args: string[]): CreateOptions | null => {
-  const description = args.find((a) => !a.startsWith("--"));
-  if (description == null || description === "") {
+  // Collect all non-flag args as the description
+  const descParts = args.filter((a) => !a.startsWith("--"));
+  const description = descParts.join(" ").trim();
+  if (description === "") {
     return null;
   }
 
@@ -30,7 +32,9 @@ export const createCommand = async (args: string[]): Promise<number> => {
     return 1;
   }
 
-  const targetDir = resolve(opts.path ?? opts.description.toLowerCase().replace(/\s+/g, "-"));
+  const targetDir = resolve(
+    opts.path ?? opts.description.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+  );
   const skillMdPath = join(targetDir, "SKILL.md");
 
   if (existsSync(skillMdPath)) {
@@ -39,7 +43,18 @@ export const createCommand = async (args: string[]): Promise<number> => {
     return 1;
   }
 
-  // TODO: call authorSkill({ mode: "create", ... })
-  console.log(`create command not yet fully implemented (target: ${targetDir})`);
-  return 1;
+  try {
+    const result = await authorSkill({
+      mode: "create",
+      description: opts.description,
+      path: targetDir,
+      maxIterations: opts.maxIterations,
+    });
+
+    return result.success ? 0 : 1;
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`Error: ${message}`);
+    return 1;
+  }
 };
