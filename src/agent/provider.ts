@@ -1,3 +1,5 @@
+import { execSync } from "node:child_process";
+import { platform } from "node:os";
 import { getModel, getEnvApiKey } from "@mariozechner/pi-ai";
 import type { Model } from "@mariozechner/pi-ai";
 
@@ -37,7 +39,7 @@ const PROVIDER_AUTODISCOVERY: Array<{
 }> = [
   {
     provider: "anthropic",
-    defaultModel: "claude-sonnet-4-20250514",
+    defaultModel: "claude-opus-4-7",
     // Claude Code sets these for OAuth/subscription users
     extraEnvVars: ["ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN"],
   },
@@ -131,6 +133,43 @@ const resolveModel = (explicit?: string): AnyModel => {
   return autoDiscover();
 };
 
+/**
+ * Try to read the Claude Code OAuth token from macOS Keychain.
+ * Claude Code stores credentials under service "Claude Code-credentials"
+ * with a JSON blob containing { claudeAiOauth: { accessToken, ... } }.
+ *
+ * Returns the access token string, or undefined if unavailable.
+ */
+const readClaudeCodeKeychainToken = (): string | undefined => {
+  if (platform() !== "darwin") {
+    return undefined;
+  }
+
+  try {
+    const raw = execSync('security find-generic-password -s "Claude Code-credentials" -w', {
+      stdio: "pipe",
+      timeout: 5_000,
+    })
+      .toString()
+      .trim();
+
+    const parsed: unknown = JSON.parse(raw);
+    if (parsed != null && typeof parsed === "object" && "claudeAiOauth" in parsed) {
+      const oauth = (parsed as Record<string, unknown>).claudeAiOauth;
+      if (oauth != null && typeof oauth === "object" && "accessToken" in oauth) {
+        const token = (oauth as Record<string, unknown>).accessToken;
+        if (typeof token === "string" && token !== "") {
+          return token;
+        }
+      }
+    }
+  } catch {
+    // Keychain unavailable, locked, or entry doesn't exist
+  }
+
+  return undefined;
+};
+
 const autoDiscover = (): AnyModel => {
   for (const entry of PROVIDER_AUTODISCOVERY) {
     // Check pi-ai's built-in env var detection
@@ -148,13 +187,23 @@ const autoDiscover = (): AnyModel => {
     }
   }
 
+  // Last resort: try to read Claude Code's OAuth token from macOS Keychain.
+  // This handles the case where we're running as a subprocess of Claude Code
+  // and it has scrubbed env vars but the user has a Pro/Max subscription.
+  const keychainToken = readClaudeCodeKeychainToken();
+  if (keychainToken != null) {
+    process.env.ANTHROPIC_API_KEY = keychainToken;
+    return getModelLoose("anthropic", "claude-opus-4-7");
+  }
+
   throw new Error(
     "No LLM provider detected. Skillet checks these automatically:\n" +
       "  ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN / CLAUDE_CODE_OAUTH_TOKEN\n" +
       "  OPENAI_API_KEY / CODEX_API_KEY\n" +
       "  COPILOT_GITHUB_TOKEN / GH_TOKEN / GITHUB_TOKEN\n" +
       "  GEMINI_API_KEY\n" +
-      "  OPENROUTER_API_KEY / GROQ_API_KEY / XAI_API_KEY / MISTRAL_API_KEY\n\n" +
+      "  OPENROUTER_API_KEY / GROQ_API_KEY / XAI_API_KEY / MISTRAL_API_KEY\n" +
+      "  macOS Keychain (Claude Code OAuth)\n\n" +
       "Or set SKILLET_MODEL=provider/model-id explicitly.",
   );
 };

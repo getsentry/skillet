@@ -44,7 +44,7 @@
 - [x] 5.7 Implement assessment phase: LLM call with eval results + SKILL.md → improvement suggestions
 - [x] 5.8 Implement iteration loop: repeat phases 5.4–5.7 up to max iterations, stop early on all-pass
 - [x] 5.9 Wire `authorSkill()` into `create` and `improve` commands
-- [ ] 5.10 Verify: `skillet create "simple greeting skill"` produces a working SKILL.md with passing evals
+- [x] 5.10 Verify: `skillet create "simple greeting skill"` produces a working SKILL.md with passing evals
 
 ## 6. Extractable eval engine boundary
 
@@ -53,8 +53,8 @@
 - [x] 6.3 Create `evals/` directory at project root for skillet's own dogfood eval cases
 - [x] 6.4 Write eval cases for `skillet eval` itself: given a known skill + eval fixture, verify structured JSON output shape, check/judge results, and exit codes
 - [x] 6.5 Write eval cases for `skillet validate`: given valid/invalid SKILL.md fixtures, verify correct pass/fail and error messages
-- [ ] 6.6 Write eval cases for `skillet create` (LLM-as-judge): given a description, judge whether the produced SKILL.md meets skill-writer quality bars
-- [ ] 6.7 Run skillet's own evals via `skillet eval` (full dogfood loop) and verify they pass
+- [x] 6.6 Write eval cases for `skillet create` (LLM-as-judge): given a description, judge whether the produced SKILL.md meets skill-writer quality bars
+- [x] 6.7 Run skillet's own evals via `skillet eval` (full dogfood loop) and verify they pass
 
 ## 7. Update existing specs
 
