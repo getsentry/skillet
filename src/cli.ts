@@ -10,8 +10,11 @@ const main = async (): Promise<number> => {
   }
 
   switch (command) {
-    case "eval":
-      return evalCommand(args[1]);
+    case "eval": {
+      const jsonFlag = args.includes("--json");
+      const evalPath = args.find((a, i) => i > 0 && !a.startsWith("--"));
+      return evalCommand(evalPath, jsonFlag);
+    }
 
     case "create":
       console.log("create command not yet implemented");

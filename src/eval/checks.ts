@@ -8,9 +8,10 @@ import {
 } from "./parser.js";
 
 export interface CheckResult {
+  name: string;
   passed: boolean;
   check: Check;
-  detail?: string;
+  detail: string;
 }
 
 const isExecError = (
@@ -49,6 +50,7 @@ const runWorkspaceCheck = (check: WorkspaceCheck, workDir: string): CheckResult 
   // Exit code check
   if (check.exits !== undefined) {
     return {
+      name: `run: ${check.run} (exits)`,
       passed: exitCode === check.exits,
       check,
       detail: `exit code: ${exitCode} (expected ${check.exits})`,
@@ -60,6 +62,7 @@ const runWorkspaceCheck = (check: WorkspaceCheck, workDir: string): CheckResult 
     const re = new RegExp(check.matches, "m");
     const passed = re.test(trimmed);
     return {
+      name: `run: ${check.run} (matches)`,
       passed,
       check,
       detail: passed
@@ -72,6 +75,7 @@ const runWorkspaceCheck = (check: WorkspaceCheck, workDir: string): CheckResult 
   if (check.contains !== undefined) {
     const passed = trimmed.includes(check.contains);
     return {
+      name: `run: ${check.run} (contains)`,
       passed,
       check,
       detail: passed
@@ -84,6 +88,7 @@ const runWorkspaceCheck = (check: WorkspaceCheck, workDir: string): CheckResult 
   if (check.not_contains !== undefined) {
     const passed = !trimmed.includes(check.not_contains);
     return {
+      name: `run: ${check.run} (not_contains)`,
       passed,
       check,
       detail: passed
@@ -96,6 +101,7 @@ const runWorkspaceCheck = (check: WorkspaceCheck, workDir: string): CheckResult 
   if (check.equals !== undefined) {
     const passed = trimmed === check.equals.trim();
     return {
+      name: `run: ${check.run} (equals)`,
       passed,
       check,
       detail: passed
@@ -108,6 +114,7 @@ const runWorkspaceCheck = (check: WorkspaceCheck, workDir: string): CheckResult 
   if (check.not_equals !== undefined) {
     const passed = trimmed !== check.not_equals.trim();
     return {
+      name: `run: ${check.run} (not_equals)`,
       passed,
       check,
       detail: passed
@@ -116,7 +123,7 @@ const runWorkspaceCheck = (check: WorkspaceCheck, workDir: string): CheckResult 
     };
   }
 
-  return { passed: true, check, detail: "no assertion specified" };
+  return { name: `run: ${check.run}`, passed: true, check, detail: "no assertion specified" };
 };
 
 /**
@@ -131,6 +138,7 @@ export const runChecks = (checks: Check[], workDir: string, agentOutput: string)
     } else if (isOutputContains(check)) {
       const passed = agentOutput.includes(check.output_contains);
       results.push({
+        name: "output_contains",
         passed,
         check,
         detail: passed
@@ -140,6 +148,7 @@ export const runChecks = (checks: Check[], workDir: string, agentOutput: string)
     } else if (isOutputNotContains(check)) {
       const passed = !agentOutput.includes(check.output_not_contains);
       results.push({
+        name: "output_not_contains",
         passed,
         check,
         detail: passed
@@ -150,6 +159,7 @@ export const runChecks = (checks: Check[], workDir: string, agentOutput: string)
       const re = new RegExp(check.output_matches, "m");
       const passed = re.test(agentOutput);
       results.push({
+        name: "output_matches",
         passed,
         check,
         detail: passed

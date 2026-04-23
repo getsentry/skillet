@@ -1,12 +1,12 @@
 ## 1. Normalized result types and JSON output
 
-- [ ] 1.1 Define normalized result types (`NormalizedMessage`, `NormalizedSession`, `UsageSummary`, `EvalCaseResult`) in a new `src/eval/types.ts` — shaped toward vitest-evals compatibility
-- [ ] 1.2 Update `src/eval/runner.ts` to populate normalized results (session transcript, usage metadata) during eval execution
-- [ ] 1.3 Update `src/agent/loop.ts` to return conversation messages alongside output text and tool call count
-- [ ] 1.4 Create `src/output/json.ts` with JSON serializer for eval results
-- [ ] 1.5 Extract existing ANSI output from `src/commands/eval.ts` into `src/output/pretty.ts`
-- [ ] 1.6 Add `--json` flag to `src/commands/eval.ts` that switches between pretty and JSON output
-- [ ] 1.7 Verify: `skillkit eval --json` produces valid JSON with session, usage, checks, judge, errors fields
+- [x] 1.1 Define normalized result types (`NormalizedMessage`, `NormalizedSession`, `UsageSummary`, `EvalCaseResult`) in a new `src/eval/types.ts` — shaped toward vitest-evals compatibility
+- [x] 1.2 Update `src/eval/runner.ts` to populate normalized results (session transcript, usage metadata) during eval execution
+- [x] 1.3 Update `src/agent/loop.ts` to return conversation messages alongside output text and tool call count
+- [x] 1.4 Create `src/output/json.ts` with JSON serializer for eval results
+- [x] 1.5 Extract existing ANSI output from `src/commands/eval.ts` into `src/output/pretty.ts`
+- [x] 1.6 Add `--json` flag to `src/commands/eval.ts` that switches between pretty and JSON output
+- [x] 1.7 Verify: `skillkit eval --json` produces valid JSON with session, usage, checks, judge, errors fields
 
 ## 2. Structural validation
 

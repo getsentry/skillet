@@ -3,6 +3,7 @@ import type { Context } from "@mariozechner/pi-ai";
 import { createToolDefs, executeTool } from "./tools.js";
 import type { AnyModel } from "./provider.js";
 import type { Skill } from "../skill/loader.js";
+import type { NormalizedMessage } from "../eval/types.js";
 
 const isRecord = (v: unknown): v is Record<string, unknown> => {
   return v != null && typeof v === "object" && !Array.isArray(v);
@@ -21,6 +22,8 @@ export interface AgentRunResult {
   output: string;
   /** Number of tool calls made across all turns */
   toolCallCount: number;
+  /** Full conversation transcript as normalized messages */
+  messages: NormalizedMessage[];
 }
 
 const MAX_STEPS = 50;
@@ -35,6 +38,7 @@ export const runAgent = async (opts: AgentRunOptions): Promise<AgentRunResult> =
 
   const systemPrompt = buildSystemPrompt(skill, workDir);
   const outputs: string[] = [];
+  const transcript: NormalizedMessage[] = [];
   let totalToolCalls = 0;
 
   const context: Context = {
@@ -49,6 +53,7 @@ export const runAgent = async (opts: AgentRunOptions): Promise<AgentRunResult> =
       content: turn,
       timestamp: Date.now(),
     });
+    transcript.push({ role: "user", content: turn });
 
     // Run completion loop: call model, execute tools, repeat
     let steps = 0;
@@ -69,9 +74,11 @@ export const runAgent = async (opts: AgentRunOptions): Promise<AgentRunResult> =
           (b): b is { type: "text"; text: string; textSignature?: string } => b.type === "text",
         )
         .map((b) => b.text);
+      const assistantText = textParts.join("");
       if (textParts.length > 0) {
-        outputs.push(textParts.join(""));
+        outputs.push(assistantText);
       }
+      transcript.push({ role: "assistant", content: assistantText });
 
       // Check for tool calls
       const toolCalls = response.content.filter((b) => b.type === "toolCall");
@@ -110,6 +117,11 @@ export const runAgent = async (opts: AgentRunOptions): Promise<AgentRunResult> =
           isError,
           timestamp: Date.now(),
         });
+        transcript.push({
+          role: "tool",
+          content: resultText,
+          metadata: { name: block.name },
+        });
       }
     }
   }
@@ -117,6 +129,7 @@ export const runAgent = async (opts: AgentRunOptions): Promise<AgentRunResult> =
   return {
     output: outputs.join("\n\n"),
     toolCallCount: totalToolCalls,
+    messages: transcript,
   };
 };
 
