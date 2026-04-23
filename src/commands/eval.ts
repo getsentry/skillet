@@ -3,15 +3,19 @@ import { findSkillRoot, loadSkill } from "../skill/loader.js";
 import { resolveModels } from "../agent/provider.js";
 import { runEvals, type CaseResult } from "../eval/runner.js";
 
-export async function evalCommand(pathArg?: string): Promise<number> {
-  const startPath = resolve(pathArg || ".");
+const errorMessage = (err: unknown): string => {
+  return err instanceof Error ? err.message : String(err);
+};
+
+export const evalCommand = async (pathArg?: string): Promise<number> => {
+  const startPath = resolve(pathArg ?? ".");
 
   // 1. Find and load skill
   let skillRoot: string;
   try {
     skillRoot = findSkillRoot(startPath);
-  } catch (err) {
-    console.error(`Error: ${(err as Error).message}`);
+  } catch (err: unknown) {
+    console.error(`Error: ${errorMessage(err)}`);
     return 1;
   }
 
@@ -20,11 +24,11 @@ export async function evalCommand(pathArg?: string): Promise<number> {
   console.log(`Root:  ${skill.root}\n`);
 
   // 2. Resolve LLM models
-  let models;
+  let models: ReturnType<typeof resolveModels>;
   try {
     models = resolveModels();
-  } catch (err) {
-    console.error(`Error: ${(err as Error).message}`);
+  } catch (err: unknown) {
+    console.error(`Error: ${errorMessage(err)}`);
     return 1;
   }
 
@@ -46,56 +50,54 @@ export async function evalCommand(pathArg?: string): Promise<number> {
 
   const failed = result.cases.filter((c) => c.status === "fail" || c.status === "error");
   return failed.length > 0 ? 1 : 0;
-}
+};
 
-function printCaseResult(result: CaseResult): void {
+const printCaseResult = (result: CaseResult): void => {
   const icon = statusIcon(result.status);
   const duration = `${(result.duration / 1000).toFixed(1)}s`;
   const tools = result.toolCallCount !== undefined ? ` (${result.toolCallCount} tool calls)` : "";
 
   console.log(`${icon} ${result.name}  ${duration}${tools}`);
 
-  if (result.status === "skip" && result.skipReason) {
+  if (result.status === "skip" && result.skipReason != null) {
     console.log(`  skipped: ${result.skipReason}`);
   }
 
   if (result.status === "fail") {
     // Show failed checks
-    if (result.checkResults) {
+    if (result.checkResults != null) {
       for (const check of result.checkResults) {
         if (!check.passed) {
-          console.log(`  FAIL: ${check.detail}`);
+          console.log(`  FAIL: ${check.detail ?? ""}`);
         }
       }
     }
     // Show judge result
-    if (result.judgeResult) {
+    if (result.judgeResult != null) {
       console.log(
-        `  Judge: ${result.judgeResult.grade} (${result.judgeResult.score}) — ${result.judgeResult.reasoning}`
+        `  Judge: ${result.judgeResult.grade} (${result.judgeResult.score}) — ${result.judgeResult.reasoning}`,
       );
     }
   }
 
-  if (result.status === "error" && result.error) {
+  if (result.status === "error" && result.error != null) {
     console.log(`  ERROR: ${result.error}`);
   }
-}
+};
 
-function printSummary(cases: CaseResult[], totalDuration: number): void {
+const printSummary = (cases: CaseResult[], totalDuration: number): void => {
   const pass = cases.filter((c) => c.status === "pass").length;
   const fail = cases.filter((c) => c.status === "fail").length;
   const skip = cases.filter((c) => c.status === "skip").length;
   const errors = cases.filter((c) => c.status === "error").length;
 
   console.log(`\n${"─".repeat(50)}`);
-  console.log(
-    `Results: ${pass} passed, ${fail} failed, ${skip} skipped, ${errors} errors`
-  );
+  console.log(`Results: ${pass} passed, ${fail} failed, ${skip} skipped, ${errors} errors`);
   console.log(`Duration: ${(totalDuration / 1000).toFixed(1)}s`);
   console.log();
-}
+};
 
-function statusIcon(status: string): string {
+const statusIcon = (status: string): string => {
   switch (status) {
     case "pass":
       return "\x1b[32m✓\x1b[0m";
@@ -108,4 +110,4 @@ function statusIcon(status: string): string {
     default:
       return "?";
   }
-}
+};

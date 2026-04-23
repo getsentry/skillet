@@ -1,5 +1,6 @@
 import { complete } from "@mariozechner/pi-ai";
-import type { Model, Context } from "@mariozechner/pi-ai";
+import type { Context } from "@mariozechner/pi-ai";
+import type { AnyModel } from "../agent/provider.js";
 
 export interface JudgeResult {
   grade: string;
@@ -35,11 +36,11 @@ REASONING: <one paragraph explaining your grade>`;
 /**
  * Evaluate agent output against criteria using an LLM judge.
  */
-export async function judge(
-  model: Model<any>,
+export const judge = async (
+  model: AnyModel,
   agentOutput: string,
-  criteria: string
-): Promise<JudgeResult> {
+  criteria: string,
+): Promise<JudgeResult> => {
   const context: Context = {
     systemPrompt: JUDGE_PROMPT,
     messages: [
@@ -56,20 +57,20 @@ export async function judge(
     temperature: 0,
   });
 
-  // Extract text from content blocks
+  // Extract text from content blocks using type guard narrowing
   const text = response.content
-    .filter((b) => b.type === "text")
-    .map((b) => (b as { type: "text"; text: string }).text)
+    .filter((b): b is { type: "text"; text: string; textSignature?: string } => b.type === "text")
+    .map((b) => b.text)
     .join("");
 
   // Parse grade
-  const gradeMatch = text.match(/GRADE:\s*([A-E])/i);
+  const gradeMatch = /GRADE:\s*([A-E])/i.exec(text);
   const grade = gradeMatch?.[1]?.toUpperCase() ?? "E";
   const score = GRADE_MAP[grade] ?? 0.0;
 
   // Parse reasoning
-  const reasoningMatch = text.match(/REASONING:\s*([\s\S]+)/i);
+  const reasoningMatch = /REASONING:\s*([\s\S]+)/i.exec(text);
   const reasoning = reasoningMatch?.[1]?.trim() ?? text;
 
   return { grade, score, reasoning };
-}
+};

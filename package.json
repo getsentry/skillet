@@ -9,7 +9,12 @@
   "scripts": {
     "build": "node build.js",
     "dev": "node build.js --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint --type-aware src/",
+    "lint:fix": "oxlint --type-aware --fix src/",
+    "format": "oxfmt --check src/",
+    "format:fix": "oxfmt src/",
+    "check": "npm run typecheck && npm run lint && npm run format"
   },
   "dependencies": {
     "@mariozechner/pi-ai": "^0.68.1",
@@ -18,6 +23,9 @@
   "devDependencies": {
     "@types/node": "^22.15.0",
     "esbuild": "^0.25.0",
+    "oxfmt": "^0.46.0",
+    "oxlint": "^1.61.0",
+    "oxlint-tsgolint": "^0.21.1",
     "typescript": "^5.8.0"
   },
   "engines": {

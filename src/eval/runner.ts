@@ -1,10 +1,10 @@
-import type { Model } from "@mariozechner/pi-ai";
+import type { AnyModel } from "../agent/provider.js";
 import type { Skill } from "../skill/loader.js";
 import type { EvalCase, EvalFile } from "./parser.js";
 import type { CheckResult } from "./checks.js";
 import type { JudgeResult } from "./judge.js";
 import { discoverEvalFiles, parseEvalFile } from "./parser.js";
-import { createWorkspace, SkipError } from "./workspace.js";
+import { createWorkspace, SkipError, type Workspace } from "./workspace.js";
 import { checkRequirements } from "./requirements.js";
 import { runChecks } from "./checks.js";
 import { judge } from "./judge.js";
@@ -42,16 +42,20 @@ export interface EvalRunResult {
 
 export interface RunEvalOptions {
   skill: Skill;
-  agentModel: Model<any>;
-  judgeModel: Model<any>;
+  agentModel: AnyModel;
+  judgeModel: AnyModel;
   /** Called after each case completes */
   onCaseComplete?: (result: CaseResult) => void;
 }
 
+const errorMessage = (err: unknown): string => {
+  return err instanceof Error ? err.message : String(err);
+};
+
 /**
  * Discover and run all eval cases for a skill.
  */
-export async function runEvals(opts: RunEvalOptions): Promise<EvalRunResult> {
+export const runEvals = async (opts: RunEvalOptions): Promise<EvalRunResult> => {
   const { skill, agentModel, judgeModel, onCaseComplete } = opts;
 
   const evalFilePaths = discoverEvalFiles(skill.root);
@@ -81,15 +85,15 @@ export async function runEvals(opts: RunEvalOptions): Promise<EvalRunResult> {
     cases: allCases,
     totalDuration: Date.now() - runStart,
   };
-}
+};
 
-async function runSingleCase(opts: {
+const runSingleCase = async (opts: {
   evalCase: EvalCase;
   filePath: string;
   skill: Skill;
-  agentModel: Model<any>;
-  judgeModel: Model<any>;
-}): Promise<CaseResult> {
+  agentModel: AnyModel;
+  judgeModel: AnyModel;
+}): Promise<CaseResult> => {
   const { evalCase, filePath, skill, agentModel, judgeModel } = opts;
   const start = Date.now();
 
@@ -99,26 +103,36 @@ async function runSingleCase(opts: {
   };
 
   // 1. Check requirements
-  if (evalCase.requires && evalCase.requires.length > 0) {
+  if (evalCase.requires != null && evalCase.requires.length > 0) {
     const skipReason = checkRequirements(evalCase.requires);
-    if (skipReason) {
-      return { ...base, status: "skip", duration: Date.now() - start, skipReason };
+    if (skipReason != null) {
+      return {
+        ...base,
+        status: "skip",
+        duration: Date.now() - start,
+        skipReason,
+      };
     }
   }
 
   // 2. Set up workspace
-  let workspace;
+  let workspace: Workspace;
   try {
     workspace = createWorkspace(evalCase.workspace);
-  } catch (err) {
+  } catch (err: unknown) {
     if (err instanceof SkipError) {
-      return { ...base, status: "skip", duration: Date.now() - start, skipReason: err.message };
+      return {
+        ...base,
+        status: "skip",
+        duration: Date.now() - start,
+        skipReason: err.message,
+      };
     }
     return {
       ...base,
       status: "error",
       duration: Date.now() - start,
-      error: `Workspace setup failed: ${(err as Error).message}`,
+      error: `Workspace setup failed: ${errorMessage(err)}`,
     };
   }
 
@@ -135,7 +149,7 @@ async function runSingleCase(opts: {
 
     // 4. Run structural checks
     let checkResults: CheckResult[] | undefined;
-    if (evalCase.checks && evalCase.checks.length > 0) {
+    if (evalCase.checks != null && evalCase.checks.length > 0) {
       checkResults = runChecks(evalCase.checks, workspace.dir, agentResult.output);
       const failed = checkResults.filter((r) => !r.passed);
       if (failed.length > 0) {
@@ -152,7 +166,7 @@ async function runSingleCase(opts: {
 
     // 5. Run judge (only if criteria present and checks passed)
     let judgeResult: JudgeResult | undefined;
-    if (evalCase.criteria) {
+    if (evalCase.criteria != null && evalCase.criteria !== "") {
       const threshold = evalCase.threshold ?? 0.75;
       judgeResult = await judge(judgeModel, agentResult.output, evalCase.criteria);
       if (judgeResult.score < threshold) {
@@ -178,14 +192,14 @@ async function runSingleCase(opts: {
       agentOutput: agentResult.output,
       toolCallCount: agentResult.toolCallCount,
     };
-  } catch (err) {
+  } catch (err: unknown) {
     return {
       ...base,
       status: "error",
       duration: Date.now() - start,
-      error: (err as Error).message,
+      error: errorMessage(err),
     };
   } finally {
     workspace.cleanup();
   }
-}
+};

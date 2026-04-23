@@ -1,10 +1,15 @@
 import { complete, validateToolCall } from "@mariozechner/pi-ai";
-import type { Model, Context, Tool, AssistantMessage } from "@mariozechner/pi-ai";
+import type { Context } from "@mariozechner/pi-ai";
 import { createToolDefs, executeTool } from "./tools.js";
+import type { AnyModel } from "./provider.js";
 import type { Skill } from "../skill/loader.js";
 
+const isRecord = (v: unknown): v is Record<string, unknown> => {
+  return v != null && typeof v === "object" && !Array.isArray(v);
+};
+
 export interface AgentRunOptions {
-  model: Model<any>;
+  model: AnyModel;
   skill: Skill;
   workDir: string;
   turns: string[];
@@ -24,7 +29,7 @@ const MAX_STEPS = 50;
  * Run the agent loop: send turns sequentially, handle tool calls,
  * collect text output.
  */
-export async function runAgent(opts: AgentRunOptions): Promise<AgentRunResult> {
+export const runAgent = async (opts: AgentRunOptions): Promise<AgentRunResult> => {
   const { model, skill, workDir, turns, timeout } = opts;
   const tools = createToolDefs();
 
@@ -58,10 +63,12 @@ export async function runAgent(opts: AgentRunOptions): Promise<AgentRunResult> {
       // Add assistant message to context
       context.messages.push(response);
 
-      // Collect text output
+      // Collect text output — narrow via type guard instead of `as` cast
       const textParts = response.content
-        .filter((b) => b.type === "text")
-        .map((b) => (b as { type: "text"; text: string }).text);
+        .filter(
+          (b): b is { type: "text"; text: string; textSignature?: string } => b.type === "text",
+        )
+        .map((b) => b.text);
       if (textParts.length > 0) {
         outputs.push(textParts.join(""));
       }
@@ -80,10 +87,18 @@ export async function runAgent(opts: AgentRunOptions): Promise<AgentRunResult> {
         let resultText: string;
         let isError = false;
         try {
-          const validated = validateToolCall(tools, block);
-          resultText = executeTool(workDir, block.name, validated);
-        } catch (err: any) {
-          resultText = `Error: ${err.message}`;
+          // validateToolCall is typed as `any` in pi-ai; wrap to a safe shape
+          const validated: unknown = validateToolCall(tools, block);
+          const args: Record<string, unknown> = isRecord(validated) ? validated : {};
+          resultText = executeTool(workDir, block.name, args);
+        } catch (err: unknown) {
+          const message =
+            err instanceof Error
+              ? err.message
+              : typeof err === "string"
+                ? err
+                : JSON.stringify(err);
+          resultText = `Error: ${message}`;
           isError = true;
         }
 
@@ -103,9 +118,9 @@ export async function runAgent(opts: AgentRunOptions): Promise<AgentRunResult> {
     output: outputs.join("\n\n"),
     toolCallCount: totalToolCalls,
   };
-}
+};
 
-function buildSystemPrompt(skill: Skill, workDir: string): string {
+const buildSystemPrompt = (skill: Skill, workDir: string): string => {
   return `You are an AI coding agent executing a task in a workspace.
 
 Working directory: ${workDir}
@@ -115,10 +130,12 @@ Your behavior is guided by the following skill instructions. Follow them precise
 ---
 
 ${skill.body}`;
-}
+};
 
-function timeoutPromise(ms: number): Promise<never> {
-  return new Promise((_, reject) =>
-    setTimeout(() => reject(new Error(`Agent timed out after ${ms}ms`)), ms)
-  );
-}
+const timeoutPromise = (ms: number): Promise<never> => {
+  return new Promise((_, reject) => {
+    setTimeout(() => {
+      reject(new Error(`Agent timed out after ${ms}ms`));
+    }, ms);
+  });
+};

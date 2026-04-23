@@ -5,10 +5,11 @@ import type { Requirement } from "./parser.js";
  * Check if all requirements for an eval case are met.
  * Returns null if all met, or a skip reason string if not.
  */
-export function checkRequirements(requires: Requirement[]): string | null {
+export const checkRequirements = (requires: Requirement[]): string | null => {
   for (const req of requires) {
     if ("env" in req) {
-      if (!process.env[req.env]) {
+      const value = process.env[req.env];
+      if (value == null || value === "") {
         return `missing env: ${req.env}`;
       }
     } else if ("command" in req) {
@@ -20,4 +21,4 @@ export function checkRequirements(requires: Requirement[]): string | null {
     }
   }
   return null;
-}
+};

@@ -3,8 +3,8 @@ import { evalCommand } from "./commands/eval.js";
 const args = process.argv.slice(2);
 const command = args[0];
 
-async function main(): Promise<number> {
-  if (!command || command === "--help" || command === "-h") {
+const main = async (): Promise<number> => {
+  if (command == null || command === "" || command === "--help" || command === "-h") {
     printUsage();
     return 0;
   }
@@ -26,9 +26,9 @@ async function main(): Promise<number> {
       printUsage();
       return 1;
   }
-}
+};
 
-function printUsage(): void {
+const printUsage = (): void => {
   console.log(`
 skillkit — Create, evaluate, and iterate on agent skills
 
@@ -43,11 +43,12 @@ Environment:
   SKILLKIT_MODEL             Override agent model (e.g. anthropic/claude-sonnet-4-20250514)
   SKILLKIT_JUDGE_MODEL       Override judge model separately
 `);
-}
+};
 
 main()
   .then((code) => process.exit(code))
-  .catch((err) => {
-    console.error("Fatal error:", err.message);
+  .catch((err: unknown) => {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("Fatal error:", message);
     process.exit(1);
   });

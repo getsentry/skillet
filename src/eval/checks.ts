@@ -1,11 +1,5 @@
 import { execSync } from "node:child_process";
-import type {
-  Check,
-  WorkspaceCheck,
-  OutputContainsCheck,
-  OutputNotContainsCheck,
-  OutputMatchesCheck,
-} from "./parser.js";
+import type { Check, WorkspaceCheck } from "./parser.js";
 import {
   isWorkspaceCheck,
   isOutputContains,
@@ -19,10 +13,16 @@ export interface CheckResult {
   detail?: string;
 }
 
+const isExecError = (
+  err: unknown,
+): err is { status: number | null; stderr: Buffer | null; stdout: Buffer | null } => {
+  return err != null && typeof err === "object" && "status" in err;
+};
+
 /**
  * Run a single workspace check (shell command) in the given directory.
  */
-function runWorkspaceCheck(check: WorkspaceCheck, workDir: string): CheckResult {
+const runWorkspaceCheck = (check: WorkspaceCheck, workDir: string): CheckResult => {
   let stdout = "";
   let exitCode = 0;
 
@@ -34,9 +34,14 @@ function runWorkspaceCheck(check: WorkspaceCheck, workDir: string): CheckResult 
       env: { ...process.env },
     });
     stdout = result.toString();
-  } catch (err: any) {
-    exitCode = err.status ?? 1;
-    stdout = err.stdout?.toString() ?? "";
+  } catch (err: unknown) {
+    if (isExecError(err)) {
+      exitCode = err.status ?? 1;
+      stdout = err.stdout?.toString() ?? "";
+    } else {
+      exitCode = 1;
+      stdout = "";
+    }
   }
 
   const trimmed = stdout.trimEnd();
@@ -112,16 +117,12 @@ function runWorkspaceCheck(check: WorkspaceCheck, workDir: string): CheckResult 
   }
 
   return { passed: true, check, detail: "no assertion specified" };
-}
+};
 
 /**
  * Run all checks for an eval case.
  */
-export function runChecks(
-  checks: Check[],
-  workDir: string,
-  agentOutput: string
-): CheckResult[] {
+export const runChecks = (checks: Check[], workDir: string, agentOutput: string): CheckResult[] => {
   const results: CheckResult[] = [];
 
   for (const check of checks) {
@@ -159,8 +160,8 @@ export function runChecks(
   }
 
   return results;
-}
+};
 
-function truncate(s: string, max = 120): string {
+const truncate = (s: string, max = 120): string => {
   return s.length > max ? s.slice(0, max) + "..." : s;
-}
+};

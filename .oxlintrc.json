@@ -1,0 +1,40 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "import", "node"],
+  "env": {
+    "node": true,
+    "es2022": true
+  },
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "pedantic": "warn",
+    "style": "warn",
+    "restriction": "off"
+  },
+  "rules": {
+    "typescript/no-explicit-any": "error",
+    "typescript/no-non-null-assertion": "error",
+    "typescript/consistent-type-imports": "error",
+    "typescript/no-import-type-side-effects": "error",
+    "no-console": "off",
+    "no-ternary": "off",
+    "no-magic-numbers": "off",
+    "no-inline-comments": "off",
+    "no-continue": "off",
+    "id-length": "off",
+    "sort-keys": "off",
+    "sort-imports": "off",
+    "capitalized-comments": "off",
+    "max-statements": "off",
+    "func-style": ["error", "expression"],
+    "import/no-named-export": "off",
+    "import/group-exports": "off",
+    "import/no-nodejs-modules": "off",
+    "unicorn/no-process-exit": "off",
+    "unicorn/no-null": "off",
+    "unicorn/prefer-top-level-await": "off",
+    "typescript/prefer-readonly-parameter-types": "off"
+  },
+  "ignorePatterns": ["dist/", "node_modules/", "*.js"]
+}
