@@ -2,7 +2,7 @@ import { getModel, getEnvApiKey } from "@mariozechner/pi-ai";
 import type { Model } from "@mariozechner/pi-ai";
 
 /**
- * Model type alias used throughout skillkit. We don't care about the specific
+ * Model type alias used throughout skillet. We don't care about the specific
  * API the model implements, only that it's a Model — so we parameterise on the
  * base `string` API type (which satisfies `Api = KnownApi | (string & {})`).
  */

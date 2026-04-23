@@ -24,7 +24,7 @@ export const improveCommand = async (args: string[]): Promise<number> => {
     skillRoot = findSkillRoot(startPath);
   } catch {
     console.error(`Error: No SKILL.md found at ${startPath}`);
-    console.error("Use 'skillkit create <description>' to create a new skill.");
+    console.error("Use 'skillet create <description>' to create a new skill.");
     return 1;
   }
 

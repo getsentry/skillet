@@ -40,13 +40,13 @@ const main = async (): Promise<number> => {
 
 const printUsage = (): void => {
   console.log(`
-skillkit — Create, evaluate, and iterate on agent skills
+skillet — Create, evaluate, and iterate on agent skills
 
 Usage:
-  skillkit eval [path] [--json]       Run evals for a skill
-  skillkit validate [path] [--json]   Validate SKILL.md and eval files
-  skillkit create <description>       Create a new skill (coming soon)
-  skillkit improve [path]             Improve an existing skill (coming soon)
+  skillet eval [path] [--json]       Run evals for a skill
+  skillet validate [path] [--json]   Validate SKILL.md and eval files
+  skillet create <description>       Create a new skill (coming soon)
+  skillet improve [path]             Improve an existing skill (coming soon)
 
 Environment:
   ANTHROPIC_API_KEY          Use Anthropic (Claude) as the LLM provider

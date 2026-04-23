@@ -62,7 +62,7 @@ export const createWorkspace = (config?: WorkspaceConfig): Workspace => {
   }
 
   // Setup mode (or default empty)
-  const dir = mkdtempSync(join(tmpdir(), "skillkit-eval-"));
+  const dir = mkdtempSync(join(tmpdir(), "skillet-eval-"));
 
   if (config?.setup != null && config.setup !== "") {
     try {

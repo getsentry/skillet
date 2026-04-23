@@ -1,10 +1,10 @@
 {
-  "name": "skillkit",
+  "name": "skillet",
   "version": "0.0.1",
   "description": "Create, evaluate, and iterate on agent skills",
   "type": "module",
   "bin": {
-    "skillkit": "./dist/cli.js"
+    "skillet": "./dist/cli.js"
   },
   "scripts": {
     "build": "node build.js",

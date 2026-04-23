@@ -26,7 +26,7 @@ const parseCreateArgs = (args: string[]): CreateOptions | null => {
 export const createCommand = async (args: string[]): Promise<number> => {
   const opts = parseCreateArgs(args);
   if (opts == null) {
-    console.error("Usage: skillkit create <description> [--path=./my-skill] [--max-iterations=3]");
+    console.error("Usage: skillet create <description> [--path=./my-skill] [--max-iterations=3]");
     return 1;
   }
 
@@ -35,7 +35,7 @@ export const createCommand = async (args: string[]): Promise<number> => {
 
   if (existsSync(skillMdPath)) {
     console.error(`Error: SKILL.md already exists at ${targetDir}`);
-    console.error("Use 'skillkit improve' to refine an existing skill.");
+    console.error("Use 'skillet improve' to refine an existing skill.");
     return 1;
   }
 
