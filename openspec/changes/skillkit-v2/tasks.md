@@ -18,12 +18,12 @@
 
 ## 3. CLI command surface update
 
-- [ ] 3.1 Update `src/cli.ts` to dispatch `create`, `improve`, `eval`, `validate` commands and remove `iterate` stub
-- [ ] 3.2 Create `src/commands/create.ts` stub that parses description argument and `--path`/`--max-iterations` flags
-- [ ] 3.3 Create `src/commands/improve.ts` stub that parses path argument and `--max-iterations` flag
+- [x] 3.1 Update `src/cli.ts` to dispatch `create`, `improve`, `eval`, `validate` commands and remove `iterate` stub
+- [x] 3.2 Create `src/commands/create.ts` stub that parses description argument and `--path`/`--max-iterations` flags
+- [x] 3.3 Create `src/commands/improve.ts` stub that parses path argument and `--max-iterations` flag
 - [ ] 3.4 Both `create` and `improve` call shared `authorSkill()` with appropriate mode
-- [ ] 3.5 Update `--help` output to reflect new command surface
-- [ ] 3.6 Verify: `create` errors if SKILL.md exists, `improve` errors if SKILL.md missing
+- [x] 3.5 Update `--help` output to reflect new command surface
+- [x] 3.6 Verify: `create` errors if SKILL.md exists, `improve` errors if SKILL.md missing
 
 ## 4. Bundled skill-writer references
 

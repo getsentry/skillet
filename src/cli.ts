@@ -1,5 +1,7 @@
 import { evalCommand } from "./commands/eval.js";
 import { validateCommand } from "./commands/validate.js";
+import { createCommand } from "./commands/create.js";
+import { improveCommand } from "./commands/improve.js";
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -24,12 +26,10 @@ const main = async (): Promise<number> => {
     }
 
     case "create":
-      console.log("create command not yet implemented");
-      return 1;
+      return createCommand(args.slice(1));
 
     case "improve":
-      console.log("improve command not yet implemented");
-      return 1;
+      return improveCommand(args.slice(1));
 
     default:
       console.error(`Unknown command: ${command}`);
