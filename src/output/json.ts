@@ -1,4 +1,4 @@
-import type { EvalRunResult } from "../eval/types.js";
+import type { EvalRunResult } from "../eval/index.js";
 
 /**
  * Serialize eval results to JSON, written to stdout.

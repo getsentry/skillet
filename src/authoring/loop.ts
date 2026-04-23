@@ -5,8 +5,8 @@ import type { Context } from "@mariozechner/pi-ai";
 import { resolveModels } from "../agent/provider.js";
 import type { AnyModel } from "../agent/provider.js";
 import { loadSkill } from "../skill/loader.js";
-import { runEvals } from "../eval/runner.js";
-import type { EvalRunResult } from "../eval/types.js";
+import { runEvals } from "../eval/index.js";
+import type { EvalRunResult } from "../eval/index.js";
 import { buildSkillGenPrompt, buildAssessmentPrompt } from "./prompts.js";
 import { generateEvalYaml } from "./eval-gen.js";
 

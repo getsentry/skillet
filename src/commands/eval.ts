@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import { findSkillRoot, loadSkill } from "../skill/loader.js";
 import { resolveModels } from "../agent/provider.js";
-import { runEvals } from "../eval/runner.js";
+import { runEvals } from "../eval/index.js";
 import { printCaseResult, printSummary } from "../output/pretty.js";
 import { printJsonResult } from "../output/json.js";
 

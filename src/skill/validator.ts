@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { findSkillRoot, loadSkill } from "./loader.js";
-import { discoverEvalFiles, parseEvalFile } from "../eval/parser.js";
+import { discoverEvalFiles, parseEvalFile } from "../eval/index.js";
 
 // ── Types ─────────────────────────────────────────────────
 

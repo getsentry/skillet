@@ -1,0 +1,33 @@
+evals:
+  - name: validate passes for valid skill
+    workspace:
+      setup: |
+        mkdir -p skill/evals
+        cat > skill/SKILL.md << 'EOF'
+        ---
+        name: test-skill
+        description: A test skill for validation.
+        ---
+        # Test Skill
+        Do the thing.
+        EOF
+        cat > skill/evals/basic.eval.yaml << 'EOF'
+        evals:
+          - name: basic test
+            turns:
+              - "Do the thing"
+        EOF
+    turns:
+      - "Run the validate command on the skill/ directory and tell me if it passes"
+    checks:
+      - output_contains: "valid"
+
+  - name: validate fails for missing frontmatter
+    workspace:
+      setup: |
+        mkdir -p skill
+        echo "# No Frontmatter" > skill/SKILL.md
+    turns:
+      - "Run the validate command on the skill/ directory and tell me the result"
+    checks:
+      - output_contains: "frontmatter"

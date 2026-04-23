@@ -3,7 +3,7 @@ import type { Context } from "@mariozechner/pi-ai";
 import { createToolDefs, executeTool } from "./tools.js";
 import type { AnyModel } from "./provider.js";
 import type { Skill } from "../skill/loader.js";
-import type { NormalizedMessage } from "../eval/types.js";
+import type { NormalizedMessage } from "../eval/index.js";
 
 const isRecord = (v: unknown): v is Record<string, unknown> => {
   return v != null && typeof v === "object" && !Array.isArray(v);

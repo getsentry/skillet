@@ -1,4 +1,4 @@
-import type { EvalCaseResult, EvalRunResult } from "../eval/types.js";
+import type { EvalCaseResult, EvalRunResult } from "../eval/index.js";
 
 const statusIcon = (status: string): string => {
   switch (status) {

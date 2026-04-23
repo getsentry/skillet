@@ -48,13 +48,13 @@
 
 ## 6. Extractable eval engine boundary
 
-- [ ] 6.1 Create `src/eval/index.ts` as the single public entry point — re-exports `runEvals`, result types, and parser utilities only
-- [ ] 6.2 Ensure nothing outside `src/eval/` imports internal eval modules (checks, judge, workspace, requirements) directly — all access goes through the boundary
-- [ ] 6.3 Create `evals/` directory at project root for skillkit's own dogfood eval cases
-- [ ] 6.4 Write eval cases for `skillkit eval` itself: given a known skill + eval fixture, verify structured JSON output shape, check/judge results, and exit codes
-- [ ] 6.5 Write eval cases for `skillkit validate`: given valid/invalid SKILL.md fixtures, verify correct pass/fail and error messages
-- [ ] 6.6 Write eval cases for `skillkit create` (LLM-as-judge): given a description, judge whether the produced SKILL.md meets skill-writer quality bars
-- [ ] 6.7 Run skillkit's own evals via `skillkit eval` (full dogfood loop) and verify they pass
+- [x] 6.1 Create `src/eval/index.ts` as the single public entry point — re-exports `runEvals`, result types, and parser utilities only
+- [x] 6.2 Ensure nothing outside `src/eval/` imports internal eval modules (checks, judge, workspace, requirements) directly — all access goes through the boundary
+- [x] 6.3 Create `evals/` directory at project root for skillet's own dogfood eval cases
+- [x] 6.4 Write eval cases for `skillet eval` itself: given a known skill + eval fixture, verify structured JSON output shape, check/judge results, and exit codes
+- [x] 6.5 Write eval cases for `skillet validate`: given valid/invalid SKILL.md fixtures, verify correct pass/fail and error messages
+- [ ] 6.6 Write eval cases for `skillet create` (LLM-as-judge): given a description, judge whether the produced SKILL.md meets skill-writer quality bars
+- [ ] 6.7 Run skillet's own evals via `skillet eval` (full dogfood loop) and verify they pass
 
 ## 7. Update existing specs
 

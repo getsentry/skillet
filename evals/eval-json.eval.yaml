@@ -1,0 +1,27 @@
+evals:
+  - name: eval --json produces structured output
+    workspace:
+      setup: |
+        mkdir -p skill/evals
+        cat > skill/SKILL.md << 'EOF'
+        ---
+        name: echo-skill
+        description: A skill that echoes. Use when asked to echo.
+        ---
+        # Echo
+        Repeat back whatever the user says, prefixed with "Echo: ".
+        EOF
+        cat > skill/evals/basic.eval.yaml << 'EOF'
+        evals:
+          - name: echoes input
+            turns:
+              - "Say hello"
+            checks:
+              - output_contains: "hello"
+        EOF
+    turns:
+      - "Run 'node dist/cli.js eval skill/ --json' and show me the raw JSON output"
+    checks:
+      - output_contains: "cases"
+      - output_contains: "summary"
+      - output_contains: "session"
