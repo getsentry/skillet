@@ -21,29 +21,95 @@ const getModelLoose: (provider: string, modelId: string) => AnyModel =
   getModel as unknown as (provider: string, modelId: string) => AnyModel;
 
 /**
+ * Providers to try for auto-detection, in preference order.
+ * Each entry maps a provider name to:
+ *   - The default model to use
+ *   - Extra env vars to check beyond what pi-ai's getEnvApiKey handles
+ *
+ * When running inside an agent (Claude Code, Codex, Copilot, Gemini CLI),
+ * the host agent's auth token is typically inherited via environment.
+ * We check these so `skillet` just works without extra configuration.
+ */
+const PROVIDER_AUTODISCOVERY: Array<{
+  provider: string;
+  defaultModel: string;
+  extraEnvVars?: string[];
+}> = [
+  {
+    provider: "anthropic",
+    defaultModel: "claude-sonnet-4-20250514",
+    // Claude Code sets these for OAuth/subscription users
+    extraEnvVars: ["ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN"],
+  },
+  {
+    provider: "openai",
+    defaultModel: "gpt-4o",
+    // Codex CLI uses CODEX_API_KEY for exec mode
+    extraEnvVars: ["CODEX_API_KEY"],
+  },
+  {
+    provider: "github-copilot",
+    defaultModel: "gpt-4o",
+    // Copilot tokens — pi-ai already checks COPILOT_GITHUB_TOKEN, GH_TOKEN, GITHUB_TOKEN
+  },
+  {
+    provider: "google",
+    defaultModel: "gemini-2.5-flash",
+  },
+  {
+    provider: "google-gemini-cli",
+    defaultModel: "gemini-2.5-flash",
+  },
+  {
+    provider: "openrouter",
+    defaultModel: "anthropic/claude-sonnet-4",
+  },
+  {
+    provider: "groq",
+    defaultModel: "llama-3.3-70b-versatile",
+  },
+  {
+    provider: "xai",
+    defaultModel: "grok-3-mini",
+  },
+  {
+    provider: "mistral",
+    defaultModel: "mistral-large-latest",
+  },
+  {
+    provider: "cerebras",
+    defaultModel: "llama-3.3-70b",
+  },
+];
+
+const envVarIsSet = (name: string): boolean => {
+  const val = process.env[name];
+  return val != null && val !== "";
+};
+
+/**
  * Auto-detect and create an LLM model from environment variables.
  *
  * Priority:
- *  1. SKILLKIT_MODEL (explicit override, format: "provider/model-id")
- *  2. ANTHROPIC_API_KEY → anthropic/claude-sonnet-4-20250514
- *  3. OPENAI_API_KEY → openai/gpt-4o
+ *  1. SKILLET_MODEL / SKILLKIT_MODEL (explicit override, format: "provider/model-id")
+ *  2. Auto-discovery: loop through known providers, check pi-ai's getEnvApiKey
+ *     plus extra env vars for agent-inherited tokens (Claude Code, Codex, Copilot)
  *
  * Returns both an agent model and a judge model (judge can be overridden
- * separately via SKILLKIT_JUDGE_MODEL).
+ * separately via SKILLET_JUDGE_MODEL / SKILLKIT_JUDGE_MODEL).
  */
 export const resolveModels = (): {
   agent: AnyModel;
   judge: AnyModel;
 } => {
+  const explicitModel = process.env.SKILLET_MODEL ?? process.env.SKILLKIT_MODEL;
+  const explicitJudge = process.env.SKILLET_JUDGE_MODEL ?? process.env.SKILLKIT_JUDGE_MODEL;
+
   const agentModel = resolveModel(
-    process.env.SKILLKIT_MODEL !== undefined && process.env.SKILLKIT_MODEL !== ""
-      ? process.env.SKILLKIT_MODEL
-      : undefined,
+    explicitModel != null && explicitModel !== "" ? explicitModel : undefined,
   );
   const judgeModel =
-    process.env.SKILLKIT_JUDGE_MODEL !== undefined && process.env.SKILLKIT_JUDGE_MODEL !== ""
-      ? resolveModel(process.env.SKILLKIT_JUDGE_MODEL)
-      : agentModel;
+    explicitJudge != null && explicitJudge !== "" ? resolveModel(explicitJudge) : agentModel;
 
   return { agent: agentModel, judge: judgeModel };
 };
@@ -53,7 +119,7 @@ const resolveModel = (explicit?: string): AnyModel => {
     // Format: "provider/model-id" e.g. "anthropic/claude-sonnet-4-20250514"
     const [provider, ...rest] = explicit.split("/");
     if (provider == null || provider === "") {
-      throw new Error(`Invalid SKILLKIT_MODEL "${explicit}". Use format "provider/model-id".`);
+      throw new Error(`Invalid model string "${explicit}". Use format "provider/model-id".`);
     }
     const modelId = rest.join("/");
     const resolvedModelId = modelId !== "" ? modelId : getDefaultModelId(provider);
@@ -61,32 +127,44 @@ const resolveModel = (explicit?: string): AnyModel => {
     return getModelLoose(provider, resolvedModelId);
   }
 
-  // Auto-detect from environment
-  if (getEnvApiKey("anthropic") != null) {
-    return getModelLoose("anthropic", "claude-sonnet-4-20250514");
-  }
+  // Auto-discover from environment
+  return autoDiscover();
+};
 
-  if (getEnvApiKey("openai") != null) {
-    return getModelLoose("openai", "gpt-4o");
+const autoDiscover = (): AnyModel => {
+  for (const entry of PROVIDER_AUTODISCOVERY) {
+    // Check pi-ai's built-in env var detection
+    if (getEnvApiKey(entry.provider) != null) {
+      return getModelLoose(entry.provider, entry.defaultModel);
+    }
+
+    // Check extra env vars (agent-inherited tokens)
+    if (entry.extraEnvVars != null) {
+      for (const envVar of entry.extraEnvVars) {
+        if (envVarIsSet(envVar)) {
+          return getModelLoose(entry.provider, entry.defaultModel);
+        }
+      }
+    }
   }
 
   throw new Error(
-    "No LLM provider configured. Set one of:\n" +
-      "  ANTHROPIC_API_KEY\n" +
-      "  OPENAI_API_KEY\n" +
-      "  SKILLKIT_MODEL=provider/model-id",
+    "No LLM provider detected. Skillet checks these automatically:\n" +
+      "  ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN / CLAUDE_CODE_OAUTH_TOKEN\n" +
+      "  OPENAI_API_KEY / CODEX_API_KEY\n" +
+      "  COPILOT_GITHUB_TOKEN / GH_TOKEN / GITHUB_TOKEN\n" +
+      "  GEMINI_API_KEY\n" +
+      "  OPENROUTER_API_KEY / GROQ_API_KEY / XAI_API_KEY / MISTRAL_API_KEY\n\n" +
+      "Or set SKILLET_MODEL=provider/model-id explicitly.",
   );
 };
 
 const getDefaultModelId = (provider: string): string => {
-  switch (provider) {
-    case "anthropic":
-      return "claude-sonnet-4-20250514";
-    case "openai":
-      return "gpt-4o";
-    case "google":
-      return "gemini-2.5-flash";
-    default:
-      throw new Error(`Unknown provider "${provider}". Use format "provider/model-id".`);
+  const entry = PROVIDER_AUTODISCOVERY.find((e) => e.provider === provider);
+  if (entry != null) {
+    return entry.defaultModel;
   }
+  throw new Error(
+    `Unknown provider "${provider}". Known providers: ${PROVIDER_AUTODISCOVERY.map((e) => e.provider).join(", ")}`,
+  );
 };

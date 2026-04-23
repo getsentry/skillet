@@ -49,10 +49,14 @@ Usage:
   skillet improve [path]             Improve an existing skill (coming soon)
 
 Environment:
-  ANTHROPIC_API_KEY          Use Anthropic (Claude) as the LLM provider
-  OPENAI_API_KEY             Use OpenAI as the LLM provider
-  SKILLKIT_MODEL             Override agent model (e.g. anthropic/claude-sonnet-4-20250514)
-  SKILLKIT_JUDGE_MODEL       Override judge model separately
+  Auto-detected (just works when running inside Claude Code, Codex, Copilot, etc.):
+    ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN / CLAUDE_CODE_OAUTH_TOKEN
+    OPENAI_API_KEY / CODEX_API_KEY
+    COPILOT_GITHUB_TOKEN / GH_TOKEN / GITHUB_TOKEN
+    GEMINI_API_KEY / OPENROUTER_API_KEY / GROQ_API_KEY / and more
+
+  SKILLET_MODEL              Override agent model (e.g. anthropic/claude-sonnet-4-20250514)
+  SKILLET_JUDGE_MODEL        Override judge model separately
 `);
 };
 
