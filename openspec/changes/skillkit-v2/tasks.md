@@ -27,11 +27,11 @@
 
 ## 4. Bundled skill-writer references
 
-- [ ] 4.1 Create `references/` directory in project root with skill-patterns.md, authoring-guidance.md, eval-examples.md
-- [ ] 4.2 Populate reference files with distilled skill-writer knowledge (patterns, quality bars, eval case patterns)
-- [ ] 4.3 Add `references` to `files` array in package.json so they ship with the npm package
-- [ ] 4.4 Create `src/authoring/references.ts` with functions to load reference files at runtime
-- [ ] 4.5 Verify: references load correctly when running from both source and installed package
+- [x] 4.1 Create `references/` directory in project root with skill-patterns.md, authoring-guidance.md, eval-examples.md
+- [x] 4.2 Populate reference files with distilled skill-writer knowledge (patterns, quality bars, eval case patterns)
+- [x] 4.3 Add `references` to `files` array in package.json so they ship with the npm package
+- [x] 4.4 Create `src/authoring/references.ts` with functions to load reference files at runtime
+- [x] 4.5 Verify: references load correctly when running from both source and installed package
 
 ## 5. Authoring loop core
 
