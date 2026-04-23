@@ -58,4 +58,4 @@
 
 ## 7. Update existing specs
 
-- [ ] 7.1 Archive old specs and apply new/modified specs to `openspec/specs/` using `openspec archive`
+- [x] 7.1 Archive old specs and apply new/modified specs to `openspec/specs/` using `openspec archive`

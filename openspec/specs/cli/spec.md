@@ -2,7 +2,7 @@
 
 ## Purpose
 
-`skillkit` is a self-contained CLI tool distributed as an npm package. It provides commands to create, evaluate, and iteratively improve agent skills. Users invoke it via `npx skillkit <command>` with zero project-level dependencies — skillkit bundles everything needed.
+`skillkit` is a self-contained CLI tool distributed as an npm package. It provides commands to create, improve, evaluate, and validate agent skills. Users invoke it via `npx skillkit <command>` with zero project-level dependencies — skillkit bundles everything needed.
 
 ## Requirements
 
@@ -16,21 +16,41 @@ The system SHALL be distributed as an npm package with a `skillkit` binary entry
 - THEN skillkit installs from npm, executes, and produces eval results
 - AND no `node_modules` or `package.json` is created in the skill directory
 
-### Requirement: Create Command
+### Requirement: CLI command surface
 
-The system SHALL provide a `create` command that scaffolds a new skill with SKILL.md and initial eval cases using the built-in agent.
+The CLI SHALL support the following commands: `create`, `improve`, `eval`, `validate`. The `iterate` command is removed. The `create` and `improve` commands are agentic (LLM-driven). The `eval` and `validate` commands are mechanical.
 
-#### Scenario: Create skill with description argument
-- GIVEN a user in any directory
-- WHEN the user runs `npx skillkit create --name my-skill --description "Review Django access control"`
-- THEN a directory `my-skill/` is created containing `SKILL.md` and `evals/` with at least one `.eval.yaml` file
-- AND the SKILL.md contains valid frontmatter with name and description
+#### Scenario: Create command
+- **WHEN** `skillkit create "description of skill"` is run
+- **THEN** the system creates a new skill directory with SKILL.md, generates evals, runs them, and iterates
 
-#### Scenario: Create skill interactively
-- GIVEN a user in any directory
-- WHEN the user runs `npx skillkit create`
-- THEN the agent asks what the skill should do
-- AND generates the skill based on the conversation
+#### Scenario: Create with explicit path
+- **WHEN** `skillkit create "description" --path ./my-skill` is run
+- **THEN** the skill is created at the specified path
+
+#### Scenario: Create fails if SKILL.md exists
+- **WHEN** `skillkit create` targets a directory that already contains SKILL.md
+- **THEN** the command exits with an error suggesting `skillkit improve` instead
+
+#### Scenario: Improve command
+- **WHEN** `skillkit improve [path]` is run in a directory with SKILL.md
+- **THEN** the system reads the existing skill, generates/adds evals, optionally refines the skill, and iterates
+
+#### Scenario: Improve fails if no SKILL.md
+- **WHEN** `skillkit improve` targets a directory with no SKILL.md
+- **THEN** the command exits with an error suggesting `skillkit create` instead
+
+#### Scenario: Eval command with JSON
+- **WHEN** `skillkit eval [path] --json` is run
+- **THEN** structured JSON results are written to stdout
+
+#### Scenario: Validate command
+- **WHEN** `skillkit validate [path]` is run
+- **THEN** structural validation runs and reports errors (if any) with exit code 0 for valid, 1 for invalid
+
+#### Scenario: Help text
+- **WHEN** `skillkit --help` is run
+- **THEN** all four commands are listed with brief descriptions
 
 ### Requirement: Eval Command
 
@@ -53,23 +73,6 @@ The system SHALL provide an `eval` command that discovers and runs all eval case
 - WHEN the `SENTRY_REPO` environment variable is not set
 - THEN that eval case is skipped (not failed)
 - AND the skip reason is reported
-
-### Requirement: Iterate Command
-
-The system SHALL provide an `iterate` command that runs evals, feeds failures to the agent, and improves the skill in a loop.
-
-#### Scenario: Iterate until passing
-- GIVEN a skill with failing evals
-- WHEN the user runs `npx skillkit iterate`
-- THEN evals are run, failures are collected
-- AND the agent modifies `SKILL.md` and/or references to address failures
-- AND evals are re-run
-- AND the loop repeats up to a configurable maximum (default 3)
-
-#### Scenario: Iterate with all passing
-- GIVEN a skill where all evals already pass
-- WHEN the user runs `npx skillkit iterate`
-- THEN the system reports all evals pass and exits cleanly
 
 ### Requirement: LLM Provider Configuration
 

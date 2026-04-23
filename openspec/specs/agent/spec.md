@@ -2,9 +2,29 @@
 
 ## Purpose
 
-Skillkit includes a built-in minimal agent runtime for executing eval cases. The agent sends user prompts to an LLM with the skill loaded as system context, handles tool calls, and captures the agent's text output. It is not a full-featured coding agent — it provides the minimum tool surface needed for skills to function during evaluation.
+Skillkit includes a built-in minimal agent runtime that serves two roles: executing eval cases and driving skill authoring/improvement phases. The agent sends user prompts to an LLM with role-appropriate system context, handles tool calls, and captures the agent's text output. It is not a full-featured coding agent — it provides the minimum tool surface needed for skills to function during evaluation and for skill authoring during create/improve workflows.
 
 ## Requirements
+
+### Requirement: Dual-role agent runtime
+
+The agent runtime SHALL serve two roles: executing eval cases (existing behavior) and driving skill authoring/improvement phases. Both roles use the same underlying LLM call mechanism (pi-ai `complete()`) and tool surface, but with different system prompts and contexts.
+
+#### Scenario: Eval execution mode
+- **WHEN** the agent runs an eval case
+- **THEN** the system prompt contains the SKILL.md body and workspace context, and tools are scoped to the eval workspace directory
+
+#### Scenario: Authoring mode
+- **WHEN** the agent runs a skill authoring phase
+- **THEN** the system prompt contains phase-specific instructions and skill-writer reference material, and tools are scoped to the skill directory
+
+### Requirement: Agent tool surface unchanged
+
+The eval agent tool surface (bash, read_file, write_file, edit_file, list_files, grep) SHALL remain unchanged. The authoring agent MAY use the same tools scoped to the skill directory.
+
+#### Scenario: Eval tools unchanged
+- **WHEN** an eval case runs
+- **THEN** the same six tools (bash, read_file, write_file, edit_file, list_files, grep) are available as in v1
 
 ### Requirement: Agent Loop
 
