@@ -21,7 +21,7 @@ export const generateEvalYaml = async (
     ],
   };
 
-  const response = await complete(model, context, { temperature: 0 });
+  const response = await complete(model, context);
 
   const text = response.content
     .filter((b): b is { type: "text"; text: string; textSignature?: string } => b.type === "text")

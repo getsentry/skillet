@@ -156,7 +156,7 @@ const generateSkillMd = async (model: AnyModel, description: string): Promise<st
     ],
   };
 
-  const response = await complete(model, context, { temperature: 0 });
+  const response = await complete(model, context);
   return extractText(response);
 };
 
@@ -176,7 +176,7 @@ const improveSkillMd = async (
     ],
   };
 
-  const response = await complete(model, context, { temperature: 0 });
+  const response = await complete(model, context);
   return extractText(response);
 };
 
@@ -198,7 +198,7 @@ const assessResults = async (
     ],
   };
 
-  const response = await complete(model, context, { temperature: 0 });
+  const response = await complete(model, context);
   const text = extractText(response);
 
   try {

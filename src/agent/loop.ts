@@ -60,10 +60,7 @@ export const runAgent = async (opts: AgentRunOptions): Promise<AgentRunResult> =
     while (steps < MAX_STEPS) {
       steps++;
 
-      const response = await Promise.race([
-        complete(model, context, { temperature: 0 }),
-        timeoutPromise(timeout),
-      ]);
+      const response = await Promise.race([complete(model, context), timeoutPromise(timeout)]);
 
       // Add assistant message to context
       context.messages.push(response);

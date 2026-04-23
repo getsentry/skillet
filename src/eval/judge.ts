@@ -54,7 +54,6 @@ export const judge = async (
 
   const response = await complete(model, context, {
     maxTokens: 500,
-    temperature: 0,
   });
 
   // Extract text from content blocks using type guard narrowing
