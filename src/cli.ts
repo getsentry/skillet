@@ -1,4 +1,5 @@
 import { evalCommand } from "./commands/eval.js";
+import { validateCommand } from "./commands/validate.js";
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -16,12 +17,18 @@ const main = async (): Promise<number> => {
       return evalCommand(evalPath, jsonFlag);
     }
 
+    case "validate": {
+      const valJsonFlag = args.includes("--json");
+      const valPath = args.find((a, i) => i > 0 && !a.startsWith("--"));
+      return validateCommand(valPath, valJsonFlag);
+    }
+
     case "create":
       console.log("create command not yet implemented");
       return 1;
 
-    case "iterate":
-      console.log("iterate command not yet implemented");
+    case "improve":
+      console.log("improve command not yet implemented");
       return 1;
 
     default:
@@ -36,9 +43,10 @@ const printUsage = (): void => {
 skillkit — Create, evaluate, and iterate on agent skills
 
 Usage:
-  skillkit eval [path]       Run evals for a skill
-  skillkit create [path]     Create a new skill (coming soon)
-  skillkit iterate [path]    Improve a skill from eval failures (coming soon)
+  skillkit eval [path] [--json]       Run evals for a skill
+  skillkit validate [path] [--json]   Validate SKILL.md and eval files
+  skillkit create <description>       Create a new skill (coming soon)
+  skillkit improve [path]             Improve an existing skill (coming soon)
 
 Environment:
   ANTHROPIC_API_KEY          Use Anthropic (Claude) as the LLM provider

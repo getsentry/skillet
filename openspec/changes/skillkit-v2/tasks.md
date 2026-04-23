@@ -10,11 +10,11 @@
 
 ## 2. Structural validation
 
-- [ ] 2.1 Create `src/skill/validator.ts` with functions to validate SKILL.md frontmatter (required fields: name, description) and eval file structure
-- [ ] 2.2 Create `src/commands/validate.ts` that finds skill root, runs validator, reports results
-- [ ] 2.3 Add `--json` flag to validate command for structured error output
-- [ ] 2.4 Wire `validate` into `src/cli.ts` command dispatch
-- [ ] 2.5 Verify: `skillkit validate` catches missing frontmatter, missing fields, malformed eval YAML
+- [x] 2.1 Create `src/skill/validator.ts` with functions to validate SKILL.md frontmatter (required fields: name, description) and eval file structure
+- [x] 2.2 Create `src/commands/validate.ts` that finds skill root, runs validator, reports results
+- [x] 2.3 Add `--json` flag to validate command for structured error output
+- [x] 2.4 Wire `validate` into `src/cli.ts` command dispatch
+- [x] 2.5 Verify: `skillkit validate` catches missing frontmatter, missing fields, malformed eval YAML
 
 ## 3. CLI command surface update
 
