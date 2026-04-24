@@ -94,61 +94,88 @@ ${examples}
 
 ## Your Task
 
-You will receive a SKILL.md file. Produce an eval YAML file that:
-1. Tests the core behavior described in the skill (happy path)
-2. Tests at least one edge case or boundary condition
-3. Tests at least one negative case (what the agent should NOT do)
-4. Has 3-6 focused cases, each testing one specific aspect
-5. Uses structural checks (output_contains, output_matches) for positive cases —
-   verifying the agent DOES produce expected content
-6. Uses workspace setup + shell command checks for skills that modify files
-7. Uses LLM judge \`criteria\` for negative cases (what the agent should NOT do) —
-   do NOT use output_not_contains for negative cases because the agent often
-   mentions a concept while correctly not flagging it (e.g., "this code avoids
-   SQL injection" contains the string "SQL injection" but is correct behavior).
-   Instead write: \`criteria: "The agent should NOT report this as a vulnerability"\`
-8. Uses output_not_contains ONLY for truly forbidden strings (e.g., leaked PII,
-   wrong command names) — never for domain concepts the agent might reference
-9. Sets appropriate timeouts:
+You will receive a SKILL.md file. Produce an eval YAML file.
+
+### Step 1: Classify the skill's deliverable
+
+Before writing any cases, decide what the skill actually produces. Every
+eval decision flows from this.
+
+| Deliverable | What the skill produces | Eval shape |
+|---|---|---|
+| **Text content** | A written artifact: PR body, commit message, doc, code file, config | Ask the skill to write the artifact to a named file; check the file with \`run: cat <file>\` + \`contains\`/\`matches\` |
+| **Side effect** | An external action: API call, file system change, command invocation | Stub only the minimum external surface; check observable state (files, exit codes). Don't simulate the full real-world tool chain |
+| **Recommendation** | Advice, analysis, refusal, or answer in the agent's reply | Check agent's text directly with \`output_contains\`/\`output_matches\` or a \`criteria\` judge |
+
+A skill may mix these (e.g., a PR-writer recommends a title AND writes a
+body). Handle the pieces separately: file checks for the body, output
+checks for the recommendation.
+
+### Step 2: Pick what to stub vs. what to be real
+
+The eval is a controlled test of the skill's *content quality*, not a
+full simulation of the real scenario.
+
+- **Stub nothing by default.** If the skill produces text content,
+  have it write the text to a file. No need to stub anything.
+- **Stub the minimum external surface** only when the skill must invoke
+  an external command to be meaningful (e.g., a skill that reads \`git
+  status\` output genuinely needs a git repo). Prefer creating real
+  fixture state (\`git init\` + a commit) over stubbing \`git\`.
+- **Never simulate a full CLI** (\`gh pr create\`, \`aws s3 cp\`, \`kubectl
+  apply\`) just to verify the skill produces correct content. Have the
+  skill write the content to a file instead.
+
+### Step 3: Write the cases
+
+1. Test the core behavior described in the skill (happy path).
+2. Test at least one edge case or boundary condition.
+3. Test at least one negative case (what the agent should NOT do).
+4. Have 3-6 focused cases, each testing one specific aspect.
+5. Use \`criteria\` (LLM judge) for negative cases — the agent often
+   mentions a concept while correctly not flagging it (e.g., "this code
+   avoids SQL injection" contains the string "SQL injection" but is
+   correct behavior). Use \`output_not_contains\` ONLY for truly forbidden
+   literal strings (leaked PII, wrong command names).
+6. Set appropriate timeouts:
    - 30000 (30s) for output-only checks (no tool calls needed)
    - 60000 (60s) for workspace checks that read files and produce text
    - 120000 (120s) for complex multi-step workspace tasks
 
-For instruction-following skills (skills that tell the agent what to say/recommend,
-not what files to create), write turns as questions ("What command should I run?"
-or "How do I...") rather than commands ("Run X") to avoid the agent trying to
-execute the commands in the eval workspace.
+For instruction-following skills (skills that tell the agent what to
+say/recommend, not what files to create), write turns as questions
+("What command should I run?", "How do I...?") rather than commands
+("Run X") to avoid the agent trying to execute the commands.
 
-## Runtime Semantics You Must Respect
+## Runtime Rules (hard constraints)
 
-- The \`setup\` script runs once as a single \`execSync\`. The agent's bash
-  tool calls each run as separate fresh processes with the base
-  \`process.env\`. Environment changes in setup (\`export PATH=...\`,
-  \`export VAR=...\`) DO NOT persist to the agent's subsequent commands.
-- If you need a stub binary, write it to the workspace (which is the
-  agent's cwd) and have the agent invoke it via an explicit relative or
-  absolute path (\`./stub-gh\`), not by relying on \`PATH\`.
-- Never emit \`export PATH=\` or other \`export\` statements in \`setup\`
-  expecting them to survive into the agent's shell — they will not.
+These are enforced by a linter — violations will fail generation.
 
-## Test the Deliverable, Not the Delivery Mechanism
+1. **No static absolute paths.** \`/tmp/pr_body.txt\`, \`$HOME/foo\`,
+   \`~/bar\` leak state across parallel eval cases. Use relative paths
+   (they resolve inside a per-case workspace) or dynamic paths like
+   \`$(mktemp -d)\` / \`$TMPD/foo\` where \`TMPD\` comes from \`mktemp -d\`.
+2. **No \`export\` in \`setup\`.** The setup shell and the agent's bash
+   tool calls are separate processes — \`export PATH=...\` or
+   \`export VAR=...\` never reach the agent. If you need a stub binary,
+   write it to the workspace and have the skill invoke it by path
+   (\`./stub-gh\`), not via \`PATH\`.
+3. **Pair negative file checks with positive ones.** A check like
+   \`run: cat DRAFT.md\` + \`not_contains: "X"\` passes vacuously if the
+   file is missing or empty. Always include at least one positive check
+   on the same file (\`contains\`, \`matches\`, or \`test -s DRAFT.md\`).
 
-When a skill produces a distinct artifact (a PR body, a commit message,
-a config file, a code change), its eval should exercise and check that
-artifact directly — not simulate the full surrounding tool chain.
+## Criteria Phrasing (when using \`criteria\`)
 
-- Prefer: "Draft a PR description for these changes and save it to
-  \`pr-body.md\`" + \`run: cat pr-body.md\` + \`contains: "..."\`.
-- Avoid: stubbing \`gh\`, setting up fake git remotes, capturing CLI
-  args. Those test the mechanism, not the skill's actual output, and
-  they're fragile because of the runtime semantics above.
-- For artifact-producing skills, prefer file-based workspace checks
-  (\`run: cat <file>\` + \`contains\`/\`matches\`) over \`output_contains\`
-  on the agent's full stream. The agent's narration often mentions a
-  concept ("I left out Acme because...") even when the artifact itself
-  is correct; file checks isolate the artifact from the narration.
-- Reserve \`output_contains\`/\`output_not_contains\` for skills whose
-  deliverable IS the text response (advice, recommendations, refusals).
+The judge sees both the agent transcript AND the stdout of passing
+\`run:\` checks (labelled as artifacts). Phrase criteria to disambiguate
+what you're grading:
+
+- Artifact quality: "The file \`DRAFT_BODY.md\` should explain why the
+  change is needed..."
+- Agent behavior: "The agent should refuse to proceed and ask for..."
+
+Do not write criteria that could equally apply to either — pick one.
 
 Output ONLY the YAML content. No explanations, no markdown fences.
 Start with \`evals:\`.`;

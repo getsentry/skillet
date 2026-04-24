@@ -117,7 +117,40 @@ workspace:
     export PATH=stubs:$PATH   # won't reach the agent's bash calls
 ```
 
-The linter will flag `export` statements in setup for this reason.
+The linter will reject `export` statements in setup for this reason.
+
+#### Stay inside the workspace
+
+Each case gets its own fresh temp workspace. Eval cases run in parallel,
+so anything written to a shared path like `/tmp/pr_body.txt` or
+`$HOME/foo` can be clobbered by a sibling case. The linter rejects
+hardcoded paths under `/tmp`, `/var`, `$HOME`, `~`, `/home`, `/Users`.
+
+Use relative paths — they resolve inside the per-case workspace:
+
+```yaml
+workspace:
+  setup: |
+    echo 'original' > input.txt      # ok: relative, inside workspace
+turns:
+  - "Read input.txt and write an improved version to output.txt"
+checks:
+  - run: "cat output.txt"
+    contains: "improved"
+```
+
+If you genuinely need a scratch directory (rare), namespace it with
+`mktemp -d` — that path is unique per invocation and safe under
+parallel runs:
+
+```yaml
+workspace:
+  setup: |
+    TMPD=$(mktemp -d)
+    echo 'payload' > "$TMPD/src.txt"
+    # pass the path to the agent via a file, since TMPD won't survive setup
+    echo "$TMPD" > scratch-dir.txt
+```
 
 ### Existing Directory
 Uses an existing directory. Supports environment variable expansion.
@@ -134,6 +167,66 @@ evals:
     checks:
       - output_contains: "package.json"
 ```
+
+## Choosing the Eval Shape
+
+Before you write a case, classify the skill's deliverable. The shape
+of the eval follows.
+
+| Deliverable | Example skills | Eval shape |
+|---|---|---|
+| **Text content** | PR writer, commit message, code generator, doc writer | Ask the skill to write the artifact to a file; check the file |
+| **Side effect** | Refactoring skill, migration, build configurator | Create real fixture state; check files/exit codes after |
+| **Recommendation** | Security reviewer, performance advisor, Q&A helper | Check the agent's text directly with `output_*` or `criteria` |
+
+### Example: content-writing skill (preferred)
+
+The skill's job is to produce a PR body. Have it write the body to a
+file and check the file:
+
+```yaml
+evals:
+  - name: includes motivation in PR body
+    workspace:
+      setup: |
+        git init -q
+        echo 'add cache' > CHANGES.md
+    turns:
+      - "Write a PR body for the changes in CHANGES.md to DRAFT_BODY.md"
+    checks:
+      - run: "cat DRAFT_BODY.md"
+        contains: "cache"
+      - run: "test -s DRAFT_BODY.md"
+        exits: 0
+```
+
+### Example: content-writing skill (anti-pattern — avoid)
+
+Don't simulate the full delivery tool chain. This is fragile, covers
+runtime behavior the skill doesn't own, and generally can't be
+reproduced reliably:
+
+```yaml
+# DON'T DO THIS
+evals:
+  - name: creates PR
+    workspace:
+      setup: |
+        mkdir -p bin && cat > bin/gh <<'SH'
+        #!/usr/bin/env bash
+        echo "$@" > /tmp/gh_args.txt    # shared path — leaks!
+        SH
+        chmod +x bin/gh
+        export PATH="$PWD/bin:$PATH"   # won't reach the agent!
+    turns:
+      - "Open a PR for the current branch with gh"
+    checks:
+      - run: "cat /tmp/gh_args.txt"    # shared path — rejected by linter
+        contains: "--title"
+```
+
+The same behavior — "skill produces a title and body" — is tested more
+reliably by the preferred pattern above.
 
 ## Check Types
 
