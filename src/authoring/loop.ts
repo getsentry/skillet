@@ -22,6 +22,8 @@ export interface AuthorSkillOptions {
   path: string;
   /** Maximum iterations (default: 3) */
   maxIterations?: number;
+  /** Total timeout in ms for the entire authoring loop (default: 5 minutes) */
+  totalTimeout?: number;
 }
 
 export interface AuthorSkillResult {
@@ -40,6 +42,7 @@ interface AssessmentResult {
 // ── Orchestrator ──────────────────────────────────────────
 
 const DEFAULT_MAX_ITERATIONS = 3;
+const DEFAULT_TOTAL_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Main authoring loop: generate/improve a skill and its evals,
@@ -58,42 +61,62 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
     if (description == null || description === "") {
       throw new Error("Description is required for create mode");
     }
+    const genStart = Date.now();
     console.log("Generating SKILL.md...");
     const skillContent = await generateSkillMd(models.agent, description);
     mkdirSync(skillPath, { recursive: true });
     writeFileSync(skillMdPath, skillContent, "utf-8");
-    console.log(`  Written to ${skillMdPath}`);
+    console.log(`  Written to ${skillMdPath} (${((Date.now() - genStart) / 1000).toFixed(1)}s)`);
   }
 
   // Phase 2: Generate evals if none exist
   if (!existsSync(evalsDir) || !hasEvalFiles(evalsDir)) {
+    const evalGenStart = Date.now();
     console.log("Generating eval cases...");
     const skillContent = readFileSync(skillMdPath, "utf-8");
     const evalYaml = await generateEvalYaml(models.agent, skillContent);
     mkdirSync(evalsDir, { recursive: true });
     const evalPath = join(evalsDir, "basic.eval.yaml");
     writeFileSync(evalPath, evalYaml, "utf-8");
-    console.log(`  Written to ${evalPath}`);
+    console.log(`  Written to ${evalPath} (${((Date.now() - evalGenStart) / 1000).toFixed(1)}s)`);
   }
 
   // Phase 3: Run evals and iterate
   let lastEvalResult: EvalRunResult | undefined;
 
+  const loopStart = Date.now();
+  const totalTimeout = opts.totalTimeout ?? DEFAULT_TOTAL_TIMEOUT;
+
   for (let iteration = 1; iteration <= maxIterations; iteration++) {
-    console.log(`\nIteration ${iteration}/${maxIterations}`);
+    const elapsed = ((Date.now() - loopStart) / 1000).toFixed(0);
+    console.log(`\nIteration ${iteration}/${maxIterations} (${elapsed}s elapsed)`);
     console.log("Running evals...");
 
+    // Check total timeout
+    if (Date.now() - loopStart > totalTimeout) {
+      console.log(`\nTotal timeout reached (${(totalTimeout / 1000).toFixed(0)}s). Stopping.`);
+      break;
+    }
+
     const skill = loadSkill(skillPath);
+    let currentCase = "";
+    let caseStart = Date.now();
     lastEvalResult = await runEvals({
       skill,
       agentModel: models.agent,
       judgeModel: models.judge,
       onCaseComplete: (result) => {
+        const caseDuration = ((Date.now() - caseStart) / 1000).toFixed(1);
         const icon = result.status === "pass" ? "✓" : result.status === "fail" ? "✗" : "○";
-        console.log(`  ${icon} ${result.name}`);
+        console.log(`  ${icon} ${result.name}  ${caseDuration}s`);
+        caseStart = Date.now();
       },
-      onToolCall: (_caseName, toolName, step) => {
-        process.stderr.write(`\x1b[2m    step ${step}: ${toolName}\x1b[0m\r`);
+      onToolCall: (caseName, toolName, step) => {
+        if (caseName !== currentCase) {
+          currentCase = caseName;
+          console.log(`  ▸ ${caseName}`);
+        }
+        process.stderr.write(`\x1b[2m    step ${step}: ${toolName}\x1b[0m\n`);
       },
     });
 
@@ -117,26 +140,34 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
     }
 
     // Phase 4: Assess and improve
+    const assessStart = Date.now();
     console.log("Assessing failures...");
     const skillContent = readFileSync(skillMdPath, "utf-8");
     const assessment = await assessResults(models.agent, skillContent, lastEvalResult);
-    console.log(`  Assessment: ${assessment.assessment}`);
+    console.log(
+      `  Assessment (${((Date.now() - assessStart) / 1000).toFixed(1)}s): ${assessment.assessment}`,
+    );
 
     if (assessment.skillChanges != null) {
+      const improveStart = Date.now();
       console.log("Regenerating SKILL.md...");
       const improved = await improveSkillMd(models.agent, skillContent, assessment.skillChanges);
       writeFileSync(skillMdPath, improved, "utf-8");
+      console.log(`  Done (${((Date.now() - improveStart) / 1000).toFixed(1)}s)`);
     }
 
     if (assessment.evalChanges != null) {
+      const regenStart = Date.now();
       console.log("Regenerating evals...");
       const newSkillContent = readFileSync(skillMdPath, "utf-8");
       const newEvalYaml = await generateEvalYaml(models.agent, newSkillContent);
       writeFileSync(join(evalsDir, "basic.eval.yaml"), newEvalYaml, "utf-8");
+      console.log(`  Done (${((Date.now() - regenStart) / 1000).toFixed(1)}s)`);
     }
   }
 
-  console.log(`\nMax iterations reached with failures remaining.`);
+  const totalElapsed = ((Date.now() - loopStart) / 1000).toFixed(0);
+  console.log(`\nMax iterations reached with failures remaining. (${totalElapsed}s total)`);
   return {
     skillRoot: skillPath,
     iterations: maxIterations,

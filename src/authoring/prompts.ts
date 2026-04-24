@@ -22,6 +22,27 @@ ${guidance}
 
 ---
 
+## Writing Philosophy
+
+Today's LLMs are smart. They have good theory of mind and can go beyond
+rote instructions when given good context. Follow these principles:
+
+1. **Explain the why.** For every instruction, explain WHY it matters.
+   A model that understands the reasoning will generalize better than one
+   following rigid rules. If you find yourself writing ALWAYS or NEVER in
+   all caps, reframe and explain the reasoning instead.
+
+2. **Keep it lean.** Remove what isn't pulling its weight. Every line
+   competes for context window space with the user's actual task.
+
+3. **Generalize, don't overfit.** The skill will be used across many
+   different prompts and contexts. Write instructions that handle the
+   general case, not just the specific examples you're thinking of.
+
+4. **Be specific where it matters.** Use exact formats and templates
+   for high-fragility outputs (commit messages, API responses). Use
+   flexible guidance for low-fragility tasks.
+
 ## Your Task
 
 You will receive either:
@@ -35,8 +56,10 @@ Then ensure the SKILL.md covers all required dimensions for that class.
 Produce a complete SKILL.md file with:
 - Valid YAML frontmatter with \`name\` and \`description\`
 - Description containing 5+ realistic trigger phrases users would say
+  (make descriptions slightly "pushy" — include adjacent concepts that
+  should also trigger, since models tend to under-trigger skills)
 - Description in third person
-- Clear, imperative instructions in the body
+- Clear, imperative instructions in the body with reasoning
 - Decision tables for branching logic (not prose)
 - Appropriate structure tier (simple / workflow / domain expert)
 - Under 500 lines
@@ -80,7 +103,10 @@ You will receive a SKILL.md file. Produce an eval YAML file that:
    skills that guide agent responses (instruction-following skills)
 6. Uses workspace setup + shell command checks for skills that modify files
 7. Uses LLM judge criteria only for subjective quality that can't be checked structurally
-8. Sets timeout to 30000 for simple output checks, 120000 for workspace-based checks
+8. Sets appropriate timeouts:
+   - 30000 (30s) for output-only checks (no tool calls needed)
+   - 60000 (60s) for workspace checks that read files and produce text
+   - 120000 (120s) for complex multi-step workspace tasks
 
 For instruction-following skills (skills that tell the agent what to say/recommend,
 not what files to create), write turns as questions ("What command should I run?"

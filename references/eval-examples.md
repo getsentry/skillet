@@ -30,6 +30,31 @@ evals:
 | timeout | no | 120000 | Max milliseconds for agent execution |
 | requires | no | — | Prerequisites (env vars or commands) |
 
+## Writing Realistic Test Prompts
+
+Test prompts should be what a real user would actually say. Not abstract
+requests, but concrete and specific with context.
+
+**Bad prompts** (too abstract):
+```yaml
+- "Format this data"
+- "Create a chart"
+- "Review my code"
+```
+
+**Good prompts** (realistic, concrete):
+```yaml
+- "I have a Django view that loops over all orders and accesses order.customer.name — it's super slow in production. What's wrong?"
+- "Can you review the auth middleware in src/middleware/auth.ts? I'm worried about the JWT validation."
+- "I need to add eval cases that test whether the skill handles empty input and rejects binary files"
+```
+
+Include a mix of:
+- Formal and casual phrasing
+- Different levels of detail
+- Cases where the user doesn't explicitly name the concept but clearly needs it
+- Edge cases and near-misses
+
 ## Workspace Modes
 
 ### Empty (default)
@@ -165,7 +190,7 @@ evals:
         matches: "int.*int.*->.*int"
 ```
 
-## Eval Design Tips
+## Eval Design Principles
 
 1. **Test behavior, not implementation** — check what the agent produces,
    not how it produces it
@@ -176,3 +201,25 @@ evals:
    minimize agent work on fixture creation
 5. **Cover failure modes** — include cases where the agent should refuse,
    ask for clarification, or handle errors gracefully
+6. **Include negative cases** — test what the agent should NOT do
+   (output_not_contains, criteria about what to avoid)
+7. **Don't overfit** — write evals that test general principles, not
+   narrow phrasings. A skill that only works for your exact test cases
+   is useless at scale.
+8. **Near-miss negatives** — for should-not-trigger tests, use queries
+   that share keywords but need something different (not obviously
+   unrelated queries)
+
+## Instruction-Following vs Workspace Skills
+
+For skills that tell the agent what to say/recommend (not what files to create):
+- Write turns as questions ("What command should I run?", "How do I...?")
+- Use output_contains/output_not_contains checks
+- Set timeout to 30000 (these are fast)
+- Do NOT write turns that tell the agent to execute commands — it will
+  try to run them in the eval workspace
+
+For skills that produce files or modify code:
+- Use workspace setup to create the starting state
+- Use shell command checks to verify file contents
+- Set timeout to 120000 (these need tool calls)
