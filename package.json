@@ -33,7 +33,8 @@
   },
   "files": [
     "dist",
-    "references"
+    "references",
+    "skills"
   ],
   "license": "MIT"
 }
