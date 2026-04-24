@@ -13,10 +13,10 @@ Skillet adds evaluations to agent skills and iteratively improves them.
 Run via `npx @sentry/skillet <command>`. Credentials are auto-discovered —
 never prompt for API keys.
 
-## Adding Evals to an Existing Skill
+## Adding Evals to a Skill
 
-This is the primary workflow. When a skill has no evals or needs better
-coverage, capture what the user actually cares about before generating anything.
+When a skill has no evals or needs better coverage, capture what the user
+(or skill author) actually cares about before generating anything.
 
 **1. Ask about expected behaviors:**
 
@@ -49,10 +49,16 @@ evals if missing, run them, and iterate until passing (default: 3 iterations).
 If the skill has no evals yet, use the intent capture workflow above first —
 `improve` generates evals from the SKILL.md text which may miss real intent.
 
+The skill author themselves may want to use this to tighten up a skill they
+wrote — add evals for behaviors they know matter, then let skillet iterate
+on the wording.
+
 ## Creating a New Skill
 
 Run `npx @sentry/skillet create "description"` to generate SKILL.md + evals
 from scratch, run evals, and iterate. Use `--path=<dir>` to set the target.
+Useful when starting from nothing; for refining an existing skill, use
+`improve` or the eval-adding workflow above.
 
 ## Command Reference
 
@@ -69,5 +75,5 @@ from scratch, run evals, and iterate. Use `--path=<dir>` to set the target.
 
 - Always `validate` before `eval` to catch cheap errors first
 - Always use `@sentry/` scope: `npx @sentry/skillet`, not `npx skillet`
-- Never prompt for API keys — credentials are auto-discovered
+- Never mention API key names or tell the user to set environment variables — credentials are auto-discovered and require zero configuration
 - Never generate evals without first asking what the user expects
