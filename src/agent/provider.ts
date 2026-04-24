@@ -1,5 +1,7 @@
 import { execSync } from "node:child_process";
-import { platform } from "node:os";
+import { readFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
+import { homedir, platform } from "node:os";
 import { getModel, getEnvApiKey } from "@mariozechner/pi-ai";
 import type { Model } from "@mariozechner/pi-ai";
 
@@ -84,6 +86,10 @@ const PROVIDER_AUTODISCOVERY: Array<{
   },
 ];
 
+const isRecord = (v: unknown): v is Record<string, unknown> => {
+  return v != null && typeof v === "object" && !Array.isArray(v);
+};
+
 const envVarIsSet = (name: string): boolean => {
   const val = process.env[name];
   return val != null && val !== "";
@@ -140,6 +146,11 @@ const resolveModel = (explicit?: string): AnyModel => {
  *
  * Returns the access token string, or undefined if unavailable.
  */
+/**
+ * Try to read the Claude Code OAuth token from macOS Keychain.
+ * Claude Code stores credentials under service "Claude Code-credentials"
+ * with a JSON blob containing { claudeAiOauth: { accessToken, ... } }.
+ */
 const readClaudeCodeKeychainToken = (): string | undefined => {
   if (platform() !== "darwin") {
     return undefined;
@@ -154,20 +165,82 @@ const readClaudeCodeKeychainToken = (): string | undefined => {
       .trim();
 
     const parsed: unknown = JSON.parse(raw);
-    if (parsed != null && typeof parsed === "object" && "claudeAiOauth" in parsed) {
-      const oauth = (parsed as Record<string, unknown>).claudeAiOauth;
-      if (oauth != null && typeof oauth === "object" && "accessToken" in oauth) {
-        const token = (oauth as Record<string, unknown>).accessToken;
-        if (typeof token === "string" && token !== "") {
-          return token;
-        }
-      }
-    }
+    return extractClaudeOAuthToken(parsed);
   } catch {
     // Keychain unavailable, locked, or entry doesn't exist
+    return undefined;
+  }
+};
+
+/**
+ * Helper to extract claudeAiOauth.accessToken from a parsed JSON blob.
+ * Checks expiry — returns undefined if the token is expired.
+ */
+const extractClaudeOAuthToken = (parsed: unknown): string | undefined => {
+  if (parsed == null || typeof parsed !== "object" || !("claudeAiOauth" in parsed)) {
+    return undefined;
+  }
+  const oauth = (parsed as Record<string, unknown>).claudeAiOauth;
+  if (oauth == null || typeof oauth !== "object" || !("accessToken" in oauth)) {
+    return undefined;
+  }
+  const obj = oauth as Record<string, unknown>;
+
+  // Check expiry if present
+  if (typeof obj.expiresAt === "number" && obj.expiresAt < Date.now()) {
+    return undefined;
   }
 
-  return undefined;
+  const token = obj.accessToken;
+  return typeof token === "string" && token !== "" ? token : undefined;
+};
+
+/**
+ * Read Claude Code OAuth from ~/.claude/.credentials.json (Linux / fallback).
+ * On Linux, Claude Code writes credentials to this file instead of a system keychain.
+ */
+const readClaudeCodeCredentialsFile = (): string | undefined => {
+  try {
+    const credPath = join(homedir(), ".claude", ".credentials.json");
+    if (!existsSync(credPath)) {
+      return undefined;
+    }
+    const raw = readFileSync(credPath, "utf-8");
+    const parsed: unknown = JSON.parse(raw);
+    return extractClaudeOAuthToken(parsed);
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * Read OpenAI Codex credentials from ~/.codex/auth.json.
+ * The Codex CLI stores OAuth tokens and API keys here after `codex login`.
+ */
+const readCodexAuthFile = (): string | undefined => {
+  try {
+    const authPath = join(homedir(), ".codex", "auth.json");
+    if (!existsSync(authPath)) {
+      return undefined;
+    }
+    const raw = readFileSync(authPath, "utf-8");
+    const parsed: unknown = JSON.parse(raw);
+    if (!isRecord(parsed)) {
+      return undefined;
+    }
+
+    // Codex auth.json may have { token: "...", api_key: "...", ... }
+    // Try common key names
+    for (const key of ["api_key", "token", "access_token", "apiKey"]) {
+      const val = parsed[key];
+      if (typeof val === "string" && val !== "") {
+        return val;
+      }
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
 };
 
 const autoDiscover = (): AnyModel => {
@@ -187,13 +260,21 @@ const autoDiscover = (): AnyModel => {
     }
   }
 
-  // Last resort: try to read Claude Code's OAuth token from macOS Keychain.
-  // This handles the case where we're running as a subprocess of Claude Code
-  // and it has scrubbed env vars but the user has a Pro/Max subscription.
-  const keychainToken = readClaudeCodeKeychainToken();
-  if (keychainToken != null) {
-    process.env.ANTHROPIC_API_KEY = keychainToken;
+  // Credential file fallbacks — for when env vars are scrubbed by the host agent
+  // but the user has authenticated via the host's login flow.
+
+  // Claude Code: macOS Keychain or ~/.claude/.credentials.json
+  const claudeToken = readClaudeCodeKeychainToken() ?? readClaudeCodeCredentialsFile();
+  if (claudeToken != null) {
+    process.env.ANTHROPIC_API_KEY = claudeToken;
     return getModelLoose("anthropic", "claude-opus-4-7");
+  }
+
+  // OpenAI Codex: ~/.codex/auth.json
+  const codexToken = readCodexAuthFile();
+  if (codexToken != null) {
+    process.env.OPENAI_API_KEY = codexToken;
+    return getModelLoose("openai", "gpt-4o");
   }
 
   throw new Error(
@@ -203,7 +284,9 @@ const autoDiscover = (): AnyModel => {
       "  COPILOT_GITHUB_TOKEN / GH_TOKEN / GITHUB_TOKEN\n" +
       "  GEMINI_API_KEY\n" +
       "  OPENROUTER_API_KEY / GROQ_API_KEY / XAI_API_KEY / MISTRAL_API_KEY\n" +
-      "  macOS Keychain (Claude Code OAuth)\n\n" +
+      "  macOS Keychain (Claude Code OAuth)\n" +
+      "  ~/.claude/.credentials.json (Claude Code on Linux)\n" +
+      "  ~/.codex/auth.json (OpenAI Codex)\n\n" +
       "Or set SKILLET_MODEL=provider/model-id explicitly.",
   );
 };
