@@ -1,4 +1,19 @@
 # Changelog
+## 0.7.0
+
+### New Features ✨
+
+#### Lint
+
+- Pair-rule for negative file checks by @gricha in [0d36172d](https://github.com/getsentry/skillet/commit/0d36172d1d3605c5083fd2ea2fecd04bb60d0959)
+- Nudge away from `chmod +x` stub patterns in setup by @gricha in [9e53ded1](https://github.com/getsentry/skillet/commit/9e53ded1f0e78440c299437b426cbbcccb4d98a5)
+- Ban shared absolute paths and escalate export error by @gricha in [3be96ec5](https://github.com/getsentry/skillet/commit/3be96ec5cba575806f297f98f4b3d97a95e4affc)
+
+#### Other
+
+- (eval-gen) Add deliverable-classification rubric to gen prompt by @gricha in [16afd133](https://github.com/getsentry/skillet/commit/16afd13306e84db6aeabfd039dbdd343ee731692)
+- (judge) Feed workspace artifacts to the LLM judge by @gricha in [20864610](https://github.com/getsentry/skillet/commit/20864610dc87d4ff24599b7d44cab276bef7ce66)
+
 ## 0.6.0
 
 ### New Features ✨
