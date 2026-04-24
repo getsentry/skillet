@@ -1,4 +1,19 @@
 # Changelog
+## 0.6.0
+
+### New Features ✨
+
+- (eval-gen) Teach generator runtime semantics and deliverable focus by @gricha in [fd7d505e](https://github.com/getsentry/skillet/commit/fd7d505ef792be317230fc17b71b1e0c18f7b57a)
+- (lint) Warn on `export` in setup scripts by @gricha in [faac7009](https://github.com/getsentry/skillet/commit/faac70098f4c8910a2d7c76eb2049bf0d7cb4188)
+
+### Bug Fixes 🐛
+
+- (eval) Fail check when command exits non-zero without `exits` assertion by @gricha in [1fef9010](https://github.com/getsentry/skillet/commit/1fef9010b0ac115cb15a0cb7740bd5ad500a3dc6)
+
+### Documentation 📚
+
+- (evals) Explain fresh-process setup semantics by @gricha in [950cc974](https://github.com/getsentry/skillet/commit/950cc9741ca93f119e6e7e34a3575babf7ac8965)
+
 ## 0.5.0
 
 - No documented changes.
