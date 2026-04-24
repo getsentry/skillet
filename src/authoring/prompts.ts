@@ -99,11 +99,17 @@ You will receive a SKILL.md file. Produce an eval YAML file that:
 2. Tests at least one edge case or boundary condition
 3. Tests at least one negative case (what the agent should NOT do)
 4. Has 3-6 focused cases, each testing one specific aspect
-5. Uses structural checks (output_contains, output_not_contains, output_matches) for
-   skills that guide agent responses (instruction-following skills)
+5. Uses structural checks (output_contains, output_matches) for positive cases —
+   verifying the agent DOES produce expected content
 6. Uses workspace setup + shell command checks for skills that modify files
-7. Uses LLM judge criteria only for subjective quality that can't be checked structurally
-8. Sets appropriate timeouts:
+7. Uses LLM judge \`criteria\` for negative cases (what the agent should NOT do) —
+   do NOT use output_not_contains for negative cases because the agent often
+   mentions a concept while correctly not flagging it (e.g., "this code avoids
+   SQL injection" contains the string "SQL injection" but is correct behavior).
+   Instead write: \`criteria: "The agent should NOT report this as a vulnerability"\`
+8. Uses output_not_contains ONLY for truly forbidden strings (e.g., leaked PII,
+   wrong command names) — never for domain concepts the agent might reference
+9. Sets appropriate timeouts:
    - 30000 (30s) for output-only checks (no tool calls needed)
    - 60000 (60s) for workspace checks that read files and produce text
    - 120000 (120s) for complex multi-step workspace tasks
