@@ -90,6 +90,52 @@ const findExportedVars = (script: string): string[] => {
   return vars;
 };
 
+/**
+ * Find static, shared absolute paths — patterns like `/tmp/foo`, `$HOME/bar`,
+ * `~/baz`. Dynamic paths (`$(mktemp ...)`, anything embedding `$VAR` in the
+ * leaf name) are allowed because per-eval namespacing makes them safe.
+ * System paths under `/dev`, `/bin`, `/sbin`, `/usr`, `/etc` are also fine
+ * — they're for referring to system binaries/devices, not for writing state.
+ */
+const findSharedAbsolutePaths = (text: string): string[] => {
+  const hits: string[] = [];
+  const patterns = [
+    // /tmp/literal, /var/literal, /home/literal, /root/literal,
+    // /Users/literal, /private/tmp/literal — leaf must start with a
+    // literal char so `$(mktemp -d)` style dynamic paths don't match.
+    /(?:\/tmp|\/var|\/home|\/root|\/Users|\/private\/tmp)\/[A-Za-z0-9._-][A-Za-z0-9._/-]*/g,
+    // $HOME/literal — leaf starts with literal char
+    /\$HOME\/[A-Za-z0-9._-][A-Za-z0-9._/-]*/g,
+    // ~/literal at token start (space, =, >, <, |, &, (, ;, start)
+    /(?:^|[\s=><|&(;])~\/[A-Za-z0-9._-][A-Za-z0-9._/-]*/g,
+  ];
+
+  for (const rawLine of text.split("\n")) {
+    const line = rawLine.trimStart();
+    if (line.startsWith("#")) {
+      continue;
+    }
+    for (const re of patterns) {
+      let m;
+      while ((m = re.exec(rawLine)) !== null) {
+        hits.push(m[0].trim());
+      }
+    }
+  }
+
+  return hits;
+};
+
+const checkSharedPaths = (text: string, path: string, errors: LintError[]): void => {
+  const hits = findSharedAbsolutePaths(text);
+  if (hits.length > 0) {
+    errors.push({
+      path,
+      message: `Uses shared absolute path(s) ${hits.map((h) => `'${h}'`).join(", ")}. Eval cases run in parallel per-workspace — hardcoded paths under /tmp, /var, $HOME, ~ leak state across cases. Use relative paths (they resolve inside the workspace) or dynamic paths like $(mktemp -d).`,
+    });
+  }
+};
+
 // ── Linter ────────────────────────────────────────────────
 
 const MIN_TIMEOUT = 5_000;
@@ -180,16 +226,29 @@ export const lintEvalYaml = (yamlContent: string): LintResult => {
       mutated = true;
     }
 
-    // Warn on `export` in setup scripts — env doesn't persist to the
-    // agent's fresh-process bash calls, so exports here usually indicate
-    // a misunderstanding of the runtime.
+    // Error on `export` in setup scripts — env doesn't persist to the
+    // agent's fresh-process bash calls, so exports here are always wrong.
+    // Previously a warning; upgraded to error because generators kept
+    // emitting it regardless.
     if (isRecord(c.workspace) && typeof c.workspace.setup === "string") {
       const exported = findExportedVars(c.workspace.setup);
       if (exported.length > 0) {
-        fixes.push({
+        errors.push({
           path: `${path}.workspace.setup`,
-          message: `Setup exports ${exported.map((v) => `'${v}'`).join(", ")}, but agent bash calls run in fresh processes — exports won't persist. Write stubs to the workspace and invoke them by path instead.`,
+          message: `Setup exports ${exported.map((v) => `'${v}'`).join(", ")}, but the agent's bash calls run in fresh processes — exports won't reach them. Write stubs or data into the workspace and have the skill invoke them by path.`,
         });
+      }
+      checkSharedPaths(c.workspace.setup, `${path}.workspace.setup`, errors);
+    }
+
+    // Ban shared absolute paths in turns and checks — they leak state
+    // across parallel cases.
+    if (Array.isArray(c.turns)) {
+      for (let t = 0; t < c.turns.length; t++) {
+        const turn = c.turns[t];
+        if (typeof turn === "string") {
+          checkSharedPaths(turn, `${path}.turns[${t}]`, errors);
+        }
       }
     }
 
@@ -232,6 +291,11 @@ export const lintEvalYaml = (yamlContent: string): LintResult => {
             path: checkPath,
             message: `Check runs '${check.run}' but has no assertion — will always pass`,
           });
+        }
+
+        // Ban shared absolute paths in check.run commands.
+        if (typeof check.run === "string") {
+          checkSharedPaths(check.run, `${checkPath}.run`, errors);
         }
       }
     }
