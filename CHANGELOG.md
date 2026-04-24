@@ -1,4 +1,11 @@
 # Changelog
+## 0.9.0
+
+### New Features ✨
+
+- (eval-gen) Retry + hard-fail loop for load-bearing lint warnings by @gricha in [69c824f8](https://github.com/getsentry/skillet/commit/69c824f88eeed1ff9a22ad21bce5b1f6e085d52f)
+- (prompts) Align skill-gen with skill-writer; make eval-gen push for real intent by @gricha in [07fd2b16](https://github.com/getsentry/skillet/commit/07fd2b162cb37b09342802aa315c81014d5d0991)
+
 ## 0.8.0
 
 ### New Features ✨
