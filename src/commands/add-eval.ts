@@ -1,6 +1,7 @@
 import { resolve, join } from "node:path";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { complete } from "@mariozechner/pi-ai";
+import { lintEvalYaml } from "../eval/linter.js";
 import type { Context } from "@mariozechner/pi-ai";
 import { findSkillRoot, loadSkill } from "../skill/loader.js";
 import { resolveModels } from "../agent/provider.js";
@@ -141,7 +142,26 @@ export const addEvalCommand = async (args: string[]): Promise<number> => {
     return 1;
   }
 
-  const generated = stripFences(text);
+  const raw = stripFences(text);
+
+  // Lint the generated YAML
+  const lint = lintEvalYaml(raw);
+
+  if (lint.fixes.length > 0) {
+    for (const fix of lint.fixes) {
+      console.log(`\x1b[2m  lint fix: ${fix.message}\x1b[0m`);
+    }
+  }
+
+  if (lint.errors.length > 0) {
+    console.error("Generated eval YAML has errors:");
+    for (const err of lint.errors) {
+      console.error(`  ${err.path}: ${err.message}`);
+    }
+    return 1;
+  }
+
+  const generated = lint.fixedYaml ?? raw;
 
   // Merge into existing file or create new
   mkdirSync(evalsDir, { recursive: true });
