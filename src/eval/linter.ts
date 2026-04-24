@@ -71,6 +71,25 @@ const stripInlineFlags = (pattern: string): string => {
   return extractInlineFlags(pattern).cleaned;
 };
 
+/**
+ * Find variable names exported in a shell script. Skips commented lines.
+ * Matches `export FOO=...` and `export FOO` (but not `export -f fn`).
+ */
+const findExportedVars = (script: string): string[] => {
+  const vars: string[] = [];
+  for (const rawLine of script.split("\n")) {
+    const line = rawLine.trim();
+    if (line === "" || line.startsWith("#")) {
+      continue;
+    }
+    const match = /^export\s+([A-Za-z_][A-Za-z0-9_]*)\b/.exec(line);
+    if (match?.[1] != null) {
+      vars.push(match[1]);
+    }
+  }
+  return vars;
+};
+
 // ── Linter ────────────────────────────────────────────────
 
 const MIN_TIMEOUT = 5_000;
@@ -159,6 +178,19 @@ export const lintEvalYaml = (yamlContent: string): LintResult => {
       });
       c.threshold = 0.75;
       mutated = true;
+    }
+
+    // Warn on `export` in setup scripts — env doesn't persist to the
+    // agent's fresh-process bash calls, so exports here usually indicate
+    // a misunderstanding of the runtime.
+    if (isRecord(c.workspace) && typeof c.workspace.setup === "string") {
+      const exported = findExportedVars(c.workspace.setup);
+      if (exported.length > 0) {
+        fixes.push({
+          path: `${path}.workspace.setup`,
+          message: `Setup exports ${exported.map((v) => `'${v}'`).join(", ")}, but agent bash calls run in fresh processes — exports won't persist. Write stubs to the workspace and invoke them by path instead.`,
+        });
+      }
     }
 
     // Lint checks
