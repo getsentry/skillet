@@ -286,6 +286,23 @@ export const lintEvalYaml = (yamlContent: string): LintResult => {
       }
     }
 
+    // Warn: case has case-level `criteria` but no `run:` workspace checks.
+    // The judge will grade only the agent transcript — if the skill's
+    // deliverable is a file, add a `run: cat <file>` check so the judge
+    // sees the artifact. Output-only skills (recommendation, refusal) are
+    // legit false positives here; the author can ignore.
+    if (typeof c.criteria === "string" && c.criteria.trim() !== "") {
+      const hasRunCheck =
+        Array.isArray(c.checks) &&
+        c.checks.some((ch) => isRecord(ch) && typeof ch.run === "string");
+      if (!hasRunCheck) {
+        fixes.push({
+          path: `${path}.criteria`,
+          message: `Case has 'criteria' but no 'run:' checks — the judge will grade the agent transcript only. If the skill's deliverable is a file, add a \`run: cat <file>\` check (any passing assertion) so the judge sees the artifact. Ignore if the deliverable really is the agent's text response.`,
+        });
+      }
+    }
+
     // Pair-rule: a negative file check (`cat F | not_contains`) passes
     // vacuously when F is missing or empty. Require a sibling positive
     // check on the same file (`contains`, `matches`, or `test -s F`).
