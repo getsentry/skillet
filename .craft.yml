@@ -1,0 +1,13 @@
+minVersion: "2.21.2"
+changelog:
+  policy: auto
+artifactProvider:
+  name: github
+  config:
+    artifacts:
+      CI:
+        - npm-package
+targets:
+  - name: npm
+    access: public
+  - name: github
