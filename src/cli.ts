@@ -2,6 +2,7 @@ import { evalCommand } from "./commands/eval.js";
 import { validateCommand } from "./commands/validate.js";
 import { createCommand } from "./commands/create.js";
 import { improveCommand } from "./commands/improve.js";
+import { installCommand } from "./commands/install.js";
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -31,6 +32,9 @@ const main = async (): Promise<number> => {
     case "improve":
       return improveCommand(args.slice(1));
 
+    case "install":
+      return installCommand(args.slice(1));
+
     default:
       console.error(`Unknown command: ${command}`);
       printUsage();
@@ -43,10 +47,11 @@ const printUsage = (): void => {
 skillet — Create, evaluate, and iterate on agent skills
 
 Usage:
+  skillet create <description>       Create a new skill from a description
+  skillet improve [path]             Improve an existing skill
   skillet eval [path] [--json]       Run evals for a skill
   skillet validate [path] [--json]   Validate SKILL.md and eval files
-  skillet create <description>       Create a new skill (coming soon)
-  skillet improve [path]             Improve an existing skill (coming soon)
+  skillet install [path]             Install the skillet skill into your agent
 
 Environment:
   Auto-detected (just works when running inside Claude Code, Codex, Copilot, etc.):

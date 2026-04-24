@@ -17,6 +17,20 @@ npx skillet <command>
 
 Credentials are auto-discovered — do not prompt the user for API keys.
 
+## Setup
+
+Install the skillet skill into your agent (auto-detects Claude Code, OpenCode, Pi):
+
+```
+npx skillet install
+```
+
+Or specify a custom skill directory:
+
+```
+npx skillet install ~/.my-agent/skills
+```
+
 ## Commands
 
 | Intent | Command |
@@ -25,6 +39,7 @@ Credentials are auto-discovered — do not prompt the user for API keys.
 | Improve an existing skill | `npx skillet improve [path]` |
 | Run eval cases | `npx skillet eval [path]` |
 | Structural lint (no LLM) | `npx skillet validate [path]` |
+| Install skill into agent | `npx skillet install [path]` |
 
 ## create
 
