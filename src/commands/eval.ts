@@ -1,4 +1,6 @@
-import { resolve } from "node:path";
+import { resolve, join } from "node:path";
+import { mkdirSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { findSkillRoot, loadSkill } from "../skill/loader.js";
 import { resolveModels } from "../agent/provider.js";
 import { runEvals } from "../eval/index.js";
@@ -23,9 +25,14 @@ export const evalCommand = async (pathArg?: string, jsonOutput = false): Promise
 
   const skill = loadSkill(skillRoot);
 
+  // Set up trace directory for per-case output files
+  const traceDir = join(tmpdir(), `skillet-trace-${Date.now()}`);
+  mkdirSync(traceDir, { recursive: true });
+
   if (!jsonOutput) {
     console.log(`\nSkill: ${skill.meta.name}`);
-    console.log(`Root:  ${skill.root}\n`);
+    console.log(`Root:  ${skill.root}`);
+    console.log(`Trace: ${traceDir}\n`);
   }
 
   // 2. Resolve LLM models
@@ -37,16 +44,37 @@ export const evalCommand = async (pathArg?: string, jsonOutput = false): Promise
     return 1;
   }
 
-  // 3. Run evals
+  // 3. Run evals — tool call progress is buffered per case and printed on completion
+  const toolCallBuffers = new Map<string, string[]>();
+
   const result = await runEvals({
     skill,
     agentModel: models.agent,
     judgeModel: models.judge,
-    onCaseComplete: jsonOutput ? undefined : printCaseResult,
+    traceDir,
+    onCaseComplete: jsonOutput
+      ? undefined
+      : (caseResult) => {
+          // Print buffered tool calls for this case, then the result
+          const buffer = toolCallBuffers.get(caseResult.name);
+          if (buffer != null && buffer.length > 0) {
+            for (const line of buffer) {
+              process.stderr.write(line);
+            }
+          }
+          toolCallBuffers.delete(caseResult.name);
+          printCaseResult(caseResult);
+        },
     onToolCall: jsonOutput
       ? undefined
-      : (_caseName, toolName, step) => {
-          process.stderr.write(`\x1b[2m    step ${step}: ${toolName}\x1b[0m\n`);
+      : (caseName, toolName, step) => {
+          const line = `\x1b[2m    [${caseName}] step ${step}: ${toolName}\x1b[0m\n`;
+          const existing = toolCallBuffers.get(caseName);
+          if (existing != null) {
+            existing.push(line);
+          } else {
+            toolCallBuffers.set(caseName, [line]);
+          }
         },
   });
 

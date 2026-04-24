@@ -1,3 +1,5 @@
+import { writeFileSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
 import type { AnyModel } from "../agent/provider.js";
 import type { Skill } from "../skill/loader.js";
 import type { EvalCase, EvalFile } from "./parser.js";
@@ -26,6 +28,8 @@ export interface RunEvalOptions {
   onCaseComplete?: (result: EvalCaseResult) => void;
   /** Called on each tool call for live progress */
   onToolCall?: (caseName: string, toolName: string, step: number) => void;
+  /** Directory to write per-case trace files (JSON) */
+  traceDir?: string;
 }
 
 const errorMessage = (err: unknown): string => {
@@ -39,7 +43,7 @@ const emptyUsage: UsageSummary = {};
  * Discover and run all eval cases for a skill.
  */
 export const runEvals = async (opts: RunEvalOptions): Promise<EvalRunResult> => {
-  const { skill, agentModel, judgeModel, onCaseComplete, onToolCall } = opts;
+  const { skill, agentModel, judgeModel, onCaseComplete, onToolCall, traceDir } = opts;
 
   const evalFilePaths = discoverEvalFiles(skill.root);
   if (evalFilePaths.length === 0) {
@@ -61,6 +65,11 @@ export const runEvals = async (opts: RunEvalOptions): Promise<EvalRunResult> => 
     }
   }
 
+  // Set up trace directory if requested
+  if (traceDir != null) {
+    mkdirSync(traceDir, { recursive: true });
+  }
+
   // Run all cases in parallel
   const promises = caseEntries.map(({ evalCase, filePath }) =>
     runSingleCase({
@@ -71,6 +80,12 @@ export const runEvals = async (opts: RunEvalOptions): Promise<EvalRunResult> => 
       judgeModel,
       onToolCall,
     }).then((result) => {
+      // Write trace file for this case
+      if (traceDir != null) {
+        const safeName = result.name.replace(/[^a-zA-Z0-9-_]/g, "_");
+        const tracePath = join(traceDir, `${safeName}.json`);
+        writeFileSync(tracePath, JSON.stringify(result, null, 2), "utf-8");
+      }
       onCaseComplete?.(result);
       return result;
     }),
