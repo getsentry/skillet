@@ -2,7 +2,30 @@ import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 
 // ── Types ─────────────────────────────────────────────────
 
+export type LintRule =
+  | "timeout-bounds"
+  | "threshold-bounds"
+  | "regex-inline-flags"
+  | "run-without-assertion"
+  | "export-in-setup-nudge"
+  | "chmod-x-stub"
+  | "criteria-without-run"
+  | "pair-rule-negative";
+
+/**
+ * Load-bearing rules escalate to errors during generation if they
+ * survive retries. Advisory rules stay warnings.
+ */
+export const LOAD_BEARING_RULES: ReadonlySet<LintRule> = new Set<LintRule>([
+  "run-without-assertion",
+  "criteria-without-run",
+  "pair-rule-negative",
+]);
+
 export interface LintFix {
+  rule: LintRule;
+  /** True if the fix mutated the YAML; false means advisory only */
+  autoFixed: boolean;
   path: string;
   message: string;
 }
@@ -15,7 +38,7 @@ export interface LintError {
 export interface LintResult {
   /** Fatal issues — YAML should not be written */
   errors: LintError[];
-  /** Auto-applied fixes */
+  /** Auto-applied fixes and advisory warnings */
   fixes: LintFix[];
   /** The corrected YAML string (only if no errors) */
   fixedYaml?: string;
@@ -225,6 +248,8 @@ export const lintEvalYaml = (yamlContent: string): LintResult => {
     if (typeof c.timeout === "number") {
       if (c.timeout < MIN_TIMEOUT) {
         fixes.push({
+          rule: "timeout-bounds",
+          autoFixed: true,
           path: `${path}.timeout`,
           message: `Timeout ${c.timeout}ms too low, fixed to ${DEFAULT_FIX_TIMEOUT_LOW}ms`,
         });
@@ -232,6 +257,8 @@ export const lintEvalYaml = (yamlContent: string): LintResult => {
         mutated = true;
       } else if (c.timeout > MAX_TIMEOUT) {
         fixes.push({
+          rule: "timeout-bounds",
+          autoFixed: true,
           path: `${path}.timeout`,
           message: `Timeout ${c.timeout}ms too high, fixed to ${DEFAULT_FIX_TIMEOUT_HIGH}ms`,
         });
@@ -243,6 +270,8 @@ export const lintEvalYaml = (yamlContent: string): LintResult => {
     // Threshold bounds
     if (typeof c.threshold === "number" && (c.threshold < 0 || c.threshold > 1)) {
       fixes.push({
+        rule: "threshold-bounds",
+        autoFixed: true,
         path: `${path}.threshold`,
         message: `Threshold ${c.threshold} out of [0,1] range, fixed to 0.75`,
       });
@@ -269,6 +298,8 @@ export const lintEvalYaml = (yamlContent: string): LintResult => {
       // an executable.
       if (/\bchmod\s+\+x\b/.test(c.workspace.setup)) {
         fixes.push({
+          rule: "chmod-x-stub",
+          autoFixed: false,
           path: `${path}.workspace.setup`,
           message: `Setup chmod +x's a file — this usually indicates a stubbed external command. If the skill's deliverable is text content, prefer having it write to a plain file (e.g., DRAFT.md) and check the file instead of simulating a CLI.`,
         });
@@ -297,6 +328,8 @@ export const lintEvalYaml = (yamlContent: string): LintResult => {
         c.checks.some((ch) => isRecord(ch) && typeof ch.run === "string");
       if (!hasRunCheck) {
         fixes.push({
+          rule: "criteria-without-run",
+          autoFixed: false,
           path: `${path}.criteria`,
           message: `Case has 'criteria' but no 'run:' checks — the judge will grade the agent transcript only. If the skill's deliverable is a file, add a \`run: cat <file>\` check (any passing assertion) so the judge sees the artifact. Ignore if the deliverable really is the agent's text response.`,
         });
@@ -338,6 +371,8 @@ export const lintEvalYaml = (yamlContent: string): LintResult => {
       for (const [file, idx] of negFiles) {
         if (!posFiles.has(file)) {
           fixes.push({
+            rule: "pair-rule-negative",
+            autoFixed: false,
             path: `${path}.checks[${idx}]`,
             message: `Negative check on '${file}' without a sibling positive check — a missing or empty file will pass this vacuously. Add \`run: cat ${file}\` with \`contains\`/\`matches\`, or \`run: test -s ${file}\` with \`exits: 0\`.`,
           });
@@ -381,6 +416,8 @@ export const lintEvalYaml = (yamlContent: string): LintResult => {
           check.exits === undefined
         ) {
           fixes.push({
+            rule: "run-without-assertion",
+            autoFixed: false,
             path: checkPath,
             message: `Check runs '${check.run}' but has no assertion — will always pass`,
           });
@@ -423,6 +460,8 @@ const lintRegexField = (
     const cleaned = stripInlineFlags(pattern);
     if (isValidRegex(cleaned)) {
       fixes.push({
+        rule: "regex-inline-flags",
+        autoFixed: true,
         path: `${checkPath}.${field}`,
         message: `Rewrote Python-style inline flags: "${pattern}" → "${cleaned}"`,
       });

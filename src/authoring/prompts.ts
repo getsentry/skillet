@@ -188,6 +188,29 @@ Phrase criteria to disambiguate what you're grading:
 
 Do not write criteria that could equally apply to either — pick one.
 
+### Deterministic \`run:\` checks must be strictly narrower than criteria
+
+If the same case has both \`run:\` checks and \`criteria\`, the \`run:\`
+checks must only fail when the criteria would also fail. A \`run:\`
+check is a hard gate — if it fails, the judge never runs. So any valid
+behavior the criteria accepts must also pass the \`run:\` check.
+
+Concretely: if criteria uses **"or"**, **"either"**, or otherwise
+accepts multiple valid behaviors, DO NOT emit a \`run:\` check that
+tests one of them. Let the judge decide. Example:
+
+- **Wrong**: criteria says "refuse to proceed OR create a feature branch";
+  \`run: "git branch --show-current"\` + \`not_contains: "main"\`. A correct
+  refusal (agent asks the user first, doesn't switch branches) fails
+  the \`run:\` check and the eval reports fail even though criteria is
+  satisfied.
+- **Right**: drop the \`run:\` check. Let the judge read the transcript
+  and grade against the full criteria.
+
+Rule of thumb: if you can't write the \`run:\` check as "this fact must
+be true for ANY valid agent behavior per the criteria," don't include
+it — use the judge alone.
+
 Output ONLY the YAML content. No explanations, no markdown fences.
 Start with \`evals:\`.`;
 };

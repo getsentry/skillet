@@ -1,11 +1,9 @@
 import { resolve, join } from "node:path";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { complete } from "@mariozechner/pi-ai";
-import { lintEvalYaml } from "../eval/linter.js";
-import type { Context } from "@mariozechner/pi-ai";
 import { findSkillRoot, loadSkill } from "../skill/loader.js";
 import { resolveModels } from "../agent/provider.js";
 import { loadEvalExamples } from "../authoring/references.js";
+import { generateEvalYamlWithRetry } from "../authoring/eval-gen.js";
 
 const buildAddEvalPrompt = (): string => {
   const examples = loadEvalExamples();
@@ -36,14 +34,6 @@ ${examples}
 
 Output ONLY the YAML cases. No explanations, no markdown fences.
 Start with \`evals:\`.`;
-};
-
-const stripFences = (text: string): string => {
-  const fenceMatch = /^```(?:ya?ml)?\s*\n([\s\S]*?)\n```$/i.exec(text.trim());
-  if (fenceMatch?.[1] != null) {
-    return fenceMatch[1].trim();
-  }
-  return text;
 };
 
 export const addEvalCommand = async (args: string[]): Promise<number> => {
@@ -115,53 +105,21 @@ export const addEvalCommand = async (args: string[]): Promise<number> => {
     `\n## Behavior Descriptions (generate one eval case per description)\n\n${descriptionsText}`,
   ].join("\n");
 
-  const context: Context = {
-    systemPrompt: buildAddEvalPrompt(),
-    messages: [
-      {
-        role: "user",
-        content: userContent,
-        timestamp: Date.now(),
+  let generated: string;
+  try {
+    generated = await generateEvalYamlWithRetry({
+      model: models.agent,
+      systemPrompt: buildAddEvalPrompt(),
+      initialUserContent: userContent,
+      logProgress: (msg) => {
+        console.log(`\x1b[2m  ${msg}\x1b[0m`);
       },
-    ],
-  };
-
-  const response = await complete(models.agent, context);
-
-  const text = response.content
-    .filter((b): b is { type: "text"; text: string; textSignature?: string } => b.type === "text")
-    .map((b) => b.text)
-    .join("")
-    .trim();
-
-  if (text === "" || response.stopReason === "error") {
-    console.error("Error: LLM returned empty response");
-    if (response.errorMessage != null) {
-      console.error(`  ${response.errorMessage}`);
-    }
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`Error: ${msg}`);
     return 1;
   }
-
-  const raw = stripFences(text);
-
-  // Lint the generated YAML
-  const lint = lintEvalYaml(raw);
-
-  if (lint.fixes.length > 0) {
-    for (const fix of lint.fixes) {
-      console.log(`\x1b[2m  lint fix: ${fix.message}\x1b[0m`);
-    }
-  }
-
-  if (lint.errors.length > 0) {
-    console.error("Generated eval YAML has errors:");
-    for (const err of lint.errors) {
-      console.error(`  ${err.path}: ${err.message}`);
-    }
-    return 1;
-  }
-
-  const generated = lint.fixedYaml ?? raw;
 
   // Merge into existing file or create new
   mkdirSync(evalsDir, { recursive: true });
