@@ -45,6 +45,15 @@ If the criteria references a named artifact ("the PR body should…",
 artifact. Use the transcript for criteria about agent behavior
 (refusals, clarifying questions, reasoning).
 
+If the criteria clearly references a deliverable artifact the skill
+is supposed to produce (a file, a written body, a message), but no
+matching artifact is present, DO NOT fall back to grading the
+transcript as a substitute — the eval case is malformed and the
+result would be misleading. Grade E and say so in the reasoning:
+"criteria references artifact X but no matching workspace check was
+provided; judged transcript only." This surfaces the miswiring to
+the author instead of silently passing.
+
 Respond in this exact format:
 GRADE: <letter>
 REASONING: <one paragraph explaining your grade>`;
