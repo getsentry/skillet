@@ -119,6 +119,37 @@ not what files to create), write turns as questions ("What command should I run?
 or "How do I...") rather than commands ("Run X") to avoid the agent trying to
 execute the commands in the eval workspace.
 
+## Runtime Semantics You Must Respect
+
+- The \`setup\` script runs once as a single \`execSync\`. The agent's bash
+  tool calls each run as separate fresh processes with the base
+  \`process.env\`. Environment changes in setup (\`export PATH=...\`,
+  \`export VAR=...\`) DO NOT persist to the agent's subsequent commands.
+- If you need a stub binary, write it to the workspace (which is the
+  agent's cwd) and have the agent invoke it via an explicit relative or
+  absolute path (\`./stub-gh\`), not by relying on \`PATH\`.
+- Never emit \`export PATH=\` or other \`export\` statements in \`setup\`
+  expecting them to survive into the agent's shell — they will not.
+
+## Test the Deliverable, Not the Delivery Mechanism
+
+When a skill produces a distinct artifact (a PR body, a commit message,
+a config file, a code change), its eval should exercise and check that
+artifact directly — not simulate the full surrounding tool chain.
+
+- Prefer: "Draft a PR description for these changes and save it to
+  \`pr-body.md\`" + \`run: cat pr-body.md\` + \`contains: "..."\`.
+- Avoid: stubbing \`gh\`, setting up fake git remotes, capturing CLI
+  args. Those test the mechanism, not the skill's actual output, and
+  they're fragile because of the runtime semantics above.
+- For artifact-producing skills, prefer file-based workspace checks
+  (\`run: cat <file>\` + \`contains\`/\`matches\`) over \`output_contains\`
+  on the agent's full stream. The agent's narration often mentions a
+  concept ("I left out Acme because...") even when the artifact itself
+  is correct; file checks isolate the artifact from the narration.
+- Reserve \`output_contains\`/\`output_not_contains\` for skills whose
+  deliverable IS the text response (advice, recommendations, refusals).
+
 Output ONLY the YAML content. No explanations, no markdown fences.
 Start with \`evals:\`.`;
 };
