@@ -66,10 +66,20 @@ Produce a complete SKILL.md file with:
 
 Apply these depth gates before finalizing:
 1. All class-required dimensions are covered
-2. Description would trigger on realistic user queries
-3. Description would NOT trigger on unrelated queries
-4. No general knowledge padding — only domain-specific content
-5. Imperative voice throughout
+2. Description contains 5+ realistic trigger phrases (hard floor, not a
+   target — under-triggering is a common failure mode)
+3. Description would trigger on realistic user queries
+4. Description would NOT trigger on unrelated queries
+5. Imperative voice throughout — no descriptive or passive constructions.
+   Speak AS the skill addressing the agent ("Read the diff"), never
+   ABOUT the skill ("This skill reads the diff").
+6. Independence: no runtime references to other skills by name. Do not
+   write "use the X skill", "run sentry-skills:Y", or "load
+   skills/other-skill/references/foo.md". State the intent directly
+   and trust skill discovery. Other skills may be absent, renamed, or
+   shadowed — any runtime dependency silently breaks. Mentions in
+   provenance/audit/meta content are fine; the rule targets runtime.
+7. No general knowledge padding — only domain-specific content
 
 Output ONLY the SKILL.md content. No explanations, no markdown fences wrapping it.
 Start with \`---\` (the frontmatter delimiter).`;
@@ -95,6 +105,25 @@ ${examples}
 ## Your Task
 
 You will receive a SKILL.md file. Produce an eval YAML file.
+
+### Step 0: Enumerate the skill's behavioral clauses
+
+Read the SKILL.md as a spec, not a document. List every concrete
+behavioral clause it encodes — each "do this", "don't do that",
+decision-table row, "if X then Y", required output format, refusal
+condition, and must-not. One case per clause is the target.
+
+The eval exists to prove the skill does what it says. If a clause isn't
+covered by at least one case, the skill's behavior on that clause is
+untested — the generator's output is incomplete, regardless of how
+many cases it contains. Do not write a generic "happy path + one edge
++ one negative" triad and stop; that structure is convenient but only
+tests three random clauses out of potentially many.
+
+Also enumerate "leakage risks" — things the skill explicitly says to
+avoid, internal reasoning it should not expose, secrets/PII it should
+strip. Each gets a case (or a combined negative case if they share a
+check).
 
 ### Step 1: Classify the skill's deliverable
 
@@ -128,19 +157,48 @@ full simulation of the real scenario.
 
 ### Step 3: Write the cases
 
-1. Test the core behavior described in the skill (happy path).
-2. Test at least one edge case or boundary condition.
-3. Test at least one negative case (what the agent should NOT do).
-4. Have 3-6 focused cases, each testing one specific aspect.
-5. Use \`criteria\` (LLM judge) for negative cases — the agent often
+1. One case per clause from Step 0. Don't cap case count at a target
+   number — let the skill's complexity drive it. A 3-rule skill gets
+   ~3 cases; a 15-rule skill with branching gets ~15.
+2. Each case probes one specific clause. Name the case after the
+   clause it tests.
+3. Include at least one negative case per behavioral must-not, and at
+   least one leakage-risk case if Step 0 identified any.
+4. Use \`criteria\` (LLM judge) for negative cases — the agent often
    mentions a concept while correctly not flagging it (e.g., "this code
    avoids SQL injection" contains the string "SQL injection" but is
    correct behavior). Use \`output_not_contains\` ONLY for truly forbidden
    literal strings (leaked PII, wrong command names).
-6. Set appropriate timeouts:
+5. Set appropriate timeouts:
    - 30000 (30s) for output-only checks (no tool calls needed)
    - 60000 (60s) for workspace checks that read files and produce text
    - 120000 (120s) for complex multi-step workspace tasks
+
+### Step 4: Assertions must test intent, not presence
+
+An eval passes a check but fails its purpose if the assertion is
+vacuous. Avoid:
+
+- Generic success strings: \`contains: "done"\`, \`contains: "ok"\`,
+  \`contains: "success"\`, \`contains: "completed"\`. An agent that produces
+  anything at all will pass these — they test presence of output, not
+  that the output is correct.
+- Restating the turn: if the turn says "write a PR body about the cache
+  refactor", don't check \`contains: "cache"\`. The agent will echo the
+  input whether it did the work or not.
+- Single-word checks on long artifacts: \`contains: "summary"\` on a
+  multi-paragraph document proves almost nothing.
+
+Instead, each assertion should reference content that would only appear
+if the skill actually applied its behavior. For a PR-writer skill with
+a "must include the motivation" clause, check for motivation-specific
+phrasing the skill is responsible for producing ("why", "because",
+"motivation:", or judge-graded "explains the motivation for..."). For
+a refactoring skill, check for structural artifacts the skill should
+have produced (renamed symbols, extracted helpers, added tests).
+
+When in doubt: could this assertion pass on a wrong answer? If yes,
+tighten it or replace it with a judge \`criteria\` call.
 
 For instruction-following skills (skills that tell the agent what to
 say/recommend, not what files to create), write turns as questions
