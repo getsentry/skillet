@@ -86,6 +86,39 @@ evals:
         equals: "new"
 ```
 
+#### Fresh-process semantics (important)
+
+`setup` runs once as a single shell. Each of the agent's subsequent
+bash calls runs in its own fresh process with the base environment —
+so `export VAR=...` in `setup` does **not** persist into the agent's
+shell. This is the most common footgun when authoring evals.
+
+If you need the agent to call a stub binary, write the stub into the
+workspace and invoke it by path:
+
+```yaml
+workspace:
+  setup: |
+    cat > stub-gh <<'SH'
+    #!/usr/bin/env bash
+    echo "stub called with: $*"
+    SH
+    chmod +x stub-gh
+turns:
+  - "Run ./stub-gh pr create --title hi and tell me what it printed"
+```
+
+Do **not** do this — the `export PATH` is silently useless:
+
+```yaml
+workspace:
+  setup: |
+    mkdir -p stubs && cp real-gh stubs/gh
+    export PATH=stubs:$PATH   # won't reach the agent's bash calls
+```
+
+The linter will flag `export` statements in setup for this reason.
+
 ### Existing Directory
 Uses an existing directory. Supports environment variable expansion.
 
