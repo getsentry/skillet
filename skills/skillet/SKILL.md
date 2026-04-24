@@ -114,24 +114,62 @@ Auto-detects Claude Code, OpenCode, and Pi skill directories.
 
 ## Workflows
 
-**New skill from scratch:**
+### New skill from scratch
 ```
 npx @sentry/skillet create "what the skill does"
 ```
 This runs the full loop: generate SKILL.md → generate evals → run → iterate.
 
-**Add specific eval cases to an existing skill:**
+### Adding evals to an existing skill (intent capture)
+
+When a skill has no evals, or the user wants to add evals for new behaviors,
+do NOT immediately generate evals from the SKILL.md alone. First capture
+what the user actually cares about — the SKILL.md may not reflect their
+real expectations.
+
+**Step 1: Ask the user about expected behaviors.** Questions to ask:
+
+| Question | Why it matters |
+|----------|---------------|
+| "What are the 3-5 most important things this skill should do correctly?" | Focuses evals on high-value behaviors |
+| "Can you give me an example prompt and what good output looks like?" | Grounds evals in real expectations |
+| "What should this skill NOT do? Any common mistakes?" | Catches false-positive and boundary cases |
+| "Are there edge cases or tricky inputs it should handle?" | Covers failure modes |
+
+**Step 2: Convert answers to behavior descriptions.** Turn each answer into
+a concise behavior statement:
+- "should recommend select_related for FK access in loops"
+- "should NOT flag single .get() as N+1"
+- "should handle files with no imports gracefully"
+
+**Step 3: Generate evals from the descriptions.**
 ```
-npx @sentry/skillet add-eval ./my-skill "handles empty input" "rejects invalid format"
+npx @sentry/skillet add-eval ./my-skill "behavior 1" "behavior 2" "behavior 3"
 ```
 
-**Validate then evaluate:**
+**Step 4: Run and review.**
+```
+npx @sentry/skillet eval ./my-skill
+```
+
+This intent-first approach produces evals that test what the user wants,
+not what the LLM infers from the SKILL.md text.
+
+### Improving an existing skill
+```
+npx @sentry/skillet improve ./my-skill
+```
+Reads SKILL.md, generates/adds evals if missing, runs evals, iterates.
+If the skill already has evals, it uses them. If not, consider the
+intent capture workflow above first.
+
+### Validate then evaluate
 ```
 npx @sentry/skillet validate ./my-skill
 npx @sentry/skillet eval ./my-skill
 ```
 
-**Get structured failure data for debugging:**
+### Get structured failure data for debugging
 ```
 npx @sentry/skillet eval ./my-skill --json
 ```

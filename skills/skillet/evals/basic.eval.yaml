@@ -14,7 +14,11 @@ evals:
       - "I already have a SKILL.md at ./my-review-skill but it needs work. What command?"
     checks:
       - output_contains: "improve"
-      - output_not_contains: "create"
+    criteria: |
+      The primary recommendation should be the improve command, not create.
+      The agent may mention create in passing but improve must be the clear
+      first recommendation.
+    threshold: 0.75
     timeout: 30000
 
   - name: selects eval for running tests
@@ -90,6 +94,32 @@ evals:
       The validate step should appear before the eval step in the
       recommended workflow.
     threshold: 0.75
+    timeout: 30000
+
+  # ── Intent capture ───────────────────────────────
+
+  - name: asks about expected behaviors before generating evals for existing skill
+    turns:
+      - "I have a commit message skill at ./commit-skill that's been working well but has no evals. Can you help me add some?"
+    criteria: |
+      The agent's response must ask the user questions to understand
+      expected behaviors BEFORE generating or running any evals. Look for
+      questions about what the skill should do correctly, examples of
+      good/bad output, edge cases, or what the skill should NOT do.
+      The agent may mention add-eval as part of explaining the workflow,
+      but the primary action in this response must be asking questions,
+      not running commands.
+    threshold: 0.75
+    timeout: 30000
+
+  - name: converts user intent into add-eval command after gathering info
+    turns:
+      - "I have a code review skill. I want to add evals for it."
+      - "The most important behaviors are: it should flag security issues in user input handling, it should not flag test files unless asked, and it should always suggest specific fixes not just point out problems."
+    checks:
+      - output_contains: "add-eval"
+      - output_matches: "security|input"
+      - output_matches: "test file"
     timeout: 30000
 
   # ── Error guidance ──────────────────────────────
