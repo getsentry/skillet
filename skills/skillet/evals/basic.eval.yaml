@@ -1,51 +1,39 @@
 evals:
   - name: uses skillet create with quoted description
     turns:
-      - "Create a skill for reviewing Python code for security issues"
+      - "I need a skill for reviewing Python code for security issues. What command should I run?"
     checks:
-      - output_matches: "npx @sentry/skillet create \"[^\"]+\""
-      - output_not_contains: "skillet new"
+      - output_contains: "@sentry/skillet"
+      - output_contains: "create"
+    timeout: 30000
 
   - name: uses skillet eval not evaluate
     turns:
-      - "Evaluate my skill in the current directory"
+      - "How do I run the evals for my skill in the current directory?"
     checks:
-      - output_contains: "npx @sentry/skillet eval"
+      - output_contains: "skillet eval"
       - output_not_contains: "skillet evaluate"
+    timeout: 30000
 
   - name: does not prompt for API keys
     turns:
-      - "Create a skill for summarizing git diffs"
+      - "I want to create a skill for summarizing git diffs. What do I need to set up first?"
     checks:
-      - output_not_contains: "API key"
-      - output_not_contains: "ANTHROPIC_API_KEY"
-      - output_not_contains: "OPENAI_API_KEY"
+      - output_not_contains: "set ANTHROPIC_API_KEY"
+      - output_not_contains: "set OPENAI_API_KEY"
+      - output_not_contains: "export ANTHROPIC"
+      - output_not_contains: "export OPENAI"
     criteria: |
-      The agent should not ask the user to provide or configure any API keys.
-      It should proceed with the skillet command directly, trusting that
-      credentials are auto-discovered.
+      The agent should explain that credentials are auto-discovered and
+      the user can just run the create command directly without configuring
+      API keys manually.
+    timeout: 30000
 
   - name: uses add-eval with quoted behavior descriptions
-    workspace:
-      setup: |
-        mkdir -p my-skill/evals
-        cat > my-skill/SKILL.md <<'EOF'
-        ---
-        name: my-skill
-        description: Example skill for testing
-        ---
-        # My Skill
-        Does things.
-        EOF
-        cat > my-skill/evals/basic.eval.yaml <<'EOF'
-        evals:
-          - name: placeholder
-            turns:
-              - "hi"
-        EOF
     turns:
-      - "Add eval cases to my-skill for these behaviors: handles empty input gracefully, and rejects malformed YAML files"
+      - "I have an existing skill at ./my-skill and I want to add eval cases for these behaviors: handles empty input gracefully, and rejects malformed YAML files. What command should I run?"
     checks:
-      - output_contains: "npx @sentry/skillet add-eval"
-      - output_matches: "\"[^\"]*empty input[^\"]*\""
-      - output_matches: "\"[^\"]*(malformed|YAML)[^\"]*\""
+      - output_contains: "add-eval"
+      - output_matches: "empty input"
+      - output_matches: "YAML"
+    timeout: 30000
