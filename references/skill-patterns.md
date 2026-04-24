@@ -1,5 +1,17 @@
 # Skill Patterns
 
+## Skill Classes
+
+Classify the target skill before authoring. Each class has required coverage dimensions.
+
+| Class | When to use | Required dimensions |
+|-------|-------------|---------------------|
+| `workflow-process` | Repeatable operations, CI/task orchestration | Preconditions, ordered flow, failure handling, safety boundaries |
+| `integration-documentation` | Library/framework integration, SDK usage | API surface, config options, common use cases, known issues/workarounds |
+| `security-review` | Vulnerability finding, exploitability review | Vulnerability classes, exploit paths, false-positive controls, remediations |
+| `skill-authoring` | Creating/updating/evaluating other skills | Source provenance, depth gates, transformed examples |
+| `generic` | Does not match above | Explicit dimensions chosen and justified |
+
 ## Structure Tiers
 
 ### Simple (SKILL.md only)
@@ -42,6 +54,54 @@ description: A helpful skill for code quality.
 Write in third person. Include all "when to use" info in the description,
 not the body — the body is only loaded after triggering.
 
+**Validate triggers with two query sets:**
+- Should-trigger: queries that MUST activate this skill
+- Should-NOT-trigger: queries that must NOT activate this skill
+
+## Workflow Patterns
+
+### Sequential
+Break complex tasks into numbered steps with an overview early:
+```markdown
+1. Analyze the input
+2. Create a plan
+3. Execute the plan
+4. Verify the result
+```
+
+### Conditional
+Guide agents through decision points:
+```markdown
+**Creating new content?** → Follow "Creation workflow" below
+**Editing existing content?** → Follow "Editing workflow" below
+```
+
+### Feedback Loops
+Use validate-fix-repeat for quality-sensitive tasks:
+```markdown
+1. Make changes
+2. Validate: run checks
+3. If validation fails: fix and re-validate
+4. Only proceed when validation passes
+```
+
+## Output Patterns
+
+### Decision Tables
+Use when output depends on input characteristics:
+```markdown
+| Input Type | Action |
+|-----------|--------|
+| Single file | Inline summary |
+| Multiple files | Grouped report |
+```
+
+### Template Pattern
+Provide exact templates for strict-format outputs.
+
+### Examples Pattern
+Provide input/output pairs when style matters.
+
 ## Reference Files
 
 - Load conditionally based on detected context (language, framework, etc.)
@@ -58,3 +118,4 @@ not the body — the body is only loaded after triggering.
 - Duplicating project conventions → reference CLAUDE.md/AGENTS.md instead
 - Hardcoded paths → use relative paths from skill root
 - Time-sensitive information → use "legacy" sections with deprecation notes
+- Trigger info in body instead of description → move to description field

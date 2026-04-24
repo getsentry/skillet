@@ -2,109 +2,151 @@
 name: skillet
 description: >
   Use the skillet CLI to create, evaluate, improve, and validate agent skills.
-  Use when asked to "create a skill", "make a skill for X", "evaluate my skill",
-  "run evals", "improve this skill", "validate the skill", or when working with
-  SKILL.md files and eval YAML.
+  Use when asked to "create a skill", "make a skill for X", "write a skill",
+  "evaluate my skill", "run evals", "test my skill", "improve this skill",
+  "add evals", "add tests for this skill", "validate the skill", "check skill
+  structure", or when working with SKILL.md files and eval YAML files.
 ---
 
 # Skillet CLI
 
-Skillet creates, evaluates, and improves agent skills. Install and run via npx:
+Skillet creates, evaluates, and improves agent skills via `npx @sentry/skillet`.
 
-```
-npx @sentry/skillet <command>
-```
+## Preconditions
 
-Credentials are auto-discovered — do not prompt the user for API keys.
+- Node.js >= 20 installed
+- LLM credentials auto-discovered — do NOT prompt the user for API keys
+- No project setup required — skillet is self-contained via npx
 
-## Setup
+## Command Selection
 
-Install the skillet skill into your agent (auto-detects Claude Code, OpenCode, Pi):
-
-```
-npx @sentry/skillet install
-```
-
-Or specify a custom skill directory:
-
-```
-npx @sentry/skillet install ~/.my-agent/skills
-```
-
-## Commands
-
-| Intent | Command |
-|--------|---------|
-| New skill from a description | `npx @sentry/skillet create "description"` |
-| Improve an existing skill | `npx @sentry/skillet improve [path]` |
-| Run eval cases | `npx @sentry/skillet eval [path]` |
-| Add eval cases from descriptions | `npx @sentry/skillet add-eval [path] "behavior"` |
-| Structural lint (no LLM) | `npx @sentry/skillet validate [path]` |
-| Install skill into agent | `npx @sentry/skillet install [path]` |
+| User intent | Command |
+|-------------|---------|
+| New skill from a description | `npx @sentry/skillet create` |
+| Improve existing skill / fix failures | `npx @sentry/skillet improve` |
+| Run eval cases against a skill | `npx @sentry/skillet eval` |
+| Add eval cases from behavior descriptions | `npx @sentry/skillet add-eval` |
+| Quick structural check (no LLM) | `npx @sentry/skillet validate` |
+| Install this skill into an agent | `npx @sentry/skillet install` |
 
 ## create
 
-Generates SKILL.md + evals from a description, runs evals, iterates until passing.
+Generate a new skill from a natural-language description. Produces SKILL.md,
+generates eval cases, runs them, and iterates until passing.
 
 ```
-npx @sentry/skillet create "Django N+1 query reviewer" [--path=./my-skill] [--max-iterations=3]
+npx @sentry/skillet create "description of what the skill does"
 ```
 
-Errors if SKILL.md already exists at the target path. Use `improve` instead.
+| Flag | Purpose |
+|------|---------|
+| `--path=<dir>` | Target directory (default: derived from description) |
+| `--max-iterations=N` | Max improve iterations (default: 3) |
+
+Errors if SKILL.md already exists at the target. Use `improve` instead.
 
 ## improve
 
-Reads existing SKILL.md, generates or adds evals, refines the skill, iterates.
+Read an existing SKILL.md, generate or add evals, refine the skill, iterate.
 
 ```
-npx @sentry/skillet improve [path] [--max-iterations=3]
+npx @sentry/skillet improve [path]
 ```
+
+| Flag | Purpose |
+|------|---------|
+| `--max-iterations=N` | Max improve iterations (default: 3) |
 
 Errors if no SKILL.md found. Use `create` instead.
 
 ## eval
 
-Runs all `evals/**/*.eval.yaml` cases and reports results. No modifications.
+Run all `evals/**/*.eval.yaml` cases. Reports pass/fail per case.
 
 ```
-npx @sentry/skillet eval [path]          # Pretty output
-npx @sentry/skillet eval [path] --json   # Structured JSON
+npx @sentry/skillet eval [path]
+npx @sentry/skillet eval [path] --json
 ```
 
-Exit code 0 if all pass, 1 if any fail.
+- Default output: colored pass/fail icons with tool call progress
+- `--json`: structured JSON with session transcript, usage, checks, judge results
+- Exit code 0 if all pass, 1 if any fail or error
+
+Always run `validate` first to catch cheap structural errors before expensive LLM evals.
 
 ## add-eval
 
-Generates eval cases from natural-language behavior descriptions and appends them to the eval file.
+Generate eval cases from natural-language behavior descriptions.
 
 ```
-npx @sentry/skillet add-eval "should greet by name when name is provided"
-npx @sentry/skillet add-eval ./my-skill "handles empty input" "errors on missing file"
-npx @sentry/skillet add-eval "rejects invalid YAML" --file=edge-cases.eval.yaml
+npx @sentry/skillet add-eval [path] "behavior description" ["another behavior"]
 ```
 
-Multiple descriptions generate one eval case each. Appends to existing eval files.
+| Flag | Purpose |
+|------|---------|
+| `--file=<name>` | Eval file name (default: basic.eval.yaml) |
+
+Each description produces one eval case. Appends to existing eval files.
+Multiple descriptions can be passed as separate quoted arguments.
 
 ## validate
 
-Fast structural check — no LLM calls. Verifies frontmatter, required fields, eval YAML.
+Fast structural check — no LLM calls. Verifies frontmatter, required fields,
+eval YAML parsing. Completes in under 1 second.
 
 ```
-npx @sentry/skillet validate [path]          # Pretty output
-npx @sentry/skillet validate [path] --json   # Structured JSON
+npx @sentry/skillet validate [path]
+npx @sentry/skillet validate [path] --json
 ```
 
-Always run before `eval` to catch cheap errors first.
+- Exit code 0 if valid, 1 if errors found
 
-## Workflow
+## install
 
-**New skill:**
-1. `npx @sentry/skillet create "what the skill does"` — generates everything and iterates
+Copy the skillet usage skill into the agent's skill directory.
 
-**Fix a failing skill:**
-1. `npx @sentry/skillet eval --json` — get structured failures
-2. Edit SKILL.md or eval YAML based on failures
-3. `npx @sentry/skillet eval` — verify fixes
+```
+npx @sentry/skillet install
+npx @sentry/skillet install <custom-path>
+```
 
-**Quick check:**
-1. `npx @sentry/skillet validate` — catches frontmatter/structure issues in <1s
+Auto-detects Claude Code, OpenCode, and Pi skill directories.
+
+## Workflows
+
+**New skill from scratch:**
+```
+npx @sentry/skillet create "what the skill does"
+```
+This runs the full loop: generate SKILL.md → generate evals → run → iterate.
+
+**Add specific eval cases to an existing skill:**
+```
+npx @sentry/skillet add-eval ./my-skill "handles empty input" "rejects invalid format"
+```
+
+**Validate then evaluate:**
+```
+npx @sentry/skillet validate ./my-skill
+npx @sentry/skillet eval ./my-skill
+```
+
+**Get structured failure data for debugging:**
+```
+npx @sentry/skillet eval ./my-skill --json
+```
+
+## Error Handling
+
+| Error | Cause | Resolution |
+|-------|-------|------------|
+| "No LLM provider detected" | No API keys in environment | Credentials are auto-discovered; check that the host agent has authenticated |
+| "No SKILL.md found" | Wrong directory or skill not created yet | Use `create` to make a new skill, or `cd` to the skill directory |
+| "SKILL.md already exists" | Tried `create` on existing skill | Use `improve` instead |
+| "Invalid eval file" | Malformed YAML in evals/ | Run `validate` to see specific parse errors |
+
+## Do NOT
+
+- Prompt the user for API keys — skillet auto-discovers credentials
+- Use `npx skillet` without the `@sentry/` scope — wrong package
+- Run `eval` without checking `validate` first for new/modified skills
