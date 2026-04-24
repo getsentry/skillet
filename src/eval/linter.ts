@@ -239,6 +239,16 @@ export const lintEvalYaml = (yamlContent: string): LintResult => {
         });
       }
       checkSharedPaths(c.workspace.setup, `${path}.workspace.setup`, errors);
+      // Nudge: `chmod +x` in setup usually means a stub is being
+      // prepared. For content-writing skills, have the skill write its
+      // deliverable to a plain file and check the file — don't simulate
+      // an executable.
+      if (/\bchmod\s+\+x\b/.test(c.workspace.setup)) {
+        fixes.push({
+          path: `${path}.workspace.setup`,
+          message: `Setup chmod +x's a file — this usually indicates a stubbed external command. If the skill's deliverable is text content, prefer having it write to a plain file (e.g., DRAFT.md) and check the file instead of simulating a CLI.`,
+        });
+      }
     }
 
     // Ban shared absolute paths in turns and checks — they leak state
