@@ -24,6 +24,8 @@ export interface RunEvalOptions {
   judgeModel: AnyModel;
   /** Called after each case completes */
   onCaseComplete?: (result: EvalCaseResult) => void;
+  /** Called on each tool call for live progress */
+  onToolCall?: (caseName: string, toolName: string, step: number) => void;
 }
 
 const errorMessage = (err: unknown): string => {
@@ -37,7 +39,7 @@ const emptyUsage: UsageSummary = {};
  * Discover and run all eval cases for a skill.
  */
 export const runEvals = async (opts: RunEvalOptions): Promise<EvalRunResult> => {
-  const { skill, agentModel, judgeModel, onCaseComplete } = opts;
+  const { skill, agentModel, judgeModel, onCaseComplete, onToolCall } = opts;
 
   const evalFilePaths = discoverEvalFiles(skill.root);
   if (evalFilePaths.length === 0) {
@@ -59,6 +61,7 @@ export const runEvals = async (opts: RunEvalOptions): Promise<EvalRunResult> => 
         skill,
         agentModel,
         judgeModel,
+        onToolCall,
       });
       allCases.push(result);
       onCaseComplete?.(result);
@@ -86,8 +89,9 @@ const runSingleCase = async (opts: {
   skill: Skill;
   agentModel: AnyModel;
   judgeModel: AnyModel;
+  onToolCall?: (caseName: string, toolName: string, step: number) => void;
 }): Promise<EvalCaseResult> => {
-  const { evalCase, filePath, skill, agentModel, judgeModel } = opts;
+  const { evalCase, filePath, skill, agentModel, judgeModel, onToolCall } = opts;
   const start = Date.now();
 
   const base = { name: evalCase.name, file: filePath };
@@ -146,6 +150,12 @@ const runSingleCase = async (opts: {
       workDir: workspace.dir,
       turns: evalCase.turns,
       timeout,
+      onToolCall:
+        onToolCall != null
+          ? (name, step) => {
+              onToolCall(evalCase.name, name, step);
+            }
+          : undefined,
     });
 
     const session: NormalizedSession = {

@@ -43,6 +43,11 @@ export const evalCommand = async (pathArg?: string, jsonOutput = false): Promise
     agentModel: models.agent,
     judgeModel: models.judge,
     onCaseComplete: jsonOutput ? undefined : printCaseResult,
+    onToolCall: jsonOutput
+      ? undefined
+      : (caseName, toolName, step) => {
+          process.stderr.write(`\x1b[2m  [${caseName}] step ${step}: ${toolName}\x1b[0m\r`);
+        },
   });
 
   if (result.cases.length === 0) {

@@ -15,6 +15,8 @@ export interface AgentRunOptions {
   workDir: string;
   turns: string[];
   timeout: number;
+  /** Called on each tool call for progress visibility */
+  onToolCall?: (name: string, step: number) => void;
 }
 
 export interface AgentRunResult {
@@ -33,7 +35,7 @@ const MAX_STEPS = 50;
  * collect text output.
  */
 export const runAgent = async (opts: AgentRunOptions): Promise<AgentRunResult> => {
-  const { model, skill, workDir, turns, timeout } = opts;
+  const { model, skill, workDir, turns, timeout, onToolCall } = opts;
   const tools = createToolDefs();
 
   const systemPrompt = buildSystemPrompt(skill, workDir);
@@ -87,6 +89,7 @@ export const runAgent = async (opts: AgentRunOptions): Promise<AgentRunResult> =
       for (const block of toolCalls) {
         if (block.type !== "toolCall") continue;
         totalToolCalls++;
+        onToolCall?.(block.name, steps);
 
         let resultText: string;
         let isError = false;

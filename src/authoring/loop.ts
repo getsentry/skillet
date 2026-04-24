@@ -92,6 +92,9 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
         const icon = result.status === "pass" ? "✓" : result.status === "fail" ? "✗" : "○";
         console.log(`  ${icon} ${result.name}`);
       },
+      onToolCall: (_caseName, toolName, step) => {
+        process.stderr.write(`\x1b[2m    step ${step}: ${toolName}\x1b[0m\r`);
+      },
     });
 
     const { summary } = lastEvalResult;
