@@ -27,3 +27,6 @@ export type {
 
 // Parser (for validation and eval discovery)
 export { discoverEvalFiles, parseEvalFile, type EvalFile, type EvalCase } from "./parser.js";
+
+// Linter (for validating generated eval YAML)
+export { lintEvalYaml, type LintResult, type LintFix, type LintError } from "./linter.js";
