@@ -1,4 +1,18 @@
 # Changelog
+## 0.3.0
+
+### New Features ✨
+
+- (skill) Add intent capture workflow for eval authoring by @gricha in [7fceee84](https://github.com/getsentry/skillet/commit/7fceee8491a2ea39531bae8340bfb4650cca552e)
+
+### Bug Fixes 🐛
+
+- (skill) Clean up wording, clarify skill-author use case by @gricha in [d5a62602](https://github.com/getsentry/skillet/commit/d5a626028db0d038fc1ad7c8d7f618d46e419365)
+
+### Internal Changes 🔧
+
+- (skill) Restructure skillet skill around eval-first workflow by @gricha in [9289abd9](https://github.com/getsentry/skillet/commit/9289abd9259e08ec8e12b9b40bef0391e778e484)
+
 ## 0.2.0
 
 ### New Features ✨
