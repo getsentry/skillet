@@ -53,20 +53,31 @@ export const runEvals = async (opts: RunEvalOptions): Promise<EvalRunResult> => 
   const allCases: EvalCaseResult[] = [];
   const runStart = Date.now();
 
+  // Collect all cases across files
+  const caseEntries: Array<{ evalCase: EvalCase; filePath: string }> = [];
   for (const file of evalFiles) {
     for (const evalCase of file.cases) {
-      const result = await runSingleCase({
-        evalCase,
-        filePath: file.path,
-        skill,
-        agentModel,
-        judgeModel,
-        onToolCall,
-      });
-      allCases.push(result);
-      onCaseComplete?.(result);
+      caseEntries.push({ evalCase, filePath: file.path });
     }
   }
+
+  // Run all cases in parallel
+  const promises = caseEntries.map(({ evalCase, filePath }) =>
+    runSingleCase({
+      evalCase,
+      filePath,
+      skill,
+      agentModel,
+      judgeModel,
+      onToolCall,
+    }).then((result) => {
+      onCaseComplete?.(result);
+      return result;
+    }),
+  );
+
+  const results = await Promise.all(promises);
+  allCases.push(...results);
 
   const durationMs = Date.now() - runStart;
 
