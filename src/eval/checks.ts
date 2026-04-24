@@ -12,6 +12,10 @@ export interface CheckResult {
   passed: boolean;
   check: Check;
   detail: string;
+  /** The `run:` command, for workspace checks only */
+  command?: string;
+  /** Captured stdout of the `run:` command, for workspace checks only */
+  stdout?: string;
 }
 
 /**
@@ -72,13 +76,14 @@ const runWorkspaceCheck = (check: WorkspaceCheck, workDir: string): CheckResult 
   }
 
   const trimmed = stdout.trimEnd();
+  const common = { check, command: check.run, stdout: trimmed };
 
   // Exit code check
   if (check.exits !== undefined) {
     return {
+      ...common,
       name: `run: ${check.run} (exits)`,
       passed: exitCode === check.exits,
-      check,
       detail: `exit code: ${exitCode} (expected ${check.exits})`,
     };
   }
@@ -88,9 +93,9 @@ const runWorkspaceCheck = (check: WorkspaceCheck, workDir: string): CheckResult 
   // not_contains silently pass (e.g. `cat missing-file` → "" does not contain X).
   if (exitCode !== 0) {
     return {
+      ...common,
       name: `run: ${check.run}`,
       passed: false,
-      check,
       detail: `command failed with exit code ${exitCode}`,
     };
   }
@@ -100,9 +105,9 @@ const runWorkspaceCheck = (check: WorkspaceCheck, workDir: string): CheckResult 
     const re = buildRegex(check.matches);
     const passed = re.test(trimmed);
     return {
+      ...common,
       name: `run: ${check.run} (matches)`,
       passed,
-      check,
       detail: passed
         ? `matched /${check.matches}/`
         : `stdout "${truncate(trimmed)}" did not match /${check.matches}/`,
@@ -113,9 +118,9 @@ const runWorkspaceCheck = (check: WorkspaceCheck, workDir: string): CheckResult 
   if (check.contains !== undefined) {
     const passed = trimmed.includes(check.contains);
     return {
+      ...common,
       name: `run: ${check.run} (contains)`,
       passed,
-      check,
       detail: passed
         ? `contains "${check.contains}"`
         : `stdout "${truncate(trimmed)}" does not contain "${check.contains}"`,
@@ -126,9 +131,9 @@ const runWorkspaceCheck = (check: WorkspaceCheck, workDir: string): CheckResult 
   if (check.not_contains !== undefined) {
     const passed = !trimmed.includes(check.not_contains);
     return {
+      ...common,
       name: `run: ${check.run} (not_contains)`,
       passed,
-      check,
       detail: passed
         ? `does not contain "${check.not_contains}"`
         : `stdout "${truncate(trimmed)}" contains "${check.not_contains}" (unexpected)`,
@@ -139,9 +144,9 @@ const runWorkspaceCheck = (check: WorkspaceCheck, workDir: string): CheckResult 
   if (check.equals !== undefined) {
     const passed = trimmed === check.equals.trim();
     return {
+      ...common,
       name: `run: ${check.run} (equals)`,
       passed,
-      check,
       detail: passed
         ? `equals "${check.equals}"`
         : `stdout "${truncate(trimmed)}" does not equal "${check.equals}"`,
@@ -152,16 +157,16 @@ const runWorkspaceCheck = (check: WorkspaceCheck, workDir: string): CheckResult 
   if (check.not_equals !== undefined) {
     const passed = trimmed !== check.not_equals.trim();
     return {
+      ...common,
       name: `run: ${check.run} (not_equals)`,
       passed,
-      check,
       detail: passed
         ? `does not equal "${check.not_equals}"`
         : `stdout equals "${check.not_equals}" (unexpected)`,
     };
   }
 
-  return { name: `run: ${check.run}`, passed: true, check, detail: "no assertion specified" };
+  return { ...common, name: `run: ${check.run}`, passed: true, detail: "no assertion specified" };
 };
 
 /**

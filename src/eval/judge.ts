@@ -16,22 +16,48 @@ const GRADE_MAP: Record<string, number> = {
   E: 0.0,
 };
 
+export interface JudgeArtifact {
+  /** The shell command that produced this artifact (e.g. "cat DRAFT_BODY.md") */
+  command: string;
+  /** The captured stdout */
+  stdout: string;
+}
+
 const JUDGE_PROMPT = `You are an evaluator judging the quality of an AI agent's output.
 
 You will be given:
-1. The agent's output text
-2. Evaluation criteria describing what good output looks like
+1. The agent's transcript (what the agent said, plus any tool use)
+2. Optionally, artifacts the agent produced in its workspace (captured
+   via workspace check commands like \`cat DRAFT.md\`). When artifacts
+   are present, they are the ground-truth deliverable — grade their
+   content against the criteria, not the agent's narration of what it did.
+3. Evaluation criteria describing what good output looks like
 
-Grade the output from A to E:
+Grade from A to E:
 - A: Excellent — fully meets all criteria
 - B: Good — meets most criteria with minor gaps
 - C: Acceptable — meets some criteria but has notable gaps
 - D: Poor — fails to meet most criteria
 - E: Failing — does not meet the criteria at all
 
+If the criteria references a named artifact ("the PR body should…",
+"the commit message must…") and that artifact is present, grade the
+artifact. Use the transcript for criteria about agent behavior
+(refusals, clarifying questions, reasoning).
+
 Respond in this exact format:
 GRADE: <letter>
 REASONING: <one paragraph explaining your grade>`;
+
+const formatArtifacts = (artifacts: JudgeArtifact[]): string => {
+  if (artifacts.length === 0) {
+    return "";
+  }
+  const blocks = artifacts.map(
+    (a) => `### Artifact: \`${a.command}\`\n\n\`\`\`\n${a.stdout}\n\`\`\``,
+  );
+  return `\n\n## Workspace Artifacts\n\n${blocks.join("\n\n")}`;
+};
 
 /**
  * Evaluate agent output against criteria using an LLM judge.
@@ -40,13 +66,15 @@ export const judge = async (
   model: AnyModel,
   agentOutput: string,
   criteria: string,
+  artifacts: JudgeArtifact[] = [],
 ): Promise<JudgeResult> => {
+  const artifactSection = formatArtifacts(artifacts);
   const context: Context = {
     systemPrompt: JUDGE_PROMPT,
     messages: [
       {
         role: "user",
-        content: `## Agent Output\n\n${agentOutput}\n\n## Evaluation Criteria\n\n${criteria}`,
+        content: `## Agent Transcript\n\n${agentOutput}${artifactSection}\n\n## Evaluation Criteria\n\n${criteria}`,
         timestamp: Date.now(),
       },
     ],

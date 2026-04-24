@@ -15,7 +15,7 @@ import { discoverEvalFiles, parseEvalFile } from "./parser.js";
 import { createWorkspace, SkipError, type Workspace } from "./workspace.js";
 import { checkRequirements } from "./requirements.js";
 import { runChecks } from "./checks.js";
-import { judge } from "./judge.js";
+import { judge, type JudgeArtifact } from "./judge.js";
 import { runAgent } from "../agent/loop.js";
 
 // ── Runner options ────────────────────────────────────────
@@ -195,9 +195,22 @@ const runSingleCase = async (opts: {
 
     // 4. Run structural checks
     let checks: CheckResultNormalized[] = [];
+    let artifacts: JudgeArtifact[] = [];
     if (evalCase.checks != null && evalCase.checks.length > 0) {
       const rawChecks = runChecks(evalCase.checks, workspace.dir, agentResult.output);
       checks = rawChecks.map((c) => ({ name: c.name, passed: c.passed, detail: c.detail }));
+      // Surface workspace check stdouts to the judge as artifacts.
+      // If the skill's deliverable is a file, the criteria should be
+      // judged against its contents, not the agent's narration of what
+      // it did. Only include passing checks — failed ones short-circuit
+      // below anyway, and we don't want to feed garbage to the judge.
+      const seen = new Set<string>();
+      for (const c of rawChecks) {
+        if (!c.passed || c.command == null || c.stdout == null) continue;
+        if (seen.has(c.command)) continue;
+        seen.add(c.command);
+        artifacts.push({ command: c.command, stdout: c.stdout });
+      }
       const failed = checks.filter((c) => !c.passed);
       if (failed.length > 0) {
         return {
@@ -216,7 +229,7 @@ const runSingleCase = async (opts: {
     let judgeNormalized: JudgeResultNormalized | undefined;
     if (evalCase.criteria != null && evalCase.criteria !== "") {
       const threshold = evalCase.threshold ?? 0.75;
-      const judgeResult = await judge(judgeModel, agentResult.output, evalCase.criteria);
+      const judgeResult = await judge(judgeModel, agentResult.output, evalCase.criteria, artifacts);
       judgeNormalized = {
         grade: judgeResult.grade,
         score: judgeResult.score,
