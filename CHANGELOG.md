@@ -1,4 +1,12 @@
 # Changelog
+## 0.8.0
+
+### New Features ✨
+
+- (eval-gen) Require run: cat pairing for artifact-targeted criteria by @gricha in [dfc951b6](https://github.com/getsentry/skillet/commit/dfc951b61894cb6dc6d6ccbb08aa3206d0e2841d)
+- (judge) Flag artifact-vs-transcript mismatch instead of falling back by @gricha in [00210639](https://github.com/getsentry/skillet/commit/002106396c83289523f5d200bd01ed136214603f)
+- (lint) Warn when criteria present but no run: checks by @gricha in [9b3d4ca3](https://github.com/getsentry/skillet/commit/9b3d4ca3168fe7015abd13f108e822b041446d70)
+
 ## 0.7.0
 
 ### New Features ✨
