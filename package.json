@@ -1,5 +1,5 @@
 {
-  "name": "skillet",
+  "name": "@sentry/skillet",
   "version": "0.0.1",
   "description": "Create, evaluate, and iterate on agent skills",
   "type": "module",

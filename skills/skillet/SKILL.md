@@ -38,6 +38,7 @@ npx skillet install ~/.my-agent/skills
 | New skill from a description | `npx skillet create "description"` |
 | Improve an existing skill | `npx skillet improve [path]` |
 | Run eval cases | `npx skillet eval [path]` |
+| Add eval cases from descriptions | `npx skillet add-eval [path] "behavior"` |
 | Structural lint (no LLM) | `npx skillet validate [path]` |
 | Install skill into agent | `npx skillet install [path]` |
 
@@ -71,6 +72,18 @@ npx skillet eval [path] --json   # Structured JSON
 ```
 
 Exit code 0 if all pass, 1 if any fail.
+
+## add-eval
+
+Generates eval cases from natural-language behavior descriptions and appends them to the eval file.
+
+```
+npx skillet add-eval "should greet by name when name is provided"
+npx skillet add-eval ./my-skill "handles empty input" "errors on missing file"
+npx skillet add-eval "rejects invalid YAML" --file=edge-cases.eval.yaml
+```
+
+Multiple descriptions generate one eval case each. Appends to existing eval files.
 
 ## validate
 

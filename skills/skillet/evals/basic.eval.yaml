@@ -1,0 +1,51 @@
+evals:
+  - name: uses skillet create with quoted description
+    turns:
+      - "Create a skill for reviewing Python code for security issues"
+    checks:
+      - output_matches: "npx skillet create \"[^\"]+\""
+      - output_not_contains: "skillet new"
+
+  - name: uses skillet eval not evaluate
+    turns:
+      - "Evaluate my skill in the current directory"
+    checks:
+      - output_contains: "npx skillet eval"
+      - output_not_contains: "skillet evaluate"
+
+  - name: does not prompt for API keys
+    turns:
+      - "Create a skill for summarizing git diffs"
+    checks:
+      - output_not_contains: "API key"
+      - output_not_contains: "ANTHROPIC_API_KEY"
+      - output_not_contains: "OPENAI_API_KEY"
+    criteria: |
+      The agent should not ask the user to provide or configure any API keys.
+      It should proceed with the skillet command directly, trusting that
+      credentials are auto-discovered.
+
+  - name: uses add-eval with quoted behavior descriptions
+    workspace:
+      setup: |
+        mkdir -p my-skill/evals
+        cat > my-skill/SKILL.md <<'EOF'
+        ---
+        name: my-skill
+        description: Example skill for testing
+        ---
+        # My Skill
+        Does things.
+        EOF
+        cat > my-skill/evals/basic.eval.yaml <<'EOF'
+        evals:
+          - name: placeholder
+            turns:
+              - "hi"
+        EOF
+    turns:
+      - "Add eval cases to my-skill for these behaviors: handles empty input gracefully, and rejects malformed YAML files"
+    checks:
+      - output_contains: "npx skillet add-eval"
+      - output_matches: "\"[^\"]*empty input[^\"]*\""
+      - output_matches: "\"[^\"]*(malformed|YAML)[^\"]*\""
