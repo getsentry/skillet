@@ -14,6 +14,32 @@ export interface CheckResult {
   detail: string;
 }
 
+/**
+ * Build a RegExp from a pattern string, handling Python-style inline flags
+ * like (?i) that JS doesn't support. Converts them to JS RegExp flags.
+ */
+const buildRegex = (pattern: string, baseFlags = "m"): RegExp => {
+  let flags = baseFlags;
+  let cleaned = pattern;
+
+  // Extract (?i), (?s), (?m) prefixes and convert to JS flags
+  const inlineMatch = /^\(\?([ims]+)\)/.exec(cleaned);
+  if (inlineMatch?.[1] != null) {
+    for (const ch of inlineMatch[1]) {
+      if (ch === "i" && !flags.includes("i")) {
+        flags += "i";
+      }
+      if (ch === "s" && !flags.includes("s")) {
+        flags += "s";
+      }
+      // (?m) in Python = multiline, already in baseFlags
+    }
+    cleaned = cleaned.slice(inlineMatch[0].length);
+  }
+
+  return new RegExp(cleaned, flags);
+};
+
 const isExecError = (
   err: unknown,
 ): err is { status: number | null; stderr: Buffer | null; stdout: Buffer | null } => {
@@ -59,7 +85,7 @@ const runWorkspaceCheck = (check: WorkspaceCheck, workDir: string): CheckResult 
 
   // Regex match
   if (check.matches !== undefined) {
-    const re = new RegExp(check.matches, "m");
+    const re = buildRegex(check.matches);
     const passed = re.test(trimmed);
     return {
       name: `run: ${check.run} (matches)`,
@@ -156,7 +182,7 @@ export const runChecks = (checks: Check[], workDir: string, agentOutput: string)
           : `output contains "${check.output_not_contains}" (unexpected)`,
       });
     } else if (isOutputMatches(check)) {
-      const re = new RegExp(check.output_matches, "m");
+      const re = buildRegex(check.output_matches);
       const passed = re.test(agentOutput);
       results.push({
         name: "output_matches",
