@@ -83,6 +83,18 @@ const runWorkspaceCheck = (check: WorkspaceCheck, workDir: string): CheckResult 
     };
   }
 
+  // Without an explicit `exits` assertion, a non-zero exit is itself a failure.
+  // Otherwise empty stdout from a failed command can make assertions like
+  // not_contains silently pass (e.g. `cat missing-file` → "" does not contain X).
+  if (exitCode !== 0) {
+    return {
+      name: `run: ${check.run}`,
+      passed: false,
+      check,
+      detail: `command failed with exit code ${exitCode}`,
+    };
+  }
+
   // Regex match
   if (check.matches !== undefined) {
     const re = buildRegex(check.matches);
