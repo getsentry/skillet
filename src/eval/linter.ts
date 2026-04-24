@@ -126,6 +126,30 @@ const findSharedAbsolutePaths = (text: string): string[] => {
   return hits;
 };
 
+/**
+ * If the command is `cat <path>` (possibly quoted, with flags stripped),
+ * return the path. Otherwise null. Used to identify file-oriented
+ * checks so the pair-rule can match negatives against positives.
+ */
+const parseCatFile = (cmd: string): string | null => {
+  const trimmed = cmd.trim();
+  const match = /^cat\s+(?:-[A-Za-z]+\s+)*(?:"([^"]+)"|'([^']+)'|(\S+))\s*$/.exec(trimmed);
+  if (match == null) return null;
+  return match[1] ?? match[2] ?? match[3] ?? null;
+};
+
+/**
+ * If the command is `test -s <path>` or `[ -s <path> ]`, return the path.
+ */
+const parseExistsFile = (cmd: string): string | null => {
+  const trimmed = cmd.trim();
+  const t = /^test\s+-s\s+(?:"([^"]+)"|'([^']+)'|(\S+))\s*$/.exec(trimmed);
+  if (t != null) return t[1] ?? t[2] ?? t[3] ?? null;
+  const b = /^\[\s+-s\s+(?:"([^"]+)"|'([^']+)'|(\S+))\s+\]\s*$/.exec(trimmed);
+  if (b != null) return b[1] ?? b[2] ?? b[3] ?? null;
+  return null;
+};
+
 const checkSharedPaths = (text: string, path: string, errors: LintError[]): void => {
   const hits = findSharedAbsolutePaths(text);
   if (hits.length > 0) {
@@ -258,6 +282,48 @@ export const lintEvalYaml = (yamlContent: string): LintResult => {
         const turn = c.turns[t];
         if (typeof turn === "string") {
           checkSharedPaths(turn, `${path}.turns[${t}]`, errors);
+        }
+      }
+    }
+
+    // Pair-rule: a negative file check (`cat F | not_contains`) passes
+    // vacuously when F is missing or empty. Require a sibling positive
+    // check on the same file (`contains`, `matches`, or `test -s F`).
+    if (Array.isArray(c.checks)) {
+      const negFiles = new Map<string, number>();
+      const posFiles = new Set<string>();
+      for (let j = 0; j < c.checks.length; j++) {
+        const check = c.checks[j];
+        if (!isRecord(check)) continue;
+        if (typeof check.run !== "string") continue;
+
+        const catFile = parseCatFile(check.run);
+        if (catFile != null) {
+          if (check.not_contains !== undefined || check.not_equals !== undefined) {
+            if (!negFiles.has(catFile)) {
+              negFiles.set(catFile, j);
+            }
+          }
+          if (
+            check.contains !== undefined ||
+            check.matches !== undefined ||
+            check.equals !== undefined
+          ) {
+            posFiles.add(catFile);
+          }
+        }
+
+        const existsFile = parseExistsFile(check.run);
+        if (existsFile != null && check.exits === 0) {
+          posFiles.add(existsFile);
+        }
+      }
+      for (const [file, idx] of negFiles) {
+        if (!posFiles.has(file)) {
+          fixes.push({
+            path: `${path}.checks[${idx}]`,
+            message: `Negative check on '${file}' without a sibling positive check — a missing or empty file will pass this vacuously. Add \`run: cat ${file}\` with \`contains\`/\`matches\`, or \`run: test -s ${file}\` with \`exits: 0\`.`,
+          });
         }
       }
     }
