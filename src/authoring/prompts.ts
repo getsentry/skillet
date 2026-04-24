@@ -167,13 +167,24 @@ These are enforced by a linter — violations will fail generation.
 
 ## Criteria Phrasing (when using \`criteria\`)
 
-The judge sees both the agent transcript AND the stdout of passing
-\`run:\` checks (labelled as artifacts). Phrase criteria to disambiguate
-what you're grading:
+The judge sees the agent transcript AND the stdout of every passing
+\`run:\` check (labelled as \`### Artifact: <command>\`). The judge will
+never see a file you didn't \`cat\` in a check — no matter what the
+criteria says.
 
-- Artifact quality: "The file \`DRAFT_BODY.md\` should explain why the
-  change is needed..."
-- Agent behavior: "The agent should refuse to proceed and ask for..."
+**Hard rule**: if your criteria references an artifact the skill writes
+to a file, the case MUST include a \`run: cat <that-file>\` check. Any
+passing assertion works (\`contains\`, \`matches\`, even \`exits: 0\` paired
+with \`test -s\`). Without that check, the judge grades the agent's
+narration of what it did, not what it produced — and silently gives
+wrong grades.
+
+Phrase criteria to disambiguate what you're grading:
+
+- **Artifact quality** (requires \`run: cat <file>\` in the same case):
+  "The file \`DRAFT_BODY.md\` should explain why the change is needed..."
+- **Agent behavior** (no \`run: cat\` needed): "The agent should refuse
+  to proceed and ask for clarification about..."
 
 Do not write criteria that could equally apply to either — pick one.
 
