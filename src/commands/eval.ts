@@ -45,8 +45,8 @@ export const evalCommand = async (pathArg?: string, jsonOutput = false): Promise
     onCaseComplete: jsonOutput ? undefined : printCaseResult,
     onToolCall: jsonOutput
       ? undefined
-      : (caseName, toolName, step) => {
-          process.stderr.write(`\x1b[2m  [${caseName}] step ${step}: ${toolName}\x1b[0m\r`);
+      : (_caseName, toolName, step) => {
+          process.stderr.write(`\x1b[2m    step ${step}: ${toolName}\x1b[0m\n`);
         },
   });
 
