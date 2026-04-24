@@ -3,14 +3,14 @@ evals:
     turns:
       - "Create a skill for reviewing Python code for security issues"
     checks:
-      - output_matches: "npx skillet create \"[^\"]+\""
+      - output_matches: "npx @sentry/skillet create \"[^\"]+\""
       - output_not_contains: "skillet new"
 
   - name: uses skillet eval not evaluate
     turns:
       - "Evaluate my skill in the current directory"
     checks:
-      - output_contains: "npx skillet eval"
+      - output_contains: "npx @sentry/skillet eval"
       - output_not_contains: "skillet evaluate"
 
   - name: does not prompt for API keys
@@ -46,6 +46,6 @@ evals:
     turns:
       - "Add eval cases to my-skill for these behaviors: handles empty input gracefully, and rejects malformed YAML files"
     checks:
-      - output_contains: "npx skillet add-eval"
+      - output_contains: "npx @sentry/skillet add-eval"
       - output_matches: "\"[^\"]*empty input[^\"]*\""
       - output_matches: "\"[^\"]*(malformed|YAML)[^\"]*\""
