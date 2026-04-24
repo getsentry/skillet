@@ -1,4 +1,14 @@
 # Changelog
+## 0.4.0
+
+### Bug Fixes 🐛
+
+- (eval-gen) Use judge criteria for negative test cases by @gricha in [d70e037d](https://github.com/getsentry/skillet/commit/d70e037dbbecdd687538267e4d34d4aca7c5db02)
+
+### Documentation 📚
+
+- Add README and improve eval output (trace files, buffered progress) by @gricha in [481dae22](https://github.com/getsentry/skillet/commit/481dae225b3d674ac58719d693a855aba3be07ab)
+
 ## 0.3.0
 
 ### New Features ✨
