@@ -1,4 +1,10 @@
 # Changelog
+## 0.10.0
+
+### Bug Fixes 🐛
+
+- (lint) Skip criteria-without-run on behavior cases; auto-fix POSIX regex by @gricha in [ba56099c](https://github.com/getsentry/skillet/commit/ba56099cf48aad27d82b43649dfc13c519607411)
+
 ## 0.9.0
 
 ### New Features ✨
