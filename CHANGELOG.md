@@ -1,4 +1,10 @@
 # Changelog
+## 0.11.0
+
+### New Features ✨
+
+- Retry on lint errors, pipe assessment to regen, scrub credential env by @gricha in [883059da](https://github.com/getsentry/skillet/commit/883059da29d483777eaa8e6ff7143c06cb596358)
+
 ## 0.10.0
 
 ### Bug Fixes 🐛
