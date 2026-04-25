@@ -6,6 +6,7 @@ export type LintRule =
   | "timeout-bounds"
   | "threshold-bounds"
   | "regex-inline-flags"
+  | "regex-posix-class"
   | "run-without-assertion"
   | "export-in-setup-nudge"
   | "chmod-x-stub"
@@ -173,6 +174,28 @@ const parseExistsFile = (cmd: string): string | null => {
   return null;
 };
 
+/**
+ * Heuristic: does this criteria string look like it's grading agent
+ * behavior (refusal, recommendation, dialog) rather than a file
+ * artifact? Used as a one-way skip for the `criteria-without-run`
+ * warning — keeps the retry loop from hard-failing legit behavior
+ * cases. False-negatives (artifact criteria phrased with behavior
+ * verbs) are caught downstream by the judge's mismatch self-check.
+ */
+const looksLikeBehaviorCriteria = (criteria: string): boolean => {
+  const patterns = [
+    /\brefuse|declin|reject/i,
+    /\bask (?:the user|for clarification|about)/i,
+    /\bclarif/i,
+    /\brecommend|suggest|advis/i,
+    /\bthe agent (?:should|must|needs to|has to|is expected)/i,
+    /\bshould not proceed/i,
+    /\brespond|reply|answer/i,
+    /\bexplain (?:that|to the user|why it)/i,
+  ];
+  return patterns.some((re) => re.test(criteria));
+};
+
 const checkSharedPaths = (text: string, path: string, errors: LintError[]): void => {
   const hits = findSharedAbsolutePaths(text);
   if (hits.length > 0) {
@@ -320,18 +343,24 @@ export const lintEvalYaml = (yamlContent: string): LintResult => {
     // Warn: case has case-level `criteria` but no `run:` workspace checks.
     // The judge will grade only the agent transcript — if the skill's
     // deliverable is a file, add a `run: cat <file>` check so the judge
-    // sees the artifact. Output-only skills (recommendation, refusal) are
-    // legit false positives here; the author can ignore.
+    // sees the artifact.
+    //
+    // Skip the warning when the criteria clearly targets agent behavior
+    // (refusal, recommendation, asking for clarification) — those cases
+    // legitimately have no artifact to cat, and the retry loop's
+    // "push-back" would hard-fail them with no way forward. The judge
+    // self-check (round 3) catches any false-negative at eval time by
+    // grading E with an artifact-mismatch note.
     if (typeof c.criteria === "string" && c.criteria.trim() !== "") {
       const hasRunCheck =
         Array.isArray(c.checks) &&
         c.checks.some((ch) => isRecord(ch) && typeof ch.run === "string");
-      if (!hasRunCheck) {
+      if (!hasRunCheck && !looksLikeBehaviorCriteria(c.criteria)) {
         fixes.push({
           rule: "criteria-without-run",
           autoFixed: false,
           path: `${path}.criteria`,
-          message: `Case has 'criteria' but no 'run:' checks — the judge will grade the agent transcript only. If the skill's deliverable is a file, add a \`run: cat <file>\` check (any passing assertion) so the judge sees the artifact. Ignore if the deliverable really is the agent's text response.`,
+          message: `Case has 'criteria' but no 'run:' checks — the judge will grade the agent transcript only. If the skill's deliverable is a file, add a \`run: cat <file>\` check (any passing assertion) so the judge sees the artifact.`,
         });
       }
     }
@@ -440,8 +469,50 @@ export const lintEvalYaml = (yamlContent: string): LintResult => {
 };
 
 /**
- * Lint a regex field — rewrite inline flags, validate syntax.
- * Returns true if the field was mutated.
+ * POSIX character classes → JS regex equivalents. These are valid in
+ * many regex engines (grep, sed, awk) but JS interprets `[[:space:]]`
+ * as the character set `[:space]` followed by a literal `]` — the
+ * pattern compiles without error and silently never matches whitespace.
+ */
+const POSIX_CLASS_MAP: Record<string, string> = {
+  "[[:alpha:]]": "[a-zA-Z]",
+  "[[:alnum:]]": "[a-zA-Z0-9]",
+  "[[:digit:]]": "\\d",
+  "[[:space:]]": "\\s",
+  "[[:upper:]]": "[A-Z]",
+  "[[:lower:]]": "[a-z]",
+  "[[:xdigit:]]": "[0-9a-fA-F]",
+  "[[:blank:]]": "[ \\t]",
+};
+
+const POSIX_CLASS_UNMAPPED = new Set(["[[:punct:]]", "[[:print:]]", "[[:graph:]]", "[[:cntrl:]]"]);
+
+const replacePosixClasses = (
+  pattern: string,
+): { rewritten: string; changes: Array<{ from: string; to: string }>; unknown: string[] } => {
+  const changes: Array<{ from: string; to: string }> = [];
+  const unknown: string[] = [];
+  let rewritten = pattern;
+
+  for (const [posix, js] of Object.entries(POSIX_CLASS_MAP)) {
+    if (rewritten.includes(posix)) {
+      rewritten = rewritten.split(posix).join(js);
+      changes.push({ from: posix, to: js });
+    }
+  }
+
+  for (const posix of POSIX_CLASS_UNMAPPED) {
+    if (rewritten.includes(posix)) {
+      unknown.push(posix);
+    }
+  }
+
+  return { rewritten, changes, unknown };
+};
+
+/**
+ * Lint a regex field — rewrite inline flags, normalize POSIX classes,
+ * validate syntax. Returns true if the field was mutated.
  */
 const lintRegexField = (
   check: Record<string, unknown>,
@@ -455,28 +526,54 @@ const lintRegexField = (
     return false;
   }
 
+  let current = pattern;
+  let mutated = false;
+
+  // Rewrite POSIX classes first — they can hide inside patterns that
+  // also have inline flags.
+  const posix = replacePosixClasses(current);
+  if (posix.unknown.length > 0) {
+    errors.push({
+      path: `${checkPath}.${field}`,
+      message: `Pattern uses POSIX character class(es) ${posix.unknown.join(", ")} without a JS equivalent — rewrite using \\s, \\d, or explicit character ranges.`,
+    });
+  }
+  if (posix.changes.length > 0) {
+    const summary = posix.changes.map((c) => `${c.from} → ${c.to}`).join(", ");
+    fixes.push({
+      rule: "regex-posix-class",
+      autoFixed: true,
+      path: `${checkPath}.${field}`,
+      message: `Rewrote POSIX character class(es): ${summary}`,
+    });
+    current = posix.rewritten;
+    check[field] = current;
+    mutated = true;
+  }
+
   // Rewrite inline flags
-  if (hasInlineFlags(pattern)) {
-    const cleaned = stripInlineFlags(pattern);
+  if (hasInlineFlags(current)) {
+    const cleaned = stripInlineFlags(current);
     if (isValidRegex(cleaned)) {
       fixes.push({
         rule: "regex-inline-flags",
         autoFixed: true,
         path: `${checkPath}.${field}`,
-        message: `Rewrote Python-style inline flags: "${pattern}" → "${cleaned}"`,
+        message: `Rewrote Python-style inline flags: "${current}" → "${cleaned}"`,
       });
-      check[field] = cleaned;
-      return true;
+      current = cleaned;
+      check[field] = current;
+      mutated = true;
     }
   }
 
   // Validate regex compiles
-  if (!isValidRegex(pattern)) {
+  if (!isValidRegex(current)) {
     errors.push({
       path: `${checkPath}.${field}`,
-      message: `Invalid regex: "${pattern}"`,
+      message: `Invalid regex: "${current}"`,
     });
   }
 
-  return false;
+  return mutated;
 };

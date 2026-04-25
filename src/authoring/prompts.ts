@@ -222,6 +222,12 @@ These are enforced by a linter — violations will fail generation.
    \`run: cat DRAFT.md\` + \`not_contains: "X"\` passes vacuously if the
    file is missing or empty. Always include at least one positive check
    on the same file (\`contains\`, \`matches\`, or \`test -s DRAFT.md\`).
+4. **JS regex syntax in \`matches\` and \`output_matches\`.** Use \`\\s\`,
+   \`\\d\`, \`[a-zA-Z]\` — never POSIX character classes like
+   \`[[:space:]]\`, \`[[:alpha:]]\`, \`[[:digit:]]\`. JS silently
+   interprets \`[[:space:]]\` as the set \`[:space]\` followed by a
+   literal \`]\`, so patterns like \`^fix:[[:space:]]+.+\` never match
+   anything.
 
 ## Criteria Phrasing (when using \`criteria\`)
 
