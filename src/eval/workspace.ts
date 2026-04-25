@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { execSync } from "node:child_process";
+import { sanitizedProcessEnv } from "./env.js";
 
 export interface WorkspaceConfig {
   setup?: string;
@@ -69,7 +70,7 @@ export const createWorkspace = (config?: WorkspaceConfig): Workspace => {
       execSync(config.setup, {
         cwd: dir,
         stdio: "pipe",
-        env: { ...process.env, HOME: process.env.HOME },
+        env: sanitizedProcessEnv(),
         timeout: 30_000,
       });
     } catch (err: unknown) {

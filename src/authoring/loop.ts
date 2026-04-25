@@ -160,8 +160,15 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
       const regenStart = Date.now();
       console.log("Regenerating evals...");
       const newSkillContent = readFileSync(skillMdPath, "utf-8");
-      const newEvalYaml = await generateEvalYaml(models.agent, newSkillContent);
-      writeFileSync(join(evalsDir, "basic.eval.yaml"), newEvalYaml, "utf-8");
+      const evalFilePath = join(evalsDir, "basic.eval.yaml");
+      const previousEvalYaml = existsSync(evalFilePath)
+        ? readFileSync(evalFilePath, "utf-8")
+        : undefined;
+      const newEvalYaml = await generateEvalYaml(models.agent, newSkillContent, {
+        previousEvalYaml,
+        evalChanges: assessment.evalChanges,
+      });
+      writeFileSync(evalFilePath, newEvalYaml, "utf-8");
       console.log(`  Done (${((Date.now() - regenStart) / 1000).toFixed(1)}s)`);
     }
   }

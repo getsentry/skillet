@@ -3,6 +3,7 @@ import type { Tool } from "@mariozechner/pi-ai";
 import { execSync } from "node:child_process";
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { join, resolve, dirname, relative } from "node:path";
+import { sanitizedProcessEnv } from "../eval/env.js";
 
 /**
  * Type guard for errors thrown by execSync that carry status/stderr/stdout.
@@ -136,7 +137,7 @@ const execBash = (workDir: string, command: string): string => {
       cwd: workDir,
       stdio: "pipe",
       timeout: 60_000,
-      env: { ...process.env, HOME: process.env.HOME },
+      env: sanitizedProcessEnv(),
       maxBuffer: 1024 * 1024,
     });
     return result.toString();

@@ -6,6 +6,7 @@ import {
   isOutputNotContains,
   isOutputMatches,
 } from "./parser.js";
+import { sanitizedProcessEnv } from "./env.js";
 
 export interface CheckResult {
   name: string;
@@ -62,7 +63,7 @@ const runWorkspaceCheck = (check: WorkspaceCheck, workDir: string): CheckResult 
       cwd: workDir,
       stdio: "pipe",
       timeout: 10_000,
-      env: { ...process.env },
+      env: sanitizedProcessEnv(),
     });
     stdout = result.toString();
   } catch (err: unknown) {
