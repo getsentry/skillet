@@ -1,4 +1,10 @@
 # Changelog
+## 0.12.0
+
+### Bug Fixes 🐛
+
+- Retry transient upstream errors; block output_not_contains echoes by @gricha in [301e2503](https://github.com/getsentry/skillet/commit/301e2503d87efe1238aea2403f5040c001d84cba)
+
 ## 0.11.0
 
 ### New Features ✨
