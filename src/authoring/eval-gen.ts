@@ -1,6 +1,6 @@
-import { complete } from "@mariozechner/pi-ai";
 import type { Context, Message } from "@mariozechner/pi-ai";
 import type { AnyModel } from "../agent/provider.js";
+import { completeWithBackoff } from "../agent/complete-with-backoff.js";
 import { buildEvalGenPrompt } from "./prompts.js";
 import { lintEvalYaml, LOAD_BEARING_RULES, type LintError, type LintFix } from "../eval/linter.js";
 
@@ -51,7 +51,7 @@ export const generateEvalYamlWithRetry = async (opts: {
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const context: Context = { systemPrompt, messages };
-    const response = await complete(model, context);
+    const response = await completeWithBackoff(model, context);
 
     if (response.stopReason === "error") {
       const errMsg = response.errorMessage ?? "unknown error";

@@ -456,6 +456,27 @@ export const lintEvalYaml = (yamlContent: string): LintResult => {
         if (typeof check.run === "string") {
           checkSharedPaths(check.run, `${checkPath}.run`, errors);
         }
+
+        // Error: `output_not_contains: X` where X appears in any of
+        // this case's turns. The agent will echo X while reasoning
+        // about the input, so the check passes vacuously or fails
+        // on correct behavior. Use criteria or a positive check
+        // instead.
+        if (typeof check.output_not_contains === "string" && Array.isArray(c.turns)) {
+          const needle = check.output_not_contains;
+          if (needle.length >= 3) {
+            for (let t = 0; t < c.turns.length; t++) {
+              const turn = c.turns[t];
+              if (typeof turn === "string" && turn.includes(needle)) {
+                errors.push({
+                  path: `${checkPath}.output_not_contains`,
+                  message: `Value '${needle}' also appears in turns[${t}] — the agent will echo it while reasoning about the input, so this check passes vacuously or fails on correct behavior. Use \`criteria\` (e.g. "the agent should not flag ${needle} as an issue") or assert on a specific compliant-output marker instead.`,
+                });
+                break;
+              }
+            }
+          }
+        }
       }
     }
   }

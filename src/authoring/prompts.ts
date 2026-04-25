@@ -169,6 +169,18 @@ full simulation of the real scenario.
    avoids SQL injection" contains the string "SQL injection" but is
    correct behavior). Use \`output_not_contains\` ONLY for truly forbidden
    literal strings (leaked PII, wrong command names).
+
+   **Hard rule**: never write \`output_not_contains: X\` where X appears
+   in any of the case's \`turns\`. The agent echoes input tokens while
+   reasoning — if the turn says "review \`pipeline.py:7\` which raises
+   \`FileNotFoundError\`", then \`output_not_contains: "FileNotFoundError"\`
+   fails on correct behavior because the agent legitimately refers to
+   it. Instead:
+   - \`criteria: "the agent should not flag FileNotFoundError on
+     pipeline.py:7 as a problem"\` — judge reads the reasoning and
+     grades intent.
+   - Or assert a positive compliant-output marker the skill produces
+     (\`output_contains: "no issues found"\`) if the skill has one.
 5. Set appropriate timeouts:
    - 30000 (30s) for output-only checks (no tool calls needed)
    - 60000 (60s) for workspace checks that read files and produce text

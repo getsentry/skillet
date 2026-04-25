@@ -1,5 +1,6 @@
-import { complete, validateToolCall } from "@mariozechner/pi-ai";
+import { validateToolCall } from "@mariozechner/pi-ai";
 import type { Context } from "@mariozechner/pi-ai";
+import { completeWithBackoff } from "./complete-with-backoff.js";
 import { createToolDefs, executeTool } from "./tools.js";
 import type { AnyModel } from "./provider.js";
 import type { Skill } from "../skill/loader.js";
@@ -62,7 +63,10 @@ export const runAgent = async (opts: AgentRunOptions): Promise<AgentRunResult> =
     while (steps < MAX_STEPS) {
       steps++;
 
-      const response = await Promise.race([complete(model, context), timeoutPromise(timeout)]);
+      const response = await Promise.race([
+        completeWithBackoff(model, context),
+        timeoutPromise(timeout),
+      ]);
 
       // Add assistant message to context
       context.messages.push(response);

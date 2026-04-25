@@ -1,6 +1,6 @@
-import { complete } from "@mariozechner/pi-ai";
 import type { Context } from "@mariozechner/pi-ai";
 import type { AnyModel } from "../agent/provider.js";
+import { completeWithBackoff } from "../agent/complete-with-backoff.js";
 
 export interface JudgeResult {
   grade: string;
@@ -89,7 +89,7 @@ export const judge = async (
     ],
   };
 
-  const response = await complete(model, context, {
+  const response = await completeWithBackoff(model, context, {
     maxTokens: 500,
   });
 

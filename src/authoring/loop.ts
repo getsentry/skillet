@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { complete } from "@mariozechner/pi-ai";
 import type { Context } from "@mariozechner/pi-ai";
+import { completeWithBackoff } from "../agent/complete-with-backoff.js";
 import { resolveModels } from "../agent/provider.js";
 import type { AnyModel } from "../agent/provider.js";
 import { loadSkill } from "../skill/loader.js";
@@ -197,7 +197,7 @@ const generateSkillMd = async (model: AnyModel, description: string): Promise<st
     ],
   };
 
-  const response = await complete(model, context);
+  const response = await completeWithBackoff(model, context);
   return extractText(response);
 };
 
@@ -217,7 +217,7 @@ const improveSkillMd = async (
     ],
   };
 
-  const response = await complete(model, context);
+  const response = await completeWithBackoff(model, context);
   return extractText(response);
 };
 
@@ -239,7 +239,7 @@ const assessResults = async (
     ],
   };
 
-  const response = await complete(model, context);
+  const response = await completeWithBackoff(model, context);
   const text = extractText(response);
 
   try {
