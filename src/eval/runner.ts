@@ -120,7 +120,20 @@ const runSingleCase = async (opts: {
   const { evalCase, filePath, skill, agentModel, judgeModel, onToolCall } = opts;
   const start = Date.now();
 
-  const base = { name: evalCase.name, file: filePath };
+  // Resolve which behavior this case tests, for downstream verifyResults
+  // mapping. Prefer the explicit field; fall back to the `<id>__<slug>`
+  // case-name convention so legacy / hand-written cases still map.
+  const testsBehavior =
+    evalCase.tests_behavior ??
+    (evalCase.name.includes("__") ? evalCase.name.split("__")[0] : undefined);
+
+  const base: { name: string; file: string; tests_behavior?: string } = {
+    name: evalCase.name,
+    file: filePath,
+  };
+  if (testsBehavior != null && testsBehavior !== "") {
+    base.tests_behavior = testsBehavior;
+  }
 
   // 1. Check requirements
   if (evalCase.requires != null && evalCase.requires.length > 0) {

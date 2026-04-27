@@ -54,6 +54,14 @@ export interface EvalCase {
   threshold?: number;
   timeout?: number;
   requires?: Requirement[];
+  /**
+   * ID of the spec behavior or must_not this case tests. Set by
+   * `eval-gen` when cases are derived from a spec; absent on
+   * hand-written legacy cases. Verification uses this as the join
+   * key between cases and spec entries; falls back to parsing the
+   * case name (`<id>__<slug>`) when absent.
+   */
+  tests_behavior?: string;
 }
 
 export interface EvalFile {
@@ -230,6 +238,7 @@ const parseEvalCase = (
   const threshold = getNumber(entry, "threshold");
   const timeout = getNumber(entry, "timeout");
   const requires = parseRequires(getArray(entry, "requires"));
+  const testsBehavior = getString(entry, "tests_behavior");
 
   const result: EvalCase = { name, turns };
   if (workspace != null) result.workspace = workspace;
@@ -238,6 +247,7 @@ const parseEvalCase = (
   if (threshold != null) result.threshold = threshold;
   if (timeout != null) result.timeout = timeout;
   if (requires != null) result.requires = requires;
+  if (testsBehavior != null) result.tests_behavior = testsBehavior;
   return result;
 };
 

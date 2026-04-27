@@ -74,6 +74,13 @@ export interface EvalCaseResult {
   errors: ErrorRecord[];
   /** Why it was skipped (only when status is "skip") */
   skipReason?: string;
+  /**
+   * ID of the spec behavior or must_not this case tested, when known.
+   * Comes from the case's `tests_behavior` YAML field (preferred) or
+   * the `<id>__<slug>` case-name convention (fallback). Used by
+   * `verifyResults` to map case outcomes back to spec entries.
+   */
+  tests_behavior?: string;
 }
 
 // ── Run-level result ──────────────────────────────────────
