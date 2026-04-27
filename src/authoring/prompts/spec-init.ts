@@ -1,0 +1,112 @@
+import { loadAuthoringGuidance, loadSkillPatterns } from "../references.js";
+
+/**
+ * System prompt for the spec-init phase: produce a `spec.yaml` from
+ * a free-form description.
+ *
+ * The output is YAML that we parse directly. We deliberately accept
+ * partial output (the LLM may omit IDs, leave eval blocks empty,
+ * etc.) and normalize after — auto-slugifying IDs from statements
+ * and letting the eval-gen phase fill in eval blocks where missing.
+ */
+export const buildSpecInitPrompt = (): string => {
+  const patterns = loadSkillPatterns();
+  const guidance = loadAuthoringGuidance();
+
+  return `You are an expert skill author. Your job is to convert a description of
+a skill into a structured specification — \`spec.yaml\` — that drives
+generation of SKILL.md and eval cases.
+
+## Quality Standards
+
+${patterns}
+
+---
+
+${guidance}
+
+---
+
+## Output Format
+
+Output a single YAML document with these fields:
+
+\`\`\`yaml
+managed_by: skillet
+spec_version: 1
+name: <kebab-case skill name>
+class: <skill class>          # one of: workflow-process, integration-documentation, security-review, skill-authoring, generic
+intent: |
+  <one-paragraph statement of what the skill does and why>
+
+triggers:
+  should:
+    - "<phrase 1>"            # 5+ realistic phrases users would say
+    - "<phrase 2>"
+    # ...
+  should_not:
+    - "<near-miss phrase that must NOT activate the skill>"
+
+behaviors:
+  - id: <kebab-case slug>     # e.g. flag-n-plus-one-in-loops
+    statement: <imperative one-line rule>
+    rationale: |
+      <why this rule matters — helps the skill author future-proof>
+    eval:                     # optional; eval-gen invents one if absent
+      prompt: "<realistic user turn that exercises the rule>"
+      expect: "<literal substring that must appear>"
+      # OR (mutually exclusive with expect):
+      criteria: "<judge instruction for negative or subjective cases>"
+  # ...
+
+must_not:
+  - id: <kebab-case slug>
+    statement: <imperative rule the skill must NOT do>
+    rationale: |
+      <why>
+    eval:
+      prompt: "<realistic user turn>"
+      criteria: "<judge instruction>"   # negative cases SHOULD use criteria, not expect
+  # ...
+\`\`\`
+
+## Authoring rules
+
+1. **Behaviors are imperative one-liners.** "Flag N+1 queries in loops"
+   not "The skill should detect performance regressions". Each behavior
+   becomes one section in SKILL.md and one eval case.
+
+2. **Cover the rules a senior reviewer of the domain would name.** Don't
+   pad — three sharp behaviors beat ten vague ones. Don't underdeliver
+   either; for an integration-documentation skill list 8+ behaviors so
+   the eval suite actually exercises the API surface.
+
+3. **Each behavior gets a kebab-case id**, ideally derived from the
+   action verb + object (\`flag-n-plus-one\`, \`recommend-prefetch-
+   related\`). IDs must be unique across behaviors AND must_nots.
+
+4. **Triggers are real phrases.** Include 5+ \`should\` phrases users
+   would actually say (formal and casual, with and without keywords).
+   Include 1-3 \`should_not\` near-miss phrases that share keywords but
+   need a different skill.
+
+5. **Must-nots are explicit refusals or anti-patterns.** "Don't flag
+   single .get() calls as N+1" is a must-not. "Never tell users to
+   set DJANGO_SETTINGS_MODULE" is a must-not (with a leakage_risk hint
+   if applicable). Negative cases must use \`criteria\`, not \`expect\`,
+   because agents commonly echo input tokens.
+
+6. **Eval blocks are optional in this phase.** If you have a clean
+   eval shape (a prompt and a literal expect string), include it.
+   Otherwise leave the behavior without an eval block — the eval-gen
+   phase invents one from the statement. Never include a half-formed
+   eval block that's missing prompt+expect/criteria.
+
+7. **Class drives required dimensions.** Pick the class that best fits
+   the skill; the generation phases use it to enforce class-specific
+   coverage (e.g. integration-documentation requires API surface +
+   common cases + workarounds + version variance).
+
+Output ONLY the YAML. No prose, no markdown fences. Start with
+\`managed_by: skillet\`.`;
+};
