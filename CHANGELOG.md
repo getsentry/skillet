@@ -1,4 +1,44 @@
 # Changelog
+
+## Unreleased
+
+### Breaking Changes ⚠️
+
+- **Spec-driven authoring**: Skills now have a `spec.yaml` source of
+  truth that captures intent, behaviors, must-nots, and triggers in
+  a structured form. SKILL.md and eval YAMLs are derived from the
+  spec; hand edits to derived files get overwritten on regen.
+- **`skillet validate` removed**: replaced by `skillet verify`, which
+  runs four layers (structural, cross-artifact coverage, per-behavior
+  results, optional semantic) and subsumes the per-file lint that
+  `validate` used to do.
+- **`add-eval` operates on the spec**: appends behaviors to
+  `spec.yaml` and regenerates derived files instead of writing eval
+  YAML directly. Auto-imports legacy SKILL.md-only skills.
+- **`improve` auto-imports legacy skills**: when running against a
+  directory with SKILL.md but no `spec.yaml`, the loop reverse-engineers
+  a spec first (no separate migration step).
+
+### New Features ✨
+
+- `skillet spec init/show/refine/import` subcommand group for
+  managing `spec.yaml`. Mutations auto-regenerate SKILL.md and evals.
+- `skillet verify` command (replaces `validate`):
+  - Layer 1: structural — files parse and have required fields
+  - Layer 2: coverage — every behavior has an eval case; no orphans
+  - Layer 3: results — per-behavior pass/fail when run data exists
+  - Layer 4: `--semantic` — LLM-judged SKILL.md ↔ behavior coverage
+- Iteration loop produces structured `SpecPatch[]` operations applied
+  deterministically; converges on the spec rather than rewriting
+  prose every iteration.
+- New bundled reference `references/spec-format.md` documenting the
+  `spec.yaml` schema for the spec-init / refine / import prompts.
+- New `tests_behavior` field on eval cases for explicit linkage to
+  spec entries; case names follow `<id>__<slug>` as a fallback.
+- New self-test fixtures under `evals/fixtures/spec-driven-skill/` and
+  `evals/fixtures/incomplete-spec-skill/` exercising verify's coverage
+  layer.
+
 ## 0.12.0
 
 ### Bug Fixes 🐛
