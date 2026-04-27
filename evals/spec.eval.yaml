@@ -1,0 +1,47 @@
+evals:
+  - name: spec_show_prints_parsed_spec
+    workspace:
+      setup: |
+        cp -r "$SKILLET_REPO/evals/fixtures/spec-driven-skill" skill
+    requires:
+      - env: SKILLET_REPO
+    turns:
+      - "Run `node $SKILLET_REPO/dist/cli.js spec show skill/` and show me what it prints."
+    checks:
+      - output_contains: "greeting-skill"
+      - output_contains: "greet-by-name"
+      - output_contains: "managed_by"
+    timeout: 30000
+
+  - name: spec_show_strips_banner
+    workspace:
+      setup: |
+        cp -r "$SKILLET_REPO/evals/fixtures/spec-driven-skill" skill
+    requires:
+      - env: SKILLET_REPO
+    turns:
+      - "Run `node $SKILLET_REPO/dist/cli.js spec show skill/` and tell me whether the output starts with the banner comment block or with the actual YAML data."
+    criteria: |
+      The agent should report that the output starts with the actual
+      YAML data (`managed_by:`, `name:`, etc.) and that the banner
+      comment block has been stripped. Spec show is supposed to
+      pretty-print the parsed spec, not the raw file with comments.
+    threshold: 0.75
+    timeout: 30000
+
+  - name: spec_show_errors_when_no_spec
+    workspace:
+      setup: |
+        cp -r "$SKILLET_REPO/evals/fixtures/valid-skill" skill
+    requires:
+      - env: SKILLET_REPO
+    turns:
+      - "Run `node $SKILLET_REPO/dist/cli.js spec show skill/` and report what it says."
+    checks:
+      - output_contains: "spec.yaml"
+    criteria: |
+      The agent should report that the command failed because there is
+      no spec.yaml in the legacy-fixture directory. Exit code should
+      be non-zero.
+    threshold: 0.75
+    timeout: 30000

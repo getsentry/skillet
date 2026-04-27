@@ -1,0 +1,15 @@
+evals:
+  - name: covered-behavior__placeholder
+    tests_behavior: covered-behavior
+    turns:
+      - "test"
+    checks:
+      - output_contains: "test"
+    timeout: 30000
+
+  # Intentional orphan: tests_behavior references a non-existent ID.
+  - name: orphan-case__intentional
+    tests_behavior: nonexistent-behavior
+    turns:
+      - "test"
+    timeout: 30000

@@ -1,27 +1,15 @@
 evals:
-  - name: eval --json produces structured output
+  - name: eval_json_produces_structured_output
     workspace:
       setup: |
-        mkdir -p skill/evals
-        cat > skill/SKILL.md << 'EOF'
-        ---
-        name: echo-skill
-        description: A skill that echoes. Use when asked to echo.
-        ---
-        # Echo
-        Repeat back whatever the user says, prefixed with "Echo: ".
-        EOF
-        cat > skill/evals/basic.eval.yaml << 'EOF'
-        evals:
-          - name: echoes input
-            turns:
-              - "Say hello"
-            checks:
-              - output_contains: "hello"
-        EOF
+        cp -r "$SKILLET_REPO/evals/fixtures/spec-driven-skill" skill
+    requires:
+      - env: SKILLET_REPO
     turns:
-      - "Run 'node dist/cli.js eval skill/ --json' and show me the raw JSON output"
+      - "Run `node $SKILLET_REPO/dist/cli.js eval skill/ --json` and show me the raw JSON output."
     checks:
       - output_contains: "cases"
       - output_contains: "summary"
       - output_contains: "session"
+      - output_contains: "tests_behavior"
+    timeout: 60000
