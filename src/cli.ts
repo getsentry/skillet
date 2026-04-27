@@ -1,5 +1,5 @@
 import { evalCommand } from "./commands/eval.js";
-import { validateCommand } from "./commands/validate.js";
+import { verifyCommand } from "./commands/verify.js";
 import { createCommand } from "./commands/create.js";
 import { improveCommand } from "./commands/improve.js";
 import { installCommand } from "./commands/install.js";
@@ -21,11 +21,8 @@ const main = async (): Promise<number> => {
       return evalCommand(evalPath, jsonFlag);
     }
 
-    case "validate": {
-      const valJsonFlag = args.includes("--json");
-      const valPath = args.find((a, i) => i > 0 && !a.startsWith("--"));
-      return validateCommand(valPath, valJsonFlag);
-    }
+    case "verify":
+      return verifyCommand(args.slice(1));
 
     case "create":
       return createCommand(args.slice(1));
@@ -51,12 +48,13 @@ const printUsage = (): void => {
 skillet — Create, evaluate, and iterate on agent skills
 
 Usage:
-  skillet create <description>       Create a new skill from a description
-  skillet improve [path]             Improve an existing skill
-  skillet eval [path] [--json]       Run evals for a skill
-  skillet validate [path] [--json]   Validate SKILL.md and eval files
-  skillet add-eval [path] "behavior" Add eval cases from behavior descriptions
-  skillet install [path]             Install the skillet skill into your agent
+  skillet create <description>             Create a new skill from a description
+  skillet improve [path]                   Improve an existing skill (auto-imports legacy skills)
+  skillet eval [path] [--json]             Run evals for a skill
+  skillet verify [path] [--semantic]       Check spec/SKILL.md/evals agree (subsumes the old validate)
+  skillet add-eval [path] "behavior"       Add a behavior to spec.yaml and regenerate
+  skillet install [path]                   Install the skillet skill into your agent
+  skillet spec <show|refine|import|init>   Manage spec.yaml (the source of truth)
 
 Environment:
   Auto-detected (just works when running inside Claude Code, Codex, Copilot, etc.):
