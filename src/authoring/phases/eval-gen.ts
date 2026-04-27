@@ -33,7 +33,7 @@ export const EVAL_YAML_BANNER = `# ───────────────
 export const runEvalGen = async (
   model: AnyModel,
   spec: SkillSpec,
-  opts: { logProgress?: (msg: string) => void } = {},
+  opts: { logProgress?: ((msg: string) => void) | undefined } = {},
 ): Promise<string> => {
   const input = {
     behaviors: spec.behaviors.map((b) => ({

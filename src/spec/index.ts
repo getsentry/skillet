@@ -43,3 +43,6 @@ export { applyPatch, applyPatches } from "./patcher.js";
 
 // Slug helpers
 export { slugify, uniqueSlug } from "./slug.js";
+
+// Regenerate (spec → derived SKILL.md + eval YAMLs)
+export { regenerate, type RegenerateOptions, type RegenerateResult } from "./regen.js";
