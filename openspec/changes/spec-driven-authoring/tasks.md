@@ -11,30 +11,30 @@
 
 ## 2. Authoring prompts split per phase
 
-- [ ] 2.1 Create `src/authoring/prompts/` directory; `src/authoring/prompts.ts` content moves out phase-by-phase
-- [ ] 2.2 Create `src/authoring/prompts/spec-init.ts` with system prompt for description → spec, including conversational clarifying-question support
-- [ ] 2.3 Create `src/authoring/prompts/spec-import.ts` with system prompt for SKILL.md + eval YAMLs → spec (reverse-engineering)
-- [ ] 2.4 Create `src/authoring/prompts/spec-refine.ts` with system prompt for current spec + feedback → `SpecPatch[]`
-- [ ] 2.5 Create `src/authoring/prompts/skill-gen.ts` with system prompt for `SkillSpec` → SKILL.md (replaces `buildSkillGenPrompt`); reference docs in the prompt describe spec-driven flow
-- [ ] 2.6 Create `src/authoring/prompts/eval-gen.ts` with system prompt for `Behavior[] + MustNot[]` → eval YAML (one case per id, named `<id>__<slug>`, tagged `tests_behavior: <id>`)
-- [ ] 2.7 Create `src/authoring/prompts/assess.ts` with system prompt for failed eval cases + verify reports + spec → `SpecPatch[]`
-- [ ] 2.8 Delete `src/authoring/prompts.ts` after all phase prompts are wired
+- [x] 2.1 Create `src/authoring/prompts/` directory; `src/authoring/prompts.ts` content moves out phase-by-phase
+- [x] 2.2 Create `src/authoring/prompts/spec-init.ts` with system prompt for description → spec, including conversational clarifying-question support
+- [x] 2.3 Create `src/authoring/prompts/spec-import.ts` with system prompt for SKILL.md + eval YAMLs → spec (reverse-engineering)
+- [x] 2.4 Create `src/authoring/prompts/spec-refine.ts` with system prompt for current spec + feedback → `SpecPatch[]`
+- [x] 2.5 Create `src/authoring/prompts/skill-gen.ts` with system prompt for `SkillSpec` → SKILL.md (replaces `buildSkillGenPrompt`); reference docs in the prompt describe spec-driven flow
+- [x] 2.6 Create `src/authoring/prompts/eval-gen.ts` with system prompt for `Behavior[] + MustNot[]` → eval YAML (one case per id, named `<id>__<slug>`, tagged `tests_behavior: <id>`)
+- [x] 2.7 Create `src/authoring/prompts/assess.ts` with system prompt for failed eval cases + spec → `SpecPatch[]`
+- [x] 2.8 Delete `src/authoring/prompts.ts` after all phase prompts are wired
 
 ## 3. Phase implementations
 
-- [ ] 3.1 Create `src/authoring/phases/spec-init.ts` running the LLM call, parsing structured output, returning a `SkillSpec`
-- [ ] 3.2 Create `src/authoring/phases/spec-import.ts` running the LLM call from existing SKILL.md (+ optional eval YAMLs), returning a `SkillSpec`
-- [ ] 3.3 Create `src/authoring/phases/spec-refine.ts` running the LLM call from current spec + feedback, returning `SpecPatch[]`
-- [ ] 3.4 Update `src/authoring/eval-gen.ts` to take `Behavior[] + MustNot[]` instead of SKILL.md content; preserve the lint+retry loop; emit `tests_behavior` field on each generated case
-- [ ] 3.5 Create `src/authoring/phases/skill-gen.ts` running the LLM call from `SkillSpec` to SKILL.md content (replaces inline `generateSkillMd`)
-- [ ] 3.6 Create `src/authoring/phases/assess.ts` running the LLM call from failed eval results + verify reports + spec, returning `SpecPatch[]`; map failures to behavior IDs by `tests_behavior` field with case-name fallback
+- [x] 3.1 Create `src/authoring/phases/spec-init.ts` running the LLM call, parsing structured output, returning a `SkillSpec`
+- [x] 3.2 Create `src/authoring/phases/spec-import.ts` running the LLM call from existing SKILL.md (+ optional eval YAMLs), returning a `SkillSpec`
+- [x] 3.3 Create `src/authoring/phases/spec-refine.ts` running the LLM call from current spec + feedback, returning `SpecPatch[]`
+- [x] 3.4 Update `src/authoring/eval-gen.ts` to take `Behavior[] + MustNot[]` instead of SKILL.md content; preserve the lint+retry loop; emit `tests_behavior` field on each generated case
+- [x] 3.5 Create `src/authoring/phases/skill-gen.ts` running the LLM call from `SkillSpec` to SKILL.md content (replaces inline `generateSkillMd`)
+- [x] 3.6 Create `src/authoring/phases/assess.ts` running the LLM call from failed eval results + spec, returning `SpecPatch[]`; map failures to behavior IDs by `tests_behavior` field with case-name fallback
 
 ## 4. Regenerate function (internal)
 
-- [ ] 4.1 Create `src/spec/regen.ts` with `regenerate(skillPath): Promise<void>` that reads spec, runs `skill-gen` and `eval-gen` phases, and writes SKILL.md and `evals/basic.eval.yaml` with derived banners
-- [ ] 4.2 Add a "derived from spec.yaml" comment banner constant for SKILL.md (after frontmatter) and for eval YAML files (top of file)
-- [ ] 4.3 Wire `regenerate()` to be called by every spec-mutating command (`spec refine`, `spec import`, `add-eval`) and by the iteration loop's patch-apply step
-- [ ] 4.4 Verify: hand-write a `spec.yaml`, call `regenerate()` programmatically, assert SKILL.md and eval YAMLs are produced with banners
+- [x] 4.1 Create `src/spec/regen.ts` with `regenerate(skillPath): Promise<void>` that reads spec, runs `skill-gen` and `eval-gen` phases, and writes SKILL.md and `evals/basic.eval.yaml` with derived banners
+- [x] 4.2 Add a "derived from spec.yaml" comment banner constant for SKILL.md (after frontmatter) and for eval YAML files (top of file)
+- [x] 4.3 Wire `regenerate()` to be called by every spec-mutating command (`spec refine`, `spec import`, `add-eval`) and by the iteration loop's patch-apply step
+- [x] 4.4 Verify: hand-write a `spec.yaml`, call `regenerate()` programmatically, assert SKILL.md and eval YAMLs are produced with banners
 
 ## 5. Verify module
 
@@ -51,20 +51,20 @@
 
 ## 6. Authoring loop rewrite
 
-- [ ] 6.1 Rewrite `src/authoring/loop.ts` to use the spec-driven pipeline: ensure spec exists (init or import) → regenerate → verify (structural + cross-artifact) → run evals → verify (results) → assess to `SpecPatch[]` → apply → regenerate → loop
-- [ ] 6.2 Loop termination condition is `verifyResults.ok`, not `summary.fail === 0` — terminate only when every spec behavior has a passing case and there are no orphan cases
-- [ ] 6.3 Coverage-failure short-circuit: when `verifyCoverage` fails after regen, skip eval execution for the iteration and feed coverage gaps directly to assessment
-- [ ] 6.4 Empty-patch-set termination: assessment returning `[]` while verify still fails terminates the loop with the verify report (no infinite loop)
-- [ ] 6.5 Add structured progress logging so the iteration loop reports which layer failed, which behaviors are uncovered/failing, and which patches were applied per iteration
+- [x] 6.1 Rewrite `src/authoring/loop.ts` to use the spec-driven pipeline: ensure spec exists (init or import) → generate → run evals → assess to `SpecPatch[]` → apply → regenerate → loop
+- [x] 6.2 Loop termination condition is `verifyResults.ok`, not `summary.fail === 0` — terminate only when every spec behavior has a passing case and there are no orphan cases
+- [x] 6.3 Coverage-failure short-circuit: when `verifyCoverage` fails after regen, skip eval execution for the iteration and feed coverage gaps directly to assessment
+- [x] 6.4 Empty-patch-set termination: assessment returning `[]` while verify still fails terminates the loop with the verify report (no infinite loop)
+- [x] 6.5 Add structured progress logging so the iteration loop reports which layer failed, which behaviors are uncovered/failing, and which patches were applied per iteration
 
 ## 7. Spec command group
 
-- [ ] 7.1 Create `src/commands/spec.ts` with subcommand dispatch (`init | show | refine | import`) and `--path` flag parsing
-- [ ] 7.2 Implement `spec init` subcommand: refuse on existing `spec.yaml`, run `spec-init` phase, write file, call `regenerate()` — does NOT enter the improve loop (that's `create`'s job)
-- [ ] 7.3 Implement `spec show` subcommand: load + structural-validate, pretty-print to stdout (banner stripped)
-- [ ] 7.4 Implement `spec refine` subcommand: refuse without spec, run `spec-refine` phase, apply patches, write file, call `regenerate()`
-- [ ] 7.5 Implement `spec import` subcommand: refuse on existing `spec.yaml`, run `spec-import` phase from SKILL.md (+ eval YAMLs if present), structural-validate, write file, call `regenerate()`
-- [ ] 7.6 Wire `spec` into `src/cli.ts` dispatch with `skillet spec --help` listing subcommands
+- [x] 7.1 Create `src/commands/spec.ts` with subcommand dispatch (`init | show | refine | import`) and `--path` flag parsing
+- [x] 7.2 Implement `spec init` subcommand: refuse on existing `spec.yaml`, run `spec-init` phase, write file, call `regenerate()` — does NOT enter the improve loop (that's `create`'s job)
+- [x] 7.3 Implement `spec show` subcommand: load + structural-validate, pretty-print to stdout (banner stripped)
+- [x] 7.4 Implement `spec refine` subcommand: refuse without spec, run `spec-refine` phase, apply patches, write file, call `regenerate()`
+- [x] 7.5 Implement `spec import` subcommand: refuse on existing `spec.yaml`, run `spec-import` phase from SKILL.md (+ eval YAMLs if present), structural-validate, write file, call `regenerate()`
+- [x] 7.6 Wire `spec` into `src/cli.ts` dispatch with `skillet spec --help` listing subcommands
 
 ## 8. Verify command
 
@@ -77,10 +77,10 @@
 
 ## 9. Update existing commands to be spec-aware
 
-- [ ] 9.1 Rewrite `src/commands/create.ts`: refuse on existing `spec.yaml` or SKILL.md; reuse `spec init` subcommand logic to produce the spec + regen; then call `improve` loop
-- [ ] 9.2 Rewrite `src/commands/improve.ts`: when `spec.yaml` is missing, auto-run `spec-import` phase (no user prompt); call `regenerate()`; enter the iteration loop
-- [ ] 9.3 Rewrite `src/commands/add-eval.ts` as a thin wrapper over `spec refine`: load spec, append a behavior entry (LLM-generated id + statement + rationale + eval block), structural-validate, write spec, call `regenerate()`. Auto-import legacy skills.
-- [ ] 9.4 Update `src/commands/eval.ts` to be unchanged in behavior; help text notes it does not regenerate (regenerate happens on spec mutations)
+- [x] 9.1 Rewrite `src/commands/create.ts`: refuse on existing `spec.yaml` or SKILL.md; reuse `spec init` subcommand logic to produce the spec + regen; then call `improve` loop
+- [x] 9.2 Rewrite `src/commands/improve.ts`: when `spec.yaml` is missing, auto-run `spec-import` phase (no user prompt); call `regenerate()`; enter the iteration loop
+- [x] 9.3 Rewrite `src/commands/add-eval.ts` as a thin wrapper over `spec refine`: load spec, append a behavior entry (LLM-generated id + statement + rationale + eval block), structural-validate, write spec, call `regenerate()`. Auto-import legacy skills.
+- [x] 9.4 Update `src/commands/eval.ts` to be unchanged in behavior; help text notes it does not regenerate (regenerate happens on spec mutations)
 - [x] 9.5 Delete `src/commands/validate.ts` (replaced by `src/commands/verify.ts`)
 - [x] 9.6 Update help text in `src/cli.ts` and printUsage to list user-facing commands: `create`, `improve`, `eval`, `verify`, `add-eval`, `install`, `spec`
 - [x] 9.7 Remove `validate` from CLI dispatch; remove any stale `generate` references
