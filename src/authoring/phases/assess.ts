@@ -68,7 +68,9 @@ const formatFailures = (
     if (failing.length > 0) {
       const lines: string[] = ["## Per-behavior verdicts (failures only)"];
       for (const v of failing) {
-        lines.push(`- ${v.kind}:${v.id} → ${v.status} (cases: ${v.caseNames.join(", ") || "none"})`);
+        lines.push(
+          `- ${v.kind}:${v.id} → ${v.status} (cases: ${v.caseNames.join(", ") || "none"})`,
+        );
       }
       blocks.push(lines.join("\n"));
     }

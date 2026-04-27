@@ -1,7 +1,6 @@
 import type { Context, Message } from "@mariozechner/pi-ai";
 import type { AnyModel } from "../agent/provider.js";
 import { completeWithBackoff } from "../agent/complete-with-backoff.js";
-import { buildEvalGenPrompt } from "./prompts.js";
 import { lintEvalYaml, LOAD_BEARING_RULES, type LintError, type LintFix } from "../eval/linter.js";
 
 const MAX_RETRIES = 2;
@@ -112,43 +111,4 @@ export const generateEvalYamlWithRetry = async (opts: {
   }
 
   throw new Error("unreachable");
-};
-
-/**
- * Generate eval YAML content from a SKILL.md file using an LLM.
- * Runs the lint+retry loop; load-bearing warnings throw after retries.
- *
- * In `improve` mode, pass `previousEvalYaml` (the existing eval file)
- * and `evalChanges` (the assessment's diagnosis of what's wrong with
- * those evals) so the regeneration is informed instead of starting
- * from scratch.
- */
-export const generateEvalYaml = async (
-  model: AnyModel,
-  skillMdContent: string,
-  opts: {
-    previousEvalYaml?: string;
-    evalChanges?: string;
-  } = {},
-): Promise<string> => {
-  const { previousEvalYaml, evalChanges } = opts;
-
-  const sections = [`## SKILL.md\n\n${skillMdContent}`];
-  if (previousEvalYaml != null && previousEvalYaml !== "") {
-    sections.push(`## Previous eval YAML\n\n${previousEvalYaml}`);
-  }
-  if (evalChanges != null && evalChanges !== "") {
-    sections.push(
-      `## Assessment of what to change in the evals\n\n${evalChanges}\n\nApply this guidance when regenerating.`,
-    );
-  }
-
-  return generateEvalYamlWithRetry({
-    model,
-    systemPrompt: buildEvalGenPrompt(),
-    initialUserContent: sections.join("\n\n---\n\n"),
-    logProgress: (msg) => {
-      console.log(`\x1b[2m    ${msg}\x1b[0m`);
-    },
-  });
 };

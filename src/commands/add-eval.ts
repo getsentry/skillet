@@ -1,52 +1,35 @@
-import { resolve, join } from "node:path";
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { findSkillRoot, loadSkill } from "../skill/loader.js";
+import { existsSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { resolveModels } from "../agent/provider.js";
-import { loadEvalExamples } from "../authoring/references.js";
-import { generateEvalYamlWithRetry } from "../authoring/eval-gen.js";
+import { runSpecImport } from "../authoring/phases/spec-import.js";
+import { runSpecRefine } from "../authoring/phases/spec-refine.js";
+import { findSkillRoot } from "../skill/loader.js";
+import {
+  applyPatches,
+  readSpec,
+  regenerate,
+  specFileName,
+  validateSpecObject,
+  writeSpec,
+} from "../spec/index.js";
 
-const buildAddEvalPrompt = (): string => {
-  const examples = loadEvalExamples();
-
-  return `You are an expert at writing eval cases for agent skills.
-You will receive:
-1. A SKILL.md file
-2. One or more behavior descriptions — each describes a specific behavior to test
-
-For each behavior description, produce one eval case in YAML format.
-The cases should be appended to an existing eval file, so output ONLY
-the case entries (indented under an \`evals:\` key), not a full file.
-
-Follow this eval format:
-
-${examples}
-
----
-
-## Rules
-
-- Each behavior description becomes exactly one eval case
-- The case name should be descriptive and specific
-- Use structural checks (output_contains, output_not_contains, workspace checks) where possible
-- Use LLM judge criteria only for subjective quality
-- Include workspace setup if the agent needs files to work with
-- Match the style and complexity of the existing eval cases if any are provided
-
-Output ONLY the YAML cases. No explanations, no markdown fences.
-Start with \`evals:\`.`;
+const errorMessage = (err: unknown): string => {
+  return err instanceof Error ? err.message : String(err);
 };
 
+/**
+ * `skillet add-eval [path] "<behavior>" ["<behavior 2>" ...]`
+ *
+ * Internally a thin wrapper over `spec refine`: each behavior
+ * description is translated into an `add_behavior` patch (or
+ * `add_must_not` for negative rules), the spec is updated, and
+ * derived files are regenerated. Auto-imports legacy skills.
+ */
 export const addEvalCommand = async (args: string[]): Promise<number> => {
-  // Parse: skillet add-eval [path] "behavior 1" "behavior 2" ... [--file=custom.eval.yaml]
-  const fileFlag = args.find((a) => a.startsWith("--file="));
-  const evalFileName = fileFlag?.split("=")[1] ?? "basic.eval.yaml";
-
   const nonFlags = args.filter((a) => !a.startsWith("--"));
 
-  // First non-flag arg that looks like a path (contains / or . or is a directory)
   let skillPath: string | undefined;
   const descriptions: string[] = [];
-
   for (const arg of nonFlags) {
     if (skillPath == null && (arg.includes("/") || arg.startsWith(".") || existsSync(arg))) {
       skillPath = arg;
@@ -56,9 +39,7 @@ export const addEvalCommand = async (args: string[]): Promise<number> => {
   }
 
   if (descriptions.length === 0) {
-    console.error(
-      'Usage: skillet add-eval [path] "behavior description" ["another behavior"] [--file=name.eval.yaml]',
-    );
+    console.error('Usage: skillet add-eval [path] "<behavior>" ["<another>"] ...');
     console.error("");
     console.error("Examples:");
     console.error('  skillet add-eval "should recommend select_related for FK access in loops"');
@@ -70,70 +51,91 @@ export const addEvalCommand = async (args: string[]): Promise<number> => {
 
   const startPath = resolve(skillPath ?? ".");
 
+  // Locate the skill root. If only SKILL.md is present (no spec.yaml),
+  // auto-import first so subsequent operations work in spec-driven mode.
   let skillRoot: string;
   try {
     skillRoot = findSkillRoot(startPath);
   } catch {
     console.error(`Error: No SKILL.md found at ${startPath}`);
+    console.error("Run `skillet create <description>` to start a new skill.");
     return 1;
   }
 
-  const skill = loadSkill(skillRoot);
-  const skillContent = readFileSync(join(skillRoot, "SKILL.md"), "utf-8");
-
-  console.log(`Skill: ${skill.meta.name}`);
-  console.log(
-    `Generating ${descriptions.length} eval case${descriptions.length === 1 ? "" : "s"}...`,
-  );
-
-  // Check for existing evals to provide as context
-  const evalsDir = join(skillRoot, "evals");
-  const evalFilePath = join(evalsDir, evalFileName);
-  let existingEvals = "";
-  if (existsSync(evalFilePath)) {
-    existingEvals = readFileSync(evalFilePath, "utf-8");
-  }
-
+  const specPath = join(skillRoot, specFileName());
   const models = resolveModels();
 
-  const descriptionsText = descriptions.map((d, i) => `${i + 1}. ${d}`).join("\n");
+  if (!existsSync(specPath)) {
+    console.log("No spec.yaml found — importing from existing SKILL.md...");
+    const skillMd = readFileSync(join(skillRoot, "SKILL.md"), "utf-8");
+    let spec;
+    try {
+      spec = await runSpecImport(models.agent, skillMd);
+    } catch (err: unknown) {
+      console.error(`Error during import: ${errorMessage(err)}`);
+      return 1;
+    }
+    writeSpec(specPath, spec);
+    console.log(`  Wrote ${specPath}`);
+  }
 
-  const userContent = [
-    "## SKILL.md\n",
-    skillContent,
-    existingEvals !== "" ? `\n## Existing Eval Cases (match this style)\n\n${existingEvals}` : "",
-    `\n## Behavior Descriptions (generate one eval case per description)\n\n${descriptionsText}`,
-  ].join("\n");
+  const spec = readSpec(specPath);
+  if (spec == null) {
+    console.error(`Error: failed to read ${specPath}`);
+    return 1;
+  }
 
-  let generated: string;
+  // Translate the behavior descriptions into a single refine call.
+  // Joining them with bullets keeps the LLM's job clear: each bullet
+  // is a separate behavior to add.
+  const feedback = `Add the following as new behaviors to the spec. Use the rule wording verbatim where it reads as imperative; otherwise rephrase minimally to imperative voice. For each behavior, include an \`eval\` block when the rule has a clear test shape; otherwise leave it off and let eval-gen invent one.\n\n${descriptions.map((d, i) => `${i + 1}. ${d}`).join("\n")}`;
+
+  console.log(
+    `Generating ${descriptions.length} behavior${descriptions.length === 1 ? "" : "s"}...`,
+  );
+  let patches;
   try {
-    generated = await generateEvalYamlWithRetry({
+    patches = await runSpecRefine(models.agent, spec, feedback);
+  } catch (err: unknown) {
+    console.error(`Error: ${errorMessage(err)}`);
+    return 1;
+  }
+
+  if (patches.length === 0) {
+    console.log("No patches produced — feedback didn't translate to a spec change.");
+    return 0;
+  }
+
+  console.log(`Applying ${patches.length} patch${patches.length === 1 ? "" : "es"}...`);
+  let updated;
+  try {
+    updated = applyPatches(spec, patches);
+  } catch (err: unknown) {
+    console.error(`Error applying patches: ${errorMessage(err)}`);
+    return 1;
+  }
+
+  const validation = validateSpecObject(updated, specPath);
+  if (!validation.valid) {
+    console.error("Patched spec failed structural validation:");
+    for (const e of validation.errors) console.error(`  ${e.message}`);
+    return 1;
+  }
+
+  writeSpec(specPath, updated);
+  console.log(`✓ Updated ${specPath}`);
+
+  console.log("Regenerating SKILL.md and evals from updated spec...");
+  try {
+    await regenerate(skillRoot, {
       model: models.agent,
-      systemPrompt: buildAddEvalPrompt(),
-      initialUserContent: userContent,
-      logProgress: (msg) => {
-        console.log(`\x1b[2m  ${msg}\x1b[0m`);
+      onProgress: (msg) => {
+        console.log(`  ${msg}`);
       },
     });
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error(`Error: ${msg}`);
+    console.error(`Error during regen: ${errorMessage(err)}`);
     return 1;
-  }
-
-  // Merge into existing file or create new
-  mkdirSync(evalsDir, { recursive: true });
-
-  if (existingEvals !== "") {
-    // Append the new cases to existing file.
-    // The generated YAML starts with "evals:" — extract just the cases.
-    const casesOnly = generated.replace(/^evals:\s*\n/, "");
-    const merged = existingEvals.trimEnd() + "\n\n" + casesOnly;
-    writeFileSync(evalFilePath, merged, "utf-8");
-    console.log(`\x1b[32m✓\x1b[0m Appended to ${evalFilePath}`);
-  } else {
-    writeFileSync(evalFilePath, generated, "utf-8");
-    console.log(`\x1b[32m✓\x1b[0m Written to ${evalFilePath}`);
   }
 
   return 0;

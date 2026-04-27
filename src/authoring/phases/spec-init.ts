@@ -1,12 +1,7 @@
 import type { Context } from "@mariozechner/pi-ai";
 import { completeWithBackoff } from "../../agent/complete-with-backoff.js";
 import type { AnyModel } from "../../agent/provider.js";
-import {
-  parseSpecYaml,
-  uniqueSlug,
-  validateSpecObject,
-  type SkillSpec,
-} from "../../spec/index.js";
+import { parseSpecYaml, uniqueSlug, validateSpecObject, type SkillSpec } from "../../spec/index.js";
 import { buildSpecInitPrompt } from "../prompts/spec-init.js";
 
 const stripFences = (text: string): string => {
@@ -70,10 +65,7 @@ const normalize = (spec: SkillSpec): SkillSpec => {
  * fails structural validation after normalization. The caller (the
  * `spec init` command) handles the error.
  */
-export const runSpecInit = async (
-  model: AnyModel,
-  description: string,
-): Promise<SkillSpec> => {
+export const runSpecInit = async (model: AnyModel, description: string): Promise<SkillSpec> => {
   const context: Context = {
     systemPrompt: buildSpecInitPrompt(),
     messages: [

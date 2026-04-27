@@ -1,12 +1,7 @@
 import type { Context } from "@mariozechner/pi-ai";
 import { completeWithBackoff } from "../../agent/complete-with-backoff.js";
 import type { AnyModel } from "../../agent/provider.js";
-import {
-  parseSpecYaml,
-  uniqueSlug,
-  validateSpecObject,
-  type SkillSpec,
-} from "../../spec/index.js";
+import { parseSpecYaml, uniqueSlug, validateSpecObject, type SkillSpec } from "../../spec/index.js";
 import { buildSpecImportPrompt } from "../prompts/spec-import.js";
 
 const SLUG_RE = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
