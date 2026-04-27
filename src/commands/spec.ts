@@ -1,0 +1,283 @@
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { resolveModels } from "../agent/provider.js";
+import { runSpecImport } from "../authoring/phases/spec-import.js";
+import { runSpecInit } from "../authoring/phases/spec-init.js";
+import { runSpecRefine } from "../authoring/phases/spec-refine.js";
+import { discoverEvalFiles } from "../eval/index.js";
+import {
+  applyPatches,
+  readSpec,
+  readSpecText,
+  regenerate,
+  specFileName,
+  stripBanner,
+  validateSpecObject,
+  writeSpec,
+} from "../spec/index.js";
+
+const errorMessage = (err: unknown): string => {
+  return err instanceof Error ? err.message : String(err);
+};
+
+const findFlag = (args: string[], prefix: string): string | undefined => {
+  const flag = args.find((a) => a.startsWith(prefix));
+  return flag?.split("=")[1];
+};
+
+const findPositional = (args: string[]): string[] => {
+  return args.filter((a) => !a.startsWith("--"));
+};
+
+/**
+ * Top-level dispatcher for `skillet spec <subcommand>`.
+ */
+export const specCommand = async (args: string[]): Promise<number> => {
+  const sub = args[0];
+  if (sub == null || sub === "" || sub === "--help" || sub === "-h") {
+    printSpecUsage();
+    return 0;
+  }
+  const rest = args.slice(1);
+
+  switch (sub) {
+    case "init":
+      return specInit(rest);
+    case "show":
+      return specShow(rest);
+    case "refine":
+      return specRefine(rest);
+    case "import":
+      return specImport(rest);
+    default:
+      console.error(`Unknown spec subcommand: ${sub}`);
+      printSpecUsage();
+      return 1;
+  }
+};
+
+const printSpecUsage = (): void => {
+  console.log(`
+skillet spec — manage spec.yaml (the source of truth)
+
+Subcommands:
+  init "<description>" [--path=<dir>]   Generate a new spec from a description (no improve loop)
+  show [path]                            Pretty-print the current spec
+  refine "<feedback>" [path]             Apply natural-language feedback as spec patches
+  import [path]                          Reverse-engineer spec from existing SKILL.md (+ evals)
+
+All mutating subcommands automatically regenerate SKILL.md and evals
+from the new spec.
+`);
+};
+
+// ── init ──────────────────────────────────────────────────
+
+const specInit = async (args: string[]): Promise<number> => {
+  const positional = findPositional(args);
+  const description = positional.join(" ").trim();
+  if (description === "") {
+    console.error('Usage: skillet spec init "<description>" [--path=<dir>]');
+    return 1;
+  }
+
+  const pathArg = findFlag(args, "--path=");
+  const skillRoot = resolve(pathArg ?? description.toLowerCase().replace(/[^a-z0-9]+/g, "-"));
+  const specPath = join(skillRoot, specFileName());
+
+  if (existsSync(specPath)) {
+    console.error(`Error: ${specPath} already exists.`);
+    console.error("Use `skillet spec refine` to modify it, or delete it manually.");
+    return 1;
+  }
+
+  const models = resolveModels();
+  console.log(`Generating spec from description (${skillRoot})...`);
+
+  let spec;
+  try {
+    spec = await runSpecInit(models.agent, description);
+  } catch (err: unknown) {
+    console.error(`Error: ${errorMessage(err)}`);
+    return 1;
+  }
+
+  mkdirSync(skillRoot, { recursive: true });
+  writeSpec(specPath, spec);
+  console.log(`✓ Wrote ${specPath}`);
+
+  console.log("Regenerating SKILL.md and evals...");
+  try {
+    await regenerate(skillRoot, {
+      model: models.agent,
+      onProgress: (msg) => {
+        console.log(`  ${msg}`);
+      },
+    });
+  } catch (err: unknown) {
+    console.error(`Error during regen: ${errorMessage(err)}`);
+    return 1;
+  }
+
+  console.log(`\nSpec ready at ${skillRoot}.`);
+  console.log("Run `skillet improve` to iterate the spec until evals pass.");
+  return 0;
+};
+
+// ── show ──────────────────────────────────────────────────
+
+const specShow = (args: string[]): number => {
+  const pathArg = findPositional(args)[0];
+  const skillRoot = resolve(pathArg ?? ".");
+  const specPath = join(skillRoot, specFileName());
+  const text = readSpecText(specPath);
+  if (text == null) {
+    console.error(`Error: no ${specFileName()} at ${skillRoot}`);
+    return 1;
+  }
+  console.log(stripBanner(text));
+  return 0;
+};
+
+// ── refine ────────────────────────────────────────────────
+
+const specRefine = async (args: string[]): Promise<number> => {
+  const positional = findPositional(args);
+  if (positional.length === 0) {
+    console.error('Usage: skillet spec refine "<feedback>" [path]');
+    return 1;
+  }
+
+  // First positional is the feedback; subsequent positionals are
+  // treated as a path if they look like one (contains / or starts
+  // with .) — same convention used by add-eval today.
+  let feedback = positional[0] ?? "";
+  let pathArg: string | undefined;
+  for (const arg of positional.slice(1)) {
+    if (arg.includes("/") || arg.startsWith(".") || existsSync(arg)) {
+      pathArg = arg;
+    } else {
+      feedback = `${feedback} ${arg}`.trim();
+    }
+  }
+
+  const skillRoot = resolve(pathArg ?? ".");
+  const specPath = join(skillRoot, specFileName());
+  const spec = readSpec(specPath);
+  if (spec == null) {
+    console.error(`Error: no ${specFileName()} at ${skillRoot}`);
+    console.error("Run `skillet spec init <description>` or `skillet spec import` first.");
+    return 1;
+  }
+
+  const models = resolveModels();
+  console.log("Generating patches from feedback...");
+  let patches;
+  try {
+    patches = await runSpecRefine(models.agent, spec, feedback);
+  } catch (err: unknown) {
+    console.error(`Error: ${errorMessage(err)}`);
+    return 1;
+  }
+
+  if (patches.length === 0) {
+    console.log("No patches produced (feedback didn't translate to a spec change).");
+    return 0;
+  }
+
+  console.log(`Applying ${patches.length} patch${patches.length === 1 ? "" : "es"}...`);
+  let updated;
+  try {
+    updated = applyPatches(spec, patches);
+  } catch (err: unknown) {
+    console.error(`Error applying patches: ${errorMessage(err)}`);
+    return 1;
+  }
+
+  const validation = validateSpecObject(updated, specPath);
+  if (!validation.valid) {
+    console.error("Patched spec failed structural validation:");
+    for (const e of validation.errors) console.error(`  ${e.message}`);
+    return 1;
+  }
+
+  writeSpec(specPath, updated);
+  console.log(`✓ Updated ${specPath}`);
+
+  console.log("Regenerating SKILL.md and evals...");
+  try {
+    await regenerate(skillRoot, {
+      model: models.agent,
+      onProgress: (msg) => {
+        console.log(`  ${msg}`);
+      },
+    });
+  } catch (err: unknown) {
+    console.error(`Error during regen: ${errorMessage(err)}`);
+    return 1;
+  }
+
+  return 0;
+};
+
+// ── import ────────────────────────────────────────────────
+
+const specImport = async (args: string[]): Promise<number> => {
+  const pathArg = findPositional(args)[0];
+  const skillRoot = resolve(pathArg ?? ".");
+  const specPath = join(skillRoot, specFileName());
+
+  if (existsSync(specPath)) {
+    console.error(`Error: ${specPath} already exists.`);
+    console.error(
+      "`spec import` refuses to overwrite. Delete the file or run `spec refine` instead.",
+    );
+    return 1;
+  }
+
+  const skillMdPath = join(skillRoot, "SKILL.md");
+  if (!existsSync(skillMdPath)) {
+    console.error(`Error: no SKILL.md at ${skillRoot}.`);
+    console.error(
+      "`spec import` reverse-engineers from an existing SKILL.md. Use `spec init` for new skills.",
+    );
+    return 1;
+  }
+
+  const skillMd = readFileSync(skillMdPath, "utf-8");
+  const evalPaths = discoverEvalFiles(skillRoot);
+  const existingEvals = evalPaths
+    .map((p) => `# ${p}\n${readFileSync(p, "utf-8")}`)
+    .join("\n\n---\n\n");
+
+  const models = resolveModels();
+  console.log(`Importing spec from ${skillMdPath}...`);
+  let spec;
+  try {
+    spec = await runSpecImport(models.agent, skillMd, existingEvals);
+  } catch (err: unknown) {
+    console.error(`Error: ${errorMessage(err)}`);
+    return 1;
+  }
+
+  writeSpec(specPath, spec);
+  console.log(`✓ Wrote ${specPath}`);
+
+  console.log("Regenerating SKILL.md and evals from imported spec...");
+  try {
+    await regenerate(skillRoot, {
+      model: models.agent,
+      onProgress: (msg) => {
+        console.log(`  ${msg}`);
+      },
+    });
+  } catch (err: unknown) {
+    console.error(`Error during regen: ${errorMessage(err)}`);
+    return 1;
+  }
+
+  console.log(
+    "\nImported spec is a faithful capture of SKILL.md, not improved. Run `skillet improve` to iterate.",
+  );
+  return 0;
+};

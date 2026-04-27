@@ -4,6 +4,7 @@ import { createCommand } from "./commands/create.js";
 import { improveCommand } from "./commands/improve.js";
 import { installCommand } from "./commands/install.js";
 import { addEvalCommand } from "./commands/add-eval.js";
+import { specCommand } from "./commands/spec.js";
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -35,6 +36,9 @@ const main = async (): Promise<number> => {
 
     case "install":
       return installCommand(args.slice(1));
+
+    case "spec":
+      return specCommand(args.slice(1));
 
     default:
       console.error(`Unknown command: ${command}`);
