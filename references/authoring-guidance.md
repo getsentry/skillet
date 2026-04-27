@@ -1,5 +1,23 @@
 # Authoring Guidance
 
+## Spec-Driven Authoring
+
+Skillet authors skills via a structured `spec.yaml` that captures
+intent, behaviors, must-nots, and triggers. SKILL.md and eval YAMLs
+are derived from the spec — never hand-edited.
+
+The spec → SKILL.md mapping is 1:1: each behavior in the spec
+becomes one section in SKILL.md, and each behavior or must_not
+becomes exactly one eval case (named `<id>__<slug>`, tagged
+`tests_behavior: <id>`). This 1:1 mapping is what makes coverage
+trivially checkable — every behavior either has a passing case or
+the skill isn't done.
+
+Iteration patches the spec, not the prose: assessment produces
+`SpecPatch[]` operations (update_behavior, add_eval, etc.) that the
+patcher applies deterministically. The loop converges on a stable
+spec rather than churning SKILL.md and eval YAMLs across iterations.
+
 ## Design Principles
 
 ### Conciseness

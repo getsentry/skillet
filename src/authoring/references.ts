@@ -51,9 +51,16 @@ export const loadAuthoringGuidance = (): string => loadReference("authoring-guid
 
 export const loadEvalExamples = (): string => loadReference("eval-examples.md");
 
+export const loadSpecFormat = (): string => loadReference("spec-format.md");
+
 /**
  * Load all reference material concatenated, for use in system prompts.
  */
 export const loadAllReferences = (): string => {
-  return [loadSkillPatterns(), loadAuthoringGuidance(), loadEvalExamples()].join("\n\n---\n\n");
+  return [
+    loadSkillPatterns(),
+    loadAuthoringGuidance(),
+    loadEvalExamples(),
+    loadSpecFormat(),
+  ].join("\n\n---\n\n");
 };
