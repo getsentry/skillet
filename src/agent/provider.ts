@@ -140,35 +140,66 @@ const resolveModel = (explicit?: string): AnyModel => {
 };
 
 /**
- * Try to read the Claude Code OAuth token from macOS Keychain.
- * Claude Code stores credentials under service "Claude Code-credentials"
- * with a JSON blob containing { claudeAiOauth: { accessToken, ... } }.
- *
- * Returns the access token string, or undefined if unavailable.
+ * Source-result type used by autoDiscover to track WHY each
+ * credential source returned no token. Distinguishes a clean
+ * "no entry" from a transient "errored" — the latter is worth
+ * retrying.
  */
+type SourceResult =
+  | { kind: "found"; token: string }
+  | { kind: "empty" }
+  | { kind: "error"; source: string; reason: string };
+
 /**
  * Try to read the Claude Code OAuth token from macOS Keychain.
  * Claude Code stores credentials under service "Claude Code-credentials"
  * with a JSON blob containing { claudeAiOauth: { accessToken, ... } }.
+ *
+ * Returns a `SourceResult` so callers can distinguish "no Keychain
+ * entry" (clean) from "Keychain locked / timed out / parse failed"
+ * (transient — retryable).
  */
-const readClaudeCodeKeychainToken = (): string | undefined => {
+const readClaudeCodeKeychainToken = (): SourceResult => {
   if (platform() !== "darwin") {
-    return undefined;
+    return { kind: "empty" };
   }
 
+  let raw: string;
   try {
-    const raw = execSync('security find-generic-password -s "Claude Code-credentials" -w', {
+    raw = execSync('security find-generic-password -s "Claude Code-credentials" -w', {
       stdio: "pipe",
       timeout: 5_000,
     })
       .toString()
       .trim();
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // The `security` binary returns exit code 44 when the entry
+    // doesn't exist — that's a clean "empty", not an error.
+    // Other failures (timeout, locked keychain, dyld errors) are
+    // transient.
+    if (msg.includes("could not be found") || msg.includes("44")) {
+      return { kind: "empty" };
+    }
+    return {
+      kind: "error",
+      source: "macOS Keychain (Claude Code)",
+      reason: msg.slice(0, 120),
+    };
+  }
 
+  try {
     const parsed: unknown = JSON.parse(raw);
-    return extractClaudeOAuthToken(parsed);
-  } catch {
-    // Keychain unavailable, locked, or entry doesn't exist
-    return undefined;
+    const token = extractClaudeOAuthToken(parsed);
+    if (token == null) return { kind: "empty" };
+    return { kind: "found", token };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return {
+      kind: "error",
+      source: "macOS Keychain (Claude Code)",
+      reason: `keychain entry present but unparseable: ${msg.slice(0, 80)}`,
+    };
   }
 };
 
@@ -199,17 +230,34 @@ const extractClaudeOAuthToken = (parsed: unknown): string | undefined => {
  * Read Claude Code OAuth from ~/.claude/.credentials.json (Linux / fallback).
  * On Linux, Claude Code writes credentials to this file instead of a system keychain.
  */
-const readClaudeCodeCredentialsFile = (): string | undefined => {
+const readClaudeCodeCredentialsFile = (): SourceResult => {
+  const credPath = join(homedir(), ".claude", ".credentials.json");
+  if (!existsSync(credPath)) {
+    return { kind: "empty" };
+  }
+  let raw: string;
   try {
-    const credPath = join(homedir(), ".claude", ".credentials.json");
-    if (!existsSync(credPath)) {
-      return undefined;
-    }
-    const raw = readFileSync(credPath, "utf-8");
+    raw = readFileSync(credPath, "utf-8");
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return {
+      kind: "error",
+      source: "~/.claude/.credentials.json",
+      reason: `read failed: ${msg.slice(0, 80)}`,
+    };
+  }
+  try {
     const parsed: unknown = JSON.parse(raw);
-    return extractClaudeOAuthToken(parsed);
-  } catch {
-    return undefined;
+    const token = extractClaudeOAuthToken(parsed);
+    if (token == null) return { kind: "empty" };
+    return { kind: "found", token };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return {
+      kind: "error",
+      source: "~/.claude/.credentials.json",
+      reason: `parse failed: ${msg.slice(0, 80)}`,
+    };
   }
 };
 
@@ -217,64 +265,139 @@ const readClaudeCodeCredentialsFile = (): string | undefined => {
  * Read OpenAI Codex credentials from ~/.codex/auth.json.
  * The Codex CLI stores OAuth tokens and API keys here after `codex login`.
  */
-const readCodexAuthFile = (): string | undefined => {
+const readCodexAuthFile = (): SourceResult => {
+  const authPath = join(homedir(), ".codex", "auth.json");
+  if (!existsSync(authPath)) {
+    return { kind: "empty" };
+  }
+  let raw: string;
   try {
-    const authPath = join(homedir(), ".codex", "auth.json");
-    if (!existsSync(authPath)) {
-      return undefined;
-    }
-    const raw = readFileSync(authPath, "utf-8");
+    raw = readFileSync(authPath, "utf-8");
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return {
+      kind: "error",
+      source: "~/.codex/auth.json",
+      reason: `read failed: ${msg.slice(0, 80)}`,
+    };
+  }
+  try {
     const parsed: unknown = JSON.parse(raw);
-    if (!isRecord(parsed)) {
-      return undefined;
-    }
+    if (!isRecord(parsed)) return { kind: "empty" };
 
-    // Codex auth.json may have { token: "...", api_key: "...", ... }
-    // Try common key names
     for (const key of ["api_key", "token", "access_token", "apiKey"]) {
       const val = parsed[key];
       if (typeof val === "string" && val !== "") {
-        return val;
+        return { kind: "found", token: val };
       }
     }
-    return undefined;
-  } catch {
-    return undefined;
+    return { kind: "empty" };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return {
+      kind: "error",
+      source: "~/.codex/auth.json",
+      reason: `parse failed: ${msg.slice(0, 80)}`,
+    };
   }
 };
 
-const autoDiscover = (): AnyModel => {
-  for (const entry of PROVIDER_AUTODISCOVERY) {
-    // Check pi-ai's built-in env var detection
-    if (getEnvApiKey(entry.provider) != null) {
-      return getModelLoose(entry.provider, entry.defaultModel);
-    }
+interface DiscoveryAttempt {
+  model?: AnyModel;
+  transientErrors: Array<{ source: string; reason: string }>;
+}
 
-    // Check extra env vars (agent-inherited tokens)
+const tryAutoDiscoverOnce = (): DiscoveryAttempt => {
+  const transientErrors: Array<{ source: string; reason: string }> = [];
+
+  // Env-var-based detection. These are pure reads so they can't fail
+  // transiently — empty means empty.
+  for (const entry of PROVIDER_AUTODISCOVERY) {
+    if (getEnvApiKey(entry.provider) != null) {
+      return { model: getModelLoose(entry.provider, entry.defaultModel), transientErrors };
+    }
     if (entry.extraEnvVars != null) {
       for (const envVar of entry.extraEnvVars) {
         if (envVarIsSet(envVar)) {
-          return getModelLoose(entry.provider, entry.defaultModel);
+          return { model: getModelLoose(entry.provider, entry.defaultModel), transientErrors };
         }
       }
     }
   }
 
-  // Credential file fallbacks — for when env vars are scrubbed by the host agent
-  // but the user has authenticated via the host's login flow.
+  // Credential file fallbacks. These can fail transiently — Keychain
+  // can be locked, files can be temporarily unreadable, etc. Track
+  // those so the caller can decide whether to retry.
 
-  // Claude Code: macOS Keychain or ~/.claude/.credentials.json
-  const claudeToken = readClaudeCodeKeychainToken() ?? readClaudeCodeCredentialsFile();
-  if (claudeToken != null) {
-    process.env.ANTHROPIC_API_KEY = claudeToken;
-    return getModelLoose("anthropic", "claude-opus-4-7");
+  const keychain = readClaudeCodeKeychainToken();
+  if (keychain.kind === "found") {
+    process.env.ANTHROPIC_API_KEY = keychain.token;
+    return { model: getModelLoose("anthropic", "claude-opus-4-7"), transientErrors };
+  }
+  if (keychain.kind === "error") {
+    transientErrors.push({ source: keychain.source, reason: keychain.reason });
   }
 
-  // OpenAI Codex: ~/.codex/auth.json
-  const codexToken = readCodexAuthFile();
-  if (codexToken != null) {
-    process.env.OPENAI_API_KEY = codexToken;
-    return getModelLoose("openai", "gpt-4o");
+  const credFile = readClaudeCodeCredentialsFile();
+  if (credFile.kind === "found") {
+    process.env.ANTHROPIC_API_KEY = credFile.token;
+    return { model: getModelLoose("anthropic", "claude-opus-4-7"), transientErrors };
+  }
+  if (credFile.kind === "error") {
+    transientErrors.push({ source: credFile.source, reason: credFile.reason });
+  }
+
+  const codex = readCodexAuthFile();
+  if (codex.kind === "found") {
+    process.env.OPENAI_API_KEY = codex.token;
+    return { model: getModelLoose("openai", "gpt-4o"), transientErrors };
+  }
+  if (codex.kind === "error") {
+    transientErrors.push({ source: codex.source, reason: codex.reason });
+  }
+
+  return { transientErrors };
+};
+
+const sleepSync = (ms: number): void => {
+  // Synchronous sleep is acceptable here — provider discovery happens
+  // once per CLI invocation, before the agent loop starts. Using
+  // Atomics.wait avoids spinning the CPU.
+  const buf = new SharedArrayBuffer(4);
+  const view = new Int32Array(buf);
+  Atomics.wait(view, 0, 0, ms);
+};
+
+const RETRY_DELAY_MS = 1_000;
+
+const autoDiscover = (): AnyModel => {
+  const first = tryAutoDiscoverOnce();
+  if (first.model != null) return first.model;
+
+  // If at least one source errored mid-check (vs cleanly returning
+  // empty), retry once after a short delay. This handles the
+  // common Keychain-just-locked / fresh-shell-not-yet-unlocked case
+  // that previously surfaced as a misleading "no provider detected".
+  if (first.transientErrors.length > 0) {
+    process.stderr.write(
+      `\u001B[2m  provider discovery hit transient errors, retrying in ${(RETRY_DELAY_MS / 1000).toFixed(1)}s...\u001B[0m\n`,
+    );
+    for (const e of first.transientErrors) {
+      process.stderr.write(`\u001B[2m    ${e.source}: ${e.reason}\u001B[0m\n`);
+    }
+    sleepSync(RETRY_DELAY_MS);
+    const second = tryAutoDiscoverOnce();
+    if (second.model != null) return second.model;
+
+    // Still no luck. The error message distinguishes "transient" from
+    // "no credentials found anywhere" so the user knows whether to
+    // configure something or just retry.
+    if (second.transientErrors.length > 0) {
+      const detail = second.transientErrors.map((e) => `  ${e.source}: ${e.reason}`).join("\n");
+      throw new Error(
+        `Provider discovery failed transiently. If you have credentials configured (Claude Code login, API keys, etc.), retry the command — this is often a Keychain unlock or filesystem hiccup.\n\nFailing sources after retry:\n${detail}\n\nIf the failure persists, set SKILLET_MODEL=provider/model-id to bypass auto-discovery.`,
+      );
+    }
   }
 
   throw new Error(
