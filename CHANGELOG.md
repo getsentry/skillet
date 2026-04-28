@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.15.0
+
+### New Features ✨
+
+- (authoring) Improve becomes spec-read-only; promote passing evals by @gricha in [c8cbbca5](https://github.com/getsentry/skillet/commit/c8cbbca5294f8955360dc5964b26a87a3efe30be)
+
+### Bug Fixes 🐛
+
+- (authoring) Surface coverage gaps after spec mutations; tighten dedupe precision by @gricha in [66c3a254](https://github.com/getsentry/skillet/commit/66c3a25465aba0194afe2cad99715ee82dd73bcf)
+- (provider) Distinguish transient discovery failures, retry once by @gricha in [914c7183](https://github.com/getsentry/skillet/commit/914c71837018c82fcf906352acae793e934591fa)
+
 ## 0.14.0
 
 ### Bug Fixes 🐛
