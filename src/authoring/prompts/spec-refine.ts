@@ -89,9 +89,36 @@ specific arguments:
    adjacent behaviors that weren't asked about. Each unnecessary op
    is a chance to introduce drift.
 
-6. **Empty array means no change.** If the feedback doesn't actually
-   ask for a spec change (e.g. asks a clarifying question), emit
-   \`[]\`. The CLI surfaces this as "no patches applied".
+6. **Merge duplicates instead of adding parallel rules.** Before
+   emitting \`add_behavior\` or \`add_must_not\`, scan the current spec
+   for an entry that says the same thing in different words. If you
+   find one, emit \`update_behavior\` (or \`update_must_not\`) on the
+   existing entry to incorporate the new wording — do NOT add a
+   second nearly-identical rule. Common indicators of duplication:
+   - Both rules apply to the same domain object (branch names,
+     PR titles, query patterns, etc.) with overlapping constraints.
+   - One rule is a special case of the other (e.g. "branch names
+     follow X" vs "branch names use suffix on collision" — these
+     belong in one combined rule, not two).
+   - The statements share the same imperative verb on the same noun.
+
+7. **Empty array means no change.** Emit \`[]\` when:
+   - The feedback asks a clarifying question rather than requesting
+     a change.
+   - The feedback applies cleanly via existing entries (already
+     handled).
+   - **The feedback is off-topic for this skill.** If the request
+     describes behavior unrelated to the skill's stated \`intent\` or
+     domain (e.g. asking a git-branch skill to add rules about
+     try/except handling, or asking a Python performance skill to
+     add rules about CSS), refuse by emitting \`[]\`. Do NOT compile
+     irrelevant feedback into patches just because the input was
+     well-formed. The spec is not a junk drawer for whatever
+     mistyped command went here.
+
+   The skill's \`intent\` field is the source of truth for what is
+   on-topic. If you're unsure, lean toward refusing — the user can
+   re-run with corrected input or with the right skill path.
 
 Output ONLY the JSON array. No prose, no markdown fences. Start with
 \`[\`.`;
