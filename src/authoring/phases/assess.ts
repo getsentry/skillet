@@ -2,7 +2,7 @@ import type { Context } from "@mariozechner/pi-ai";
 import { completeWithBackoff } from "../../agent/complete-with-backoff.js";
 import type { AnyModel } from "../../agent/provider.js";
 import type { EvalRunResult } from "../../eval/index.js";
-import { renderSpec, SPEC_PATCH_OPS, type SkillSpec, type SpecPatch } from "../../spec/index.js";
+import { renderSpec, validateSpecPatch, type SkillSpec, type SpecPatch } from "../../spec/index.js";
 import type { CoverageReport, ResultsReport } from "../../verify/index.js";
 import { buildAssessPrompt } from "../prompts/assess.js";
 
@@ -18,22 +18,6 @@ const extractText = (response: { content: unknown[] }): string => {
     })
     .map((b) => b.text)
     .join("");
-};
-
-const validatePatch = (raw: unknown, index: number): SpecPatch => {
-  if (raw == null || typeof raw !== "object" || Array.isArray(raw)) {
-    throw new Error(`patch at index ${index}: not an object`);
-  }
-  const obj = raw as Record<string, unknown>;
-  const op = obj.op;
-  if (typeof op !== "string") {
-    throw new Error(`patch at index ${index}: missing 'op' field`);
-  }
-  const knownOps: ReadonlySet<string> = new Set<string>(SPEC_PATCH_OPS);
-  if (!knownOps.has(op)) {
-    throw new Error(`patch at index ${index}: unknown op '${op}'`);
-  }
-  return raw as SpecPatch;
 };
 
 /**
@@ -143,5 +127,5 @@ export const runAssess = async (
     throw new Error(`assess: LLM output is not a JSON array of patches\n\nRaw output:\n${raw}`);
   }
 
-  return parsed.map(validatePatch);
+  return parsed.map(validateSpecPatch);
 };

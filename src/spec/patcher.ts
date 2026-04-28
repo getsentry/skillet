@@ -6,6 +6,52 @@ import {
   type SpecPatch,
 } from "./types.js";
 
+const isRecord = (val: unknown): val is Record<string, unknown> => {
+  return val != null && typeof val === "object" && !Array.isArray(val);
+};
+
+const KNOWN_OPS: ReadonlySet<string> = new Set<string>(SPEC_PATCH_OPS);
+
+/**
+ * Type predicate narrowing an unknown JSON value to `SpecPatch` based
+ * on the discriminator (`op`). The structural shape of each variant
+ * isn't fully verified here — that's `applyPatch`'s job at apply time
+ * — but the discriminator check is enough for the caller to type the
+ * result as `SpecPatch` and feed it into the patcher.
+ */
+const isSpecPatch = (raw: unknown): raw is SpecPatch => {
+  if (!isRecord(raw)) return false;
+  const op = raw.op;
+  return typeof op === "string" && KNOWN_OPS.has(op);
+};
+
+/**
+ * Validate a parsed JSON value as a `SpecPatch`. Used by phases that
+ * receive structured patches from an LLM (`spec-refine`, `assess`).
+ *
+ * Returns the patch on success; throws on unknown ops or malformed
+ * shape. The patcher itself runs the same kind of check during
+ * application; doing it once here lets the caller fail with the
+ * index of the bad op so the LLM can correct on retry.
+ */
+export const validateSpecPatch = (raw: unknown, index: number): SpecPatch => {
+  if (!isRecord(raw)) {
+    throw new Error(`patch at index ${index}: not an object`);
+  }
+  const op = raw.op;
+  if (typeof op !== "string") {
+    throw new Error(`patch at index ${index}: missing 'op' field`);
+  }
+  if (!KNOWN_OPS.has(op)) {
+    throw new Error(`patch at index ${index}: unknown op '${op}'`);
+  }
+  if (!isSpecPatch(raw)) {
+    // Defensive — should not be reachable given the checks above.
+    throw new Error(`patch at index ${index}: failed structural narrowing`);
+  }
+  return raw;
+};
+
 /**
  * Apply a single `SpecPatch` to a `SkillSpec`. Returns a new spec —
  * inputs are not mutated. Throws on:

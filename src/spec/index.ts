@@ -39,7 +39,7 @@ export {
 } from "./io.js";
 
 // Patcher
-export { applyPatch, applyPatches } from "./patcher.js";
+export { applyPatch, applyPatches, validateSpecPatch } from "./patcher.js";
 
 // Slug helpers
 export { slugify, uniqueSlug } from "./slug.js";

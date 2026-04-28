@@ -1,7 +1,7 @@
 import type { Context } from "@mariozechner/pi-ai";
 import { completeWithBackoff } from "../../agent/complete-with-backoff.js";
 import type { AnyModel } from "../../agent/provider.js";
-import { renderSpec, SPEC_PATCH_OPS, type SkillSpec, type SpecPatch } from "../../spec/index.js";
+import { renderSpec, validateSpecPatch, type SkillSpec, type SpecPatch } from "../../spec/index.js";
 import { buildSpecRefinePrompt } from "../prompts/spec-refine.js";
 
 const stripFences = (text: string): string => {
@@ -16,32 +16,6 @@ const extractText = (response: { content: unknown[] }): string => {
     })
     .map((b) => b.text)
     .join("");
-};
-
-/**
- * Validate a parsed JSON value as a `SpecPatch`. Returns the patch on
- * success, throws on unknown ops or malformed shape. The patcher
- * itself runs the same kind of check during application; doing it
- * here lets us fail with the index of the bad op so the LLM can
- * correct on retry.
- */
-const validatePatch = (raw: unknown, index: number): SpecPatch => {
-  if (raw == null || typeof raw !== "object" || Array.isArray(raw)) {
-    throw new Error(`patch at index ${index}: not an object`);
-  }
-  const obj = raw as Record<string, unknown>;
-  const op = obj.op;
-  if (typeof op !== "string") {
-    throw new Error(`patch at index ${index}: missing 'op' field`);
-  }
-  const knownOps: ReadonlySet<string> = new Set<string>(SPEC_PATCH_OPS);
-  if (!knownOps.has(op)) {
-    throw new Error(`patch at index ${index}: unknown op '${op}'`);
-  }
-  // We trust the structural shape beyond `op` and let `applyPatch`
-  // catch missing fields; the patcher's error messages are already
-  // useful and we don't want to duplicate the validation logic here.
-  return raw as SpecPatch;
 };
 
 /**
@@ -88,5 +62,5 @@ export const runSpecRefine = async (
     );
   }
 
-  return parsed.map(validatePatch);
+  return parsed.map(validateSpecPatch);
 };

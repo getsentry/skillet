@@ -112,8 +112,6 @@ evals:
 
 ## Soft rules from the eval examples
 
-${"<see the examples block above for assertion strength, criteria phrasing, and runtime constraints>"}
-
 The bundled examples reference covers: realistic prompts, fresh-process
 setup semantics, deliverable classification (text/side-effect/recommendation),
 deterministic-narrower-than-criteria for run:+criteria pairings, regex
