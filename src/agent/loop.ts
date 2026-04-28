@@ -34,10 +34,20 @@ const MAX_STEPS = 50;
 /**
  * Run the agent loop: send turns sequentially, handle tool calls,
  * collect text output.
+ *
+ * The `timeout` parameter is the deadline for the WHOLE case, not per
+ * LLM call. The case-level deadline is enforced before each step;
+ * exceeding it aborts the run with a clear timeout error. Without
+ * this enforcement, a chatty agent could spend up to MAX_STEPS *
+ * per-step-cap on a single case (the original bug — a 120s YAML
+ * timeout was producing 5000s+ runs).
  */
 export const runAgent = async (opts: AgentRunOptions): Promise<AgentRunResult> => {
   const { model, skill, workDir, turns, timeout, onToolCall } = opts;
   const tools = createToolDefs();
+
+  const caseStart = Date.now();
+  const deadline = caseStart + timeout;
 
   const systemPrompt = buildSystemPrompt(skill, workDir);
   const outputs: string[] = [];
@@ -63,9 +73,22 @@ export const runAgent = async (opts: AgentRunOptions): Promise<AgentRunResult> =
     while (steps < MAX_STEPS) {
       steps++;
 
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) {
+        throw new Error(
+          `Agent timed out after ${timeout}ms (case-level budget exhausted at step ${steps})`,
+        );
+      }
+
+      // Per-step cap: bound a single hung LLM call. Use the smaller
+      // of the remaining case budget and a generous per-step ceiling
+      // (4 minutes — long enough for any single thoughtful turn,
+      // short enough that a stuck call surfaces).
+      const perStepCap = Math.min(remaining, 4 * 60_000);
+
       const response = await Promise.race([
         completeWithBackoff(model, context),
-        timeoutPromise(timeout),
+        timeoutPromise(perStepCap),
       ]);
 
       // Add assistant message to context

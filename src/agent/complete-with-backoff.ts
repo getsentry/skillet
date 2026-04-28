@@ -13,9 +13,20 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 const jitter = (ms: number): number => Math.round(ms * (0.75 + Math.random() * 0.5));
 
 /**
- * Detect transient upstream errors worth retrying. Covers HTTP 429
- * rate-limit, 529 overloaded (Anthropic), 503/504, generic "overloaded"
- * messages, and timeout-style strings.
+ * Detect transient upstream errors worth retrying. Covers:
+ *
+ * - HTTP rate-limit / overload responses (429, 529, 503, 504,
+ *   "overloaded", "too many requests", "temporarily unavailable")
+ * - Generic timeout-style strings
+ * - Mid-stream failures: SSE / chunked responses can be cut off
+ *   server-side or by intermediaries before the message completes.
+ *   Common indicators: "terminated" (Node.js dispatcher), "premature
+ *   close" (undici), "socket hang up", "stream", "ECONNRESET" via
+ *   message rather than code.
+ *
+ * The mid-stream cases were a real-world v0.13 regression — a
+ * "LLM returned error: terminated mid-stream" message killed an
+ * `improve` run with no retry attempted.
  */
 const isTransientMessage = (message: string | undefined): boolean => {
   if (message == null) return false;
@@ -30,7 +41,18 @@ const isTransientMessage = (message: string | undefined): boolean => {
     m.includes("504") ||
     m.includes("529") ||
     m.includes("timeout") ||
-    m.includes("temporarily unavailable")
+    m.includes("temporarily unavailable") ||
+    // mid-stream / connection-failure markers
+    m.includes("terminated") ||
+    m.includes("premature close") ||
+    m.includes("socket hang up") ||
+    m.includes("connection closed") ||
+    m.includes("connection reset") ||
+    m.includes("network error") ||
+    m.includes("stream interrupted") ||
+    m.includes("incomplete response") ||
+    m.includes("aborted") ||
+    m.includes("econnreset")
   );
 };
 
