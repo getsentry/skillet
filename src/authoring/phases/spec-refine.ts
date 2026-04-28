@@ -3,20 +3,7 @@ import { completeWithBackoff } from "../../agent/complete-with-backoff.js";
 import type { AnyModel } from "../../agent/provider.js";
 import { renderSpec, validateSpecPatch, type SkillSpec, type SpecPatch } from "../../spec/index.js";
 import { buildSpecRefinePrompt } from "../prompts/spec-refine.js";
-
-const stripFences = (text: string): string => {
-  const fence = /^```(?:json)?\s*\n([\s\S]*?)\n```\s*$/i.exec(text.trim());
-  return fence?.[1]?.trim() ?? text.trim();
-};
-
-const extractText = (response: { content: unknown[] }): string => {
-  return response.content
-    .filter((b): b is { type: "text"; text: string; textSignature?: string } => {
-      return typeof b === "object" && b != null && (b as { type?: unknown }).type === "text";
-    })
-    .map((b) => b.text)
-    .join("");
-};
+import { extractText, stripFences } from "./_text.js";
 
 /**
  * Run the spec-refine phase: current spec + feedback → SpecPatch[].
@@ -45,7 +32,7 @@ export const runSpecRefine = async (
     throw new Error(`spec-refine: LLM returned error: ${errMsg}`);
   }
 
-  const raw = stripFences(extractText(response));
+  const raw = stripFences(extractText(response), "json");
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);

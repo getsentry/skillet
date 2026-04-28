@@ -84,18 +84,6 @@ export interface Triggers {
   should_not: string[];
 }
 
-/**
- * Skill class — drives per-class required-coverage dimensions during
- * generation. Optional in the spec; the LLM infers from intent and
- * behaviors when absent.
- */
-export type SkillClass =
-  | "workflow-process"
-  | "integration-documentation"
-  | "security-review"
-  | "skill-authoring"
-  | "generic";
-
 export interface SkillSpec {
   /** Always the literal string `"skillet"` — declares CLI ownership. */
   managed_by: "skillet";
@@ -105,8 +93,6 @@ export interface SkillSpec {
   name: string;
   /** One-paragraph statement of what the skill does and why. */
   intent: string;
-  /** Optional skill class. */
-  class?: SkillClass;
   triggers: Triggers;
   behaviors: Behavior[];
   must_not: MustNot[];

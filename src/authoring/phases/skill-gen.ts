@@ -3,15 +3,7 @@ import { completeWithBackoff } from "../../agent/complete-with-backoff.js";
 import type { AnyModel } from "../../agent/provider.js";
 import type { SkillSpec } from "../../spec/index.js";
 import { buildSkillGenPrompt } from "../prompts/skill-gen.js";
-
-const extractText = (response: { content: unknown[] }): string => {
-  return response.content
-    .filter((b): b is { type: "text"; text: string; textSignature?: string } => {
-      return typeof b === "object" && b != null && (b as { type?: unknown }).type === "text";
-    })
-    .map((b) => b.text)
-    .join("");
-};
+import { extractText } from "./_text.js";
 
 /**
  * The derived banner placed at the top of the generated SKILL.md
@@ -43,7 +35,6 @@ export const runSkillGen = async (model: AnyModel, spec: SkillSpec): Promise<str
     {
       name: spec.name,
       intent: spec.intent,
-      class: spec.class,
       triggers: spec.triggers,
       behaviors: spec.behaviors.map((b) => ({
         id: b.id,

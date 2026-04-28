@@ -13,7 +13,6 @@ export type {
   MustNot,
   BehaviorEval,
   Triggers,
-  SkillClass,
   SpecPatch,
   SpecValidationError,
   SpecValidationResult,

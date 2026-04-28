@@ -2,25 +2,9 @@ import type { Context, Message } from "@mariozechner/pi-ai";
 import type { AnyModel } from "../agent/provider.js";
 import { completeWithBackoff } from "../agent/complete-with-backoff.js";
 import { lintEvalYaml, LOAD_BEARING_RULES, type LintError, type LintFix } from "../eval/linter.js";
+import { extractText, stripFences } from "./phases/_text.js";
 
 const MAX_RETRIES = 2;
-
-const stripFences = (text: string): string => {
-  const fenceMatch = /^```(?:ya?ml)?\s*\n([\s\S]*?)\n```$/i.exec(text);
-  if (fenceMatch?.[1] != null) {
-    return fenceMatch[1].trim();
-  }
-  return text;
-};
-
-const extractText = (response: { content: unknown[] }): string => {
-  return response.content
-    .filter((b): b is { type: "text"; text: string; textSignature?: string } => {
-      return typeof b === "object" && b != null && (b as { type?: unknown }).type === "text";
-    })
-    .map((b) => b.text)
-    .join("");
-};
 
 const formatItems = (items: Array<{ path: string; message: string }>): string => {
   return items.map((w) => `- ${w.path}: ${w.message}`).join("\n");
@@ -58,7 +42,7 @@ export const generateEvalYamlWithRetry = async (opts: {
     }
 
     const text = extractText(response);
-    const raw = stripFences(text.trim());
+    const raw = stripFences(text.trim(), "yaml");
     const lint = lintEvalYaml(raw);
 
     // Log auto-applied fixes every attempt

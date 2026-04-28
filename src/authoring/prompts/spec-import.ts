@@ -30,7 +30,6 @@ Output a single JSON object with these fields:
   "managed_by": "skillet",
   "spec_version": 1,
   "name": "<kebab-case skill name from SKILL.md frontmatter>",
-  "class": "<best-fit class>",
   "intent": "<one paragraph extracted from the skill's purpose, NOT invented>",
 
   "triggers": {
@@ -64,10 +63,9 @@ other characters that YAML treats as syntax. JSON eliminates that
 whole class of parse errors. Skillet converts the JSON to YAML
 before writing \`spec.yaml\`.
 
-\`class\` is one of: workflow-process, integration-documentation,
-security-review, skill-authoring, generic. \`eval\` blocks are optional
-— include them only when a matching eval case already exists in the
-provided eval YAML and links cleanly to this rule.
+\`eval\` blocks are optional — include them only when a matching eval
+case already exists in the provided eval YAML and links cleanly to
+this rule.
 
 ## Extraction rules
 

@@ -3,22 +3,9 @@ import { completeWithBackoff } from "../../agent/complete-with-backoff.js";
 import type { AnyModel } from "../../agent/provider.js";
 import { parseSpecJson, uniqueSlug, validateSpecObject, type SkillSpec } from "../../spec/index.js";
 import { buildSpecInitPrompt } from "../prompts/spec-init.js";
-
-const stripFences = (text: string): string => {
-  const fence = /^```(?:json)?\s*\n([\s\S]*?)\n```\s*$/i.exec(text.trim());
-  return fence?.[1]?.trim() ?? text.trim();
-};
+import { extractText, stripFences } from "./_text.js";
 
 const MAX_PARSE_RETRIES = 2;
-
-const extractText = (response: { content: unknown[] }): string => {
-  return response.content
-    .filter((b): b is { type: "text"; text: string; textSignature?: string } => {
-      return typeof b === "object" && b != null && (b as { type?: unknown }).type === "text";
-    })
-    .map((b) => b.text)
-    .join("");
-};
 
 /**
  * Normalize an LLM-produced spec: auto-slugify any missing or invalid
@@ -92,7 +79,7 @@ export const runSpecInit = async (model: AnyModel, description: string): Promise
       throw new Error(`spec-init: LLM returned error: ${errMsg}`);
     }
 
-    lastRaw = stripFences(extractText(response));
+    lastRaw = stripFences(extractText(response), "json");
     try {
       const spec = parseSpecJson(lastRaw, "spec-init output");
       const normalized = normalize(spec);

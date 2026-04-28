@@ -1,5 +1,5 @@
 import { parse as parseYaml } from "yaml";
-import type { Behavior, BehaviorEval, MustNot, SkillClass, SkillSpec, Triggers } from "./types.js";
+import type { Behavior, BehaviorEval, MustNot, SkillSpec, Triggers } from "./types.js";
 
 // ── Type guards ────────────────────────────────────────────
 
@@ -41,18 +41,6 @@ const getStringArray = (obj: Record<string, unknown>, key: string): string[] => 
 };
 
 // ── Field parsers ──────────────────────────────────────────
-
-const VALID_CLASSES: ReadonlySet<SkillClass> = new Set([
-  "workflow-process",
-  "integration-documentation",
-  "security-review",
-  "skill-authoring",
-  "generic",
-]);
-
-const isSkillClass = (v: string): v is SkillClass => {
-  return (VALID_CLASSES as ReadonlySet<string>).has(v);
-};
 
 const parseEvalBlock = (raw: Record<string, unknown> | undefined): BehaviorEval | undefined => {
   if (raw == null) return undefined;
@@ -179,7 +167,6 @@ const parseSpecValue = (parsed: unknown, source: string): SkillSpec => {
   const name = getString(parsed, "name") ?? "";
   const intent = getString(parsed, "intent") ?? "";
 
-  const klass = getString(parsed, "class");
   const triggers = parseTriggers(getRecord(parsed, "triggers"));
 
   const behaviorsRaw = getArray(parsed, "behaviors") ?? [];
@@ -207,10 +194,6 @@ const parseSpecValue = (parsed: unknown, source: string): SkillSpec => {
     behaviors,
     must_not: mustNot,
   };
-
-  if (klass != null && isSkillClass(klass)) {
-    result.class = klass;
-  }
 
   // Note: the `managed_by` and `spec_version` casts above are
   // deliberately permissive — wrong values pass parsing so structural

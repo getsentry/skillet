@@ -36,7 +36,6 @@ Output a single JSON object with these fields:
   "managed_by": "skillet",
   "spec_version": 1,
   "name": "<kebab-case skill name>",
-  "class": "<skill class>",
   "intent": "<one-paragraph statement of what the skill does and why>",
 
   "triggers": {
@@ -76,11 +75,10 @@ characters that YAML treats as syntax (e.g. \`Format PR titles as
 that whole class of parse errors. Skillet converts the JSON to YAML
 internally before writing \`spec.yaml\`.
 
-\`class\` is one of: workflow-process, integration-documentation,
-security-review, skill-authoring, generic. \`eval\` block is optional —
-eval-gen invents one if absent. \`expect\` and \`criteria\` are mutually
-exclusive. Negative cases (must_not) SHOULD use \`criteria\` not
-\`expect\` because agents echo input tokens.
+The \`eval\` block is optional — eval-gen invents one if absent.
+\`expect\` and \`criteria\` are mutually exclusive. Negative cases
+(must_not) SHOULD use \`criteria\` not \`expect\` because agents echo
+input tokens.
 
 ## Authoring rules
 
@@ -113,11 +111,6 @@ exclusive. Negative cases (must_not) SHOULD use \`criteria\` not
    Otherwise leave the behavior without an eval block — the eval-gen
    phase invents one from the statement. Never include a half-formed
    eval block that's missing prompt+expect/criteria.
-
-7. **Class drives required dimensions.** Pick the class that best fits
-   the skill; the generation phases use it to enforce class-specific
-   coverage (e.g. integration-documentation requires API surface +
-   common cases + workarounds + version variance).
 
 Output ONLY the JSON object. No prose, no markdown fences. Start
 with \`{\` and end with \`}\`.`;

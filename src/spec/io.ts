@@ -96,9 +96,6 @@ export const renderSpec = (spec: SkillSpec): string => {
     name: spec.name,
     intent: spec.intent,
   };
-  if (spec.class != null) {
-    ordered.class = spec.class;
-  }
   ordered.triggers = {
     should: spec.triggers.should,
     should_not: spec.triggers.should_not,

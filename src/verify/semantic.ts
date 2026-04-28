@@ -1,6 +1,7 @@
 import type { Context } from "@mariozechner/pi-ai";
 import { completeWithBackoff } from "../agent/complete-with-backoff.js";
 import type { AnyModel } from "../agent/provider.js";
+import { extractText, isRecord, stripFences } from "../authoring/phases/_text.js";
 import type { Behavior, MustNot, SkillSpec } from "../spec/index.js";
 import type { SemanticBehaviorVerdict, SemanticReport, SemanticVerdict } from "./types.js";
 
@@ -55,15 +56,6 @@ const isVerdict = (v: unknown): v is SemanticVerdict => {
   return v === "encoded" || v === "partial" || v === "missing";
 };
 
-const isRecord = (val: unknown): val is Record<string, unknown> => {
-  return val != null && typeof val === "object" && !Array.isArray(val);
-};
-
-const stripFences = (text: string): string => {
-  const fence = /^```(?:json)?\s*\n([\s\S]*?)\n```\s*$/i.exec(text.trim());
-  return fence?.[1]?.trim() ?? text.trim();
-};
-
 const formatRules = (behaviors: Behavior[], mustNots: MustNot[]): string => {
   const blocks: string[] = [];
   if (behaviors.length > 0) {
@@ -111,14 +103,11 @@ export const verifySemantic = async (
   };
 
   const response = await completeWithBackoff(judgeModel, context, { maxTokens: 2000 });
-  const text = response.content
-    .filter((b): b is { type: "text"; text: string; textSignature?: string } => b.type === "text")
-    .map((b) => b.text)
-    .join("");
+  const text = extractText(response);
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(stripFences(text));
+    parsed = JSON.parse(stripFences(text, "json"));
   } catch {
     // The judge produced malformed JSON. We can't grade — treat every
     // rule as `missing` so the user sees the failure rather than a

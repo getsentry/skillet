@@ -6,9 +6,9 @@ import { loadAuthoringGuidance, loadSkillPatterns } from "../references.js";
  *
  * Inputs flow as structured data (intent, triggers, behaviors,
  * must_nots) rather than free-form description, so the prompt can
- * focus on writing quality and class-specific coverage rather than on
- * extracting clauses. Each behavior in the spec produces one section
- * in SKILL.md; each must_not produces a "don't" rule.
+ * focus on writing quality rather than on extracting clauses. Each
+ * behavior in the spec produces one section in SKILL.md; each
+ * must_not produces a "don't" rule.
  */
 export const buildSkillGenPrompt = (): string => {
   const patterns = loadSkillPatterns();
@@ -58,7 +58,6 @@ You receive a JSON spec object with this shape:
 {
   "name": "<kebab-case skill name>",
   "intent": "<one-paragraph statement of purpose>",
-  "class": "<workflow-process|integration-documentation|security-review|skill-authoring|generic>",
   "triggers": {
     "should": ["<phrase 1>", "<phrase 2>", ...],
     "should_not": ["<near-miss phrase>", ...]

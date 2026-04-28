@@ -4,16 +4,8 @@ import type { AnyModel } from "../../agent/provider.js";
 import type { EvalRunResult } from "../../eval/index.js";
 import type { SkillSpec } from "../../spec/index.js";
 import { buildSkillImprovePrompt } from "../prompts/skill-improve.js";
+import { extractText } from "./_text.js";
 import { SKILL_MD_BANNER } from "./skill-gen.js";
-
-const extractText = (response: { content: unknown[] }): string => {
-  return response.content
-    .filter((b): b is { type: "text"; text: string; textSignature?: string } => {
-      return typeof b === "object" && b != null && (b as { type?: unknown }).type === "text";
-    })
-    .map((b) => b.text)
-    .join("");
-};
 
 const formatFailures = (runResult: EvalRunResult): string => {
   const failed = runResult.cases.filter((c) => c.status === "fail" || c.status === "error");
@@ -56,7 +48,6 @@ export const runSkillImprove = async (
     {
       name: spec.name,
       intent: spec.intent,
-      class: spec.class,
       triggers: spec.triggers,
       behaviors: spec.behaviors.map((b) => ({
         id: b.id,

@@ -6,7 +6,6 @@
 managed_by: skillet
 spec_version: 1
 name: greeting-skill
-class: generic
 intent: |
   Generate friendly greeting messages for users.
 

@@ -99,19 +99,19 @@ const envVarIsSet = (name: string): boolean => {
  * Auto-detect and create an LLM model from environment variables.
  *
  * Priority:
- *  1. SKILLET_MODEL / SKILLKIT_MODEL (explicit override, format: "provider/model-id")
+ *  1. SKILLET_MODEL (explicit override, format: "provider/model-id")
  *  2. Auto-discovery: loop through known providers, check pi-ai's getEnvApiKey
  *     plus extra env vars for agent-inherited tokens (Claude Code, Codex, Copilot)
  *
  * Returns both an agent model and a judge model (judge can be overridden
- * separately via SKILLET_JUDGE_MODEL / SKILLKIT_JUDGE_MODEL).
+ * separately via SKILLET_JUDGE_MODEL).
  */
 export const resolveModels = (): {
   agent: AnyModel;
   judge: AnyModel;
 } => {
-  const explicitModel = process.env.SKILLET_MODEL ?? process.env.SKILLKIT_MODEL;
-  const explicitJudge = process.env.SKILLET_JUDGE_MODEL ?? process.env.SKILLKIT_JUDGE_MODEL;
+  const explicitModel = process.env.SKILLET_MODEL;
+  const explicitJudge = process.env.SKILLET_JUDGE_MODEL;
 
   const agentModel = resolveModel(
     explicitModel != null && explicitModel !== "" ? explicitModel : undefined,

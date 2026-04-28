@@ -8,7 +8,6 @@
 managed_by: skillet
 spec_version: 1
 name: incomplete-skill
-class: generic
 intent: |
   A test fixture with an intentionally uncovered behavior and an
   orphan eval case, used to exercise verify's coverage layer.
