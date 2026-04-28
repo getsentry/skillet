@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.0
+
+### Bug Fixes 🐛
+
+- (agent) Enforce case-level timeout, retry on mid-stream errors by @gricha in [3daaa4ca](https://github.com/getsentry/skillet/commit/3daaa4cac32093fc6ca00201e51e11ed8017eac7)
+
 ## 0.13.0
 
 ### Breaking Changes ⚠️
