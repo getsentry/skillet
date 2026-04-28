@@ -122,6 +122,24 @@ const parseTriggers = (raw: Record<string, unknown> | undefined): Triggers => {
 // ── Public API ─────────────────────────────────────────────
 
 /**
+ * Parse a JSON-shaped spec value (from spec-init / spec-import LLM
+ * output) into a `SkillSpec`. The phases use JSON instead of YAML
+ * for LLM output to sidestep ambiguous YAML quoting (skill statements
+ * frequently contain `:`, backticks, etc.). The structural shape is
+ * the same as the YAML form.
+ */
+export const parseSpecJson = (jsonText: string, source: string = "spec.json"): SkillSpec => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(jsonText);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(`spec ${source}: invalid JSON — ${msg}`, { cause: err });
+  }
+  return parseSpecValue(parsed, source);
+};
+
+/**
  * Parse raw `spec.yaml` text into a `SkillSpec`. Throws on syntax
  * errors or missing per-entry required fields (id, statement). Higher-
  * level structural validation (unique IDs, required top-level fields,
@@ -138,9 +156,17 @@ export const parseSpecYaml = (yamlText: string, source: string = "spec.yaml"): S
     const msg = err instanceof Error ? err.message : String(err);
     throw new Error(`spec ${source}: invalid YAML — ${msg}`, { cause: err });
   }
+  return parseSpecValue(parsed, source);
+};
 
+/**
+ * Shared structural narrowing for both YAML- and JSON-source spec
+ * objects. Handles the same field extraction either way since both
+ * end up as plain JS values after their respective parsers.
+ */
+const parseSpecValue = (parsed: unknown, source: string): SkillSpec => {
   if (!isRecord(parsed)) {
-    throw new Error(`spec ${source}: top level must be a YAML object`);
+    throw new Error(`spec ${source}: top level must be an object`);
   }
 
   // managed_by + spec_version are required structurally; we accept

@@ -22,7 +22,7 @@ export type {
 export { SPEC_PATCH_OPS } from "./types.js";
 
 // Parser
-export { parseSpecYaml } from "./parser.js";
+export { parseSpecYaml, parseSpecJson } from "./parser.js";
 
 // Structural validation
 export { validateSpecYaml, validateSpecObject } from "./structural.js";

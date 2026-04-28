@@ -29,46 +29,58 @@ ${guidance}
 
 ## Output Format
 
-Output a single YAML document with these fields:
+Output a single JSON object with these fields:
 
-\`\`\`yaml
-managed_by: skillet
-spec_version: 1
-name: <kebab-case skill name>
-class: <skill class>          # one of: workflow-process, integration-documentation, security-review, skill-authoring, generic
-intent: |
-  <one-paragraph statement of what the skill does and why>
+\`\`\`json
+{
+  "managed_by": "skillet",
+  "spec_version": 1,
+  "name": "<kebab-case skill name>",
+  "class": "<skill class>",
+  "intent": "<one-paragraph statement of what the skill does and why>",
 
-triggers:
-  should:
-    - "<phrase 1>"            # 5+ realistic phrases users would say
-    - "<phrase 2>"
-    # ...
-  should_not:
-    - "<near-miss phrase that must NOT activate the skill>"
+  "triggers": {
+    "should": ["<phrase 1>", "<phrase 2>", "..."],
+    "should_not": ["<near-miss phrase>", "..."]
+  },
 
-behaviors:
-  - id: <kebab-case slug>     # e.g. flag-n-plus-one-in-loops
-    statement: <imperative one-line rule>
-    rationale: |
-      <why this rule matters — helps the skill author future-proof>
-    eval:                     # optional; eval-gen invents one if absent
-      prompt: "<realistic user turn that exercises the rule>"
-      expect: "<literal substring that must appear>"
-      # OR (mutually exclusive with expect):
-      criteria: "<judge instruction for negative or subjective cases>"
-  # ...
+  "behaviors": [
+    {
+      "id": "<kebab-case slug>",
+      "statement": "<imperative one-line rule>",
+      "rationale": "<why this rule matters>",
+      "eval": {
+        "prompt": "<realistic user turn>",
+        "expect": "<literal substring>"
+      }
+    }
+  ],
 
-must_not:
-  - id: <kebab-case slug>
-    statement: <imperative rule the skill must NOT do>
-    rationale: |
-      <why>
-    eval:
-      prompt: "<realistic user turn>"
-      criteria: "<judge instruction>"   # negative cases SHOULD use criteria, not expect
-  # ...
+  "must_not": [
+    {
+      "id": "<kebab-case slug>",
+      "statement": "<rule the skill must NOT do>",
+      "rationale": "<why>",
+      "eval": {
+        "prompt": "<realistic user turn>",
+        "criteria": "<judge instruction>"
+      }
+    }
+  ]
+}
 \`\`\`
+
+Why JSON: skill statements often contain colons, backticks, and other
+characters that YAML treats as syntax (e.g. \`Format PR titles as
+'feat(scope): subject'\`). JSON's strict string quoting eliminates
+that whole class of parse errors. Skillet converts the JSON to YAML
+internally before writing \`spec.yaml\`.
+
+\`class\` is one of: workflow-process, integration-documentation,
+security-review, skill-authoring, generic. \`eval\` block is optional —
+eval-gen invents one if absent. \`expect\` and \`criteria\` are mutually
+exclusive. Negative cases (must_not) SHOULD use \`criteria\` not
+\`expect\` because agents echo input tokens.
 
 ## Authoring rules
 
@@ -107,6 +119,6 @@ must_not:
    coverage (e.g. integration-documentation requires API surface +
    common cases + workarounds + version variance).
 
-Output ONLY the YAML. No prose, no markdown fences. Start with
-\`managed_by: skillet\`.`;
+Output ONLY the JSON object. No prose, no markdown fences. Start
+with \`{\` and end with \`}\`.`;
 };

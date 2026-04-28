@@ -23,39 +23,51 @@ afterwards to tighten the rules.
 
 ## Output Format
 
-Output a single YAML document with these fields:
+Output a single JSON object with these fields:
 
-\`\`\`yaml
-managed_by: skillet
-spec_version: 1
-name: <kebab-case skill name from SKILL.md frontmatter>
-class: <best-fit class>       # workflow-process, integration-documentation, security-review, skill-authoring, generic
-intent: |
-  <one paragraph extracted from the skill's purpose, NOT invented>
+\`\`\`json
+{
+  "managed_by": "skillet",
+  "spec_version": 1,
+  "name": "<kebab-case skill name from SKILL.md frontmatter>",
+  "class": "<best-fit class>",
+  "intent": "<one paragraph extracted from the skill's purpose, NOT invented>",
 
-triggers:
-  should:
-    - "<trigger phrase from the description field>"
-    # ... extract all explicit trigger phrases from the description
-  should_not:
-    # only include if SKILL.md explicitly says "do not trigger when..."
-    - "<phrase>"
+  "triggers": {
+    "should": ["<trigger phrase from the description field>", "..."],
+    "should_not": ["<phrase>"]
+  },
 
-behaviors:
-  - id: <kebab-case slug>
-    statement: <imperative one-line rule the SKILL.md encodes>
-    rationale: |
-      <only include rationale that's actually in the SKILL.md prose>
-    eval:
-      # only include if a matching eval case already exists in the
-      # provided eval YAML and links cleanly to this rule
-      prompt: <copied from existing eval case>
-      expect: <copied from existing eval case>
+  "behaviors": [
+    {
+      "id": "<kebab-case slug>",
+      "statement": "<imperative one-line rule the SKILL.md encodes>",
+      "rationale": "<rationale actually in the SKILL.md prose>",
+      "eval": {
+        "prompt": "<copied from existing eval case if present>",
+        "expect": "<copied from existing eval case if present>"
+      }
+    }
+  ],
 
-must_not:
-  - id: <kebab-case slug>
-    statement: <SKILL.md's explicit "don't do X" rule>
+  "must_not": [
+    {
+      "id": "<kebab-case slug>",
+      "statement": "<SKILL.md's explicit 'don't do X' rule>"
+    }
+  ]
+}
 \`\`\`
+
+Why JSON: skill statements frequently contain colons, backticks, and
+other characters that YAML treats as syntax. JSON eliminates that
+whole class of parse errors. Skillet converts the JSON to YAML
+before writing \`spec.yaml\`.
+
+\`class\` is one of: workflow-process, integration-documentation,
+security-review, skill-authoring, generic. \`eval\` blocks are optional
+— include them only when a matching eval case already exists in the
+provided eval YAML and links cleanly to this rule.
 
 ## Extraction rules
 
@@ -88,6 +100,6 @@ must_not:
    spec. The improve loop's job is to tighten — yours is to capture
    faithfully.
 
-Output ONLY the YAML. No prose, no markdown fences. Start with
-\`managed_by: skillet\`.`;
+Output ONLY the JSON object. No prose, no markdown fences. Start
+with \`{\` and end with \`}\`.`;
 };

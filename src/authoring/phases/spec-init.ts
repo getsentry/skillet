@@ -1,13 +1,15 @@
-import type { Context } from "@mariozechner/pi-ai";
+import type { Context, Message } from "@mariozechner/pi-ai";
 import { completeWithBackoff } from "../../agent/complete-with-backoff.js";
 import type { AnyModel } from "../../agent/provider.js";
-import { parseSpecYaml, uniqueSlug, validateSpecObject, type SkillSpec } from "../../spec/index.js";
+import { parseSpecJson, uniqueSlug, validateSpecObject, type SkillSpec } from "../../spec/index.js";
 import { buildSpecInitPrompt } from "../prompts/spec-init.js";
 
 const stripFences = (text: string): string => {
-  const fence = /^```(?:ya?ml)?\s*\n([\s\S]*?)\n```\s*$/i.exec(text.trim());
+  const fence = /^```(?:json)?\s*\n([\s\S]*?)\n```\s*$/i.exec(text.trim());
   return fence?.[1]?.trim() ?? text.trim();
 };
+
+const MAX_PARSE_RETRIES = 2;
 
 const extractText = (response: { content: unknown[] }): string => {
   return response.content
@@ -61,46 +63,64 @@ const normalize = (spec: SkillSpec): SkillSpec => {
 /**
  * Run the spec-init phase: description → SkillSpec.
  *
- * Throws if the LLM produces output that can't be parsed as YAML or
- * fails structural validation after normalization. The caller (the
- * `spec init` command) handles the error.
+ * Output is JSON (not YAML) to avoid ambiguous quoting on
+ * statements containing colons, backticks, etc. Retries up to
+ * `MAX_PARSE_RETRIES` times on parse failure, feeding the parser
+ * error back to the LLM so it can fix the specific malformation.
+ *
+ * Throws if the LLM produces output that can't be parsed even after
+ * retries, or fails structural validation after normalization. The
+ * caller (the `spec init` command) surfaces the error.
  */
 export const runSpecInit = async (model: AnyModel, description: string): Promise<SkillSpec> => {
-  const context: Context = {
-    systemPrompt: buildSpecInitPrompt(),
-    messages: [
-      {
+  const messages: Message[] = [
+    {
+      role: "user",
+      content: `Create a spec for the following skill:\n\n${description}`,
+      timestamp: Date.now(),
+    },
+  ];
+
+  let lastRaw = "";
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= MAX_PARSE_RETRIES; attempt++) {
+    const context: Context = { systemPrompt: buildSpecInitPrompt(), messages };
+    const response = await completeWithBackoff(model, context);
+    if (response.stopReason === "error") {
+      const errMsg = response.errorMessage ?? "unknown error";
+      throw new Error(`spec-init: LLM returned error: ${errMsg}`);
+    }
+
+    lastRaw = stripFences(extractText(response));
+    try {
+      const spec = parseSpecJson(lastRaw, "spec-init output");
+      const normalized = normalize(spec);
+      const validation = validateSpecObject(normalized, "spec-init output");
+      if (!validation.valid) {
+        const summary = validation.errors.map((e) => `- ${e.message}`).join("\n");
+        throw new Error(`structural validation failed:\n${summary}`);
+      }
+      return normalized;
+    } catch (err: unknown) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      if (attempt >= MAX_PARSE_RETRIES) break;
+
+      // Feed the error back to the LLM so it can fix the specific
+      // problem (e.g. an unquoted character that broke JSON.parse).
+      messages.push(response);
+      messages.push({
         role: "user",
-        content: `Create a spec.yaml for the following skill:\n\n${description}`,
+        content: `Your previous output failed to parse:\n\n${lastError.message}\n\nRegenerate the JSON object with the issue fixed. Output ONLY the JSON, starting with \`{\`.`,
         timestamp: Date.now(),
-      },
-    ],
-  };
-
-  const response = await completeWithBackoff(model, context);
-  if (response.stopReason === "error") {
-    const errMsg = response.errorMessage ?? "unknown error";
-    throw new Error(`spec-init: LLM returned error: ${errMsg}`);
+      });
+    }
   }
 
-  const raw = stripFences(extractText(response));
-  let spec: SkillSpec;
-  try {
-    spec = parseSpecYaml(raw, "spec-init output");
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(`spec-init: failed to parse LLM output as spec.yaml: ${msg}`, { cause: err });
-  }
-
-  const normalized = normalize(spec);
-
-  const validation = validateSpecObject(normalized, "spec-init output");
-  if (!validation.valid) {
-    const summary = validation.errors.map((e) => `- ${e.message}`).join("\n");
-    throw new Error(
-      `spec-init: produced spec failed structural validation:\n${summary}\n\nRaw LLM output:\n${raw}`,
-    );
-  }
-
-  return normalized;
+  throw new Error(
+    `spec-init: failed to produce a valid spec after ${MAX_PARSE_RETRIES + 1} attempts: ${
+      lastError?.message ?? "unknown error"
+    }\n\nLast raw LLM output:\n${lastRaw}`,
+    lastError != null ? { cause: lastError } : undefined,
+  );
 };
