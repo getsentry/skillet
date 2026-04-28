@@ -124,10 +124,18 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
   let lastEvalResult: EvalRunResult | undefined;
   let lastCoverage: CoverageReport | undefined;
   let lastResults: ResultsReport | undefined;
+  let exitReason:
+    | "max-iterations"
+    | "timeout"
+    | "patch-failed"
+    | "no-patches"
+    | "validation-failed" = "max-iterations";
+  let exitDetail = "";
 
   for (let iteration = 1; iteration <= maxIterations; iteration++) {
     if (Date.now() - loopStart > totalTimeout) {
       console.log(`\nTotal timeout reached (${(totalTimeout / 1000).toFixed(0)}s). Stopping.`);
+      exitReason = "timeout";
       break;
     }
 
@@ -215,6 +223,7 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
 
     if (patches.length === 0) {
       console.log("  Assessor produced no patches — terminating.");
+      exitReason = "no-patches";
       break;
     }
 
@@ -225,6 +234,8 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.log(`  Patch application failed: ${msg}`);
+      exitReason = "patch-failed";
+      exitDetail = msg;
       break;
     }
 
@@ -232,6 +243,8 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
     if (!validation.valid) {
       console.log("  Patched spec failed structural validation:");
       for (const e of validation.errors) console.log(`    ${e.message}`);
+      exitReason = "validation-failed";
+      exitDetail = validation.errors.map((e) => e.message).join("; ");
       break;
     }
 
@@ -255,7 +268,17 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
   }
 
   const totalElapsed = ((Date.now() - loopStart) / 1000).toFixed(0);
-  console.log(`\nMax iterations reached. (${totalElapsed}s total)`);
+  const exitLines: Record<typeof exitReason, string> = {
+    "max-iterations": `Max iterations reached. (${totalElapsed}s total)`,
+    timeout: `Timeout reached. (${totalElapsed}s total)`,
+    "patch-failed": `Loop aborted: assessor produced an invalid patch. (${totalElapsed}s total)`,
+    "no-patches": `Loop terminated: assessor produced no patches. (${totalElapsed}s total)`,
+    "validation-failed": `Loop aborted: patched spec failed structural validation. (${totalElapsed}s total)`,
+  };
+  console.log(`\n${exitLines[exitReason]}`);
+  if (exitDetail !== "") {
+    console.log(`  Detail: ${exitDetail}`);
+  }
   if (lastResults != null) {
     const failing = lastResults.behaviors.filter((b) => b.status !== "covered+passing");
     if (failing.length > 0) {

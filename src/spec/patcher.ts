@@ -13,6 +13,36 @@ const isRecord = (val: unknown): val is Record<string, unknown> => {
 const KNOWN_OPS: ReadonlySet<string> = new Set<string>(SPEC_PATCH_OPS);
 
 /**
+ * Strip a `__<slug>` suffix off an ID if present. Used by the patcher
+ * when an LLM-supplied id doesn't match a spec entry — the assessor
+ * sometimes returns the eval case name (`<id>__<slug>`) instead of
+ * the bare behavior id, and silently dropping that signal would
+ * abort iteration. Stripping the suffix recovers the intended id.
+ */
+const stripCaseSlug = (id: string): string => {
+  const sep = id.indexOf("__");
+  return sep === -1 ? id : id.slice(0, sep);
+};
+
+/**
+ * Resolve a patch's id to an actual behavior or must_not id present
+ * in the spec. Tries the literal id first; falls back to the
+ * case-name convention by stripping `__<slug>`. Returns the
+ * resolved id (or the original if nothing matched — the caller
+ * surfaces the not-found error).
+ */
+const resolveEntryId = (spec: SkillSpec, id: string): string => {
+  if (spec.behaviors.some((b) => b.id === id)) return id;
+  if (spec.must_not.some((m) => m.id === id)) return id;
+  const stripped = stripCaseSlug(id);
+  if (stripped !== id) {
+    if (spec.behaviors.some((b) => b.id === stripped)) return stripped;
+    if (spec.must_not.some((m) => m.id === stripped)) return stripped;
+  }
+  return id;
+};
+
+/**
  * Type predicate narrowing an unknown JSON value to `SpecPatch` based
  * on the discriminator (`op`). The structural shape of each variant
  * isn't fully verified here — that's `applyPatch`'s job at apply time
@@ -78,7 +108,8 @@ export const applyPatch = (spec: SkillSpec, patch: SpecPatch): SkillSpec => {
       return { ...spec, intent: patch.value };
 
     case "update_behavior": {
-      const idx = spec.behaviors.findIndex((b) => b.id === patch.id);
+      const id = resolveEntryId(spec, patch.id);
+      const idx = spec.behaviors.findIndex((b) => b.id === id);
       if (idx === -1) {
         throw new Error(`update_behavior: no behavior with id '${patch.id}'`);
       }
@@ -102,7 +133,8 @@ export const applyPatch = (spec: SkillSpec, patch: SpecPatch): SkillSpec => {
     }
 
     case "remove_behavior": {
-      const idx = spec.behaviors.findIndex((b) => b.id === patch.id);
+      const id = resolveEntryId(spec, patch.id);
+      const idx = spec.behaviors.findIndex((b) => b.id === id);
       if (idx === -1) {
         throw new Error(`remove_behavior: no behavior with id '${patch.id}'`);
       }
@@ -112,7 +144,8 @@ export const applyPatch = (spec: SkillSpec, patch: SpecPatch): SkillSpec => {
     }
 
     case "update_eval": {
-      const bIdx = spec.behaviors.findIndex((b) => b.id === patch.id);
+      const id = resolveEntryId(spec, patch.id);
+      const bIdx = spec.behaviors.findIndex((b) => b.id === id);
       if (bIdx !== -1) {
         const existing = spec.behaviors[bIdx];
         if (existing == null) {
@@ -122,7 +155,7 @@ export const applyPatch = (spec: SkillSpec, patch: SpecPatch): SkillSpec => {
         behaviors[bIdx] = { ...existing, eval: patch.eval };
         return { ...spec, behaviors };
       }
-      const mIdx = spec.must_not.findIndex((m) => m.id === patch.id);
+      const mIdx = spec.must_not.findIndex((m) => m.id === id);
       if (mIdx !== -1) {
         const existing = spec.must_not[mIdx];
         if (existing == null) {
@@ -136,7 +169,8 @@ export const applyPatch = (spec: SkillSpec, patch: SpecPatch): SkillSpec => {
     }
 
     case "update_must_not": {
-      const idx = spec.must_not.findIndex((m) => m.id === patch.id);
+      const id = resolveEntryId(spec, patch.id);
+      const idx = spec.must_not.findIndex((m) => m.id === id);
       if (idx === -1) {
         throw new Error(`update_must_not: no must_not with id '${patch.id}'`);
       }
@@ -164,7 +198,8 @@ export const applyPatch = (spec: SkillSpec, patch: SpecPatch): SkillSpec => {
     }
 
     case "remove_must_not": {
-      const idx = spec.must_not.findIndex((m) => m.id === patch.id);
+      const id = resolveEntryId(spec, patch.id);
+      const idx = spec.must_not.findIndex((m) => m.id === id);
       if (idx === -1) {
         throw new Error(`remove_must_not: no must_not with id '${patch.id}'`);
       }
