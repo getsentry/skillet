@@ -15,14 +15,20 @@ const extractText = (response: { content: unknown[] }): string => {
 
 /**
  * The derived banner placed at the top of the generated SKILL.md
- * (after the frontmatter). Tells human readers that the file is
- * managed by skillet and points them at spec.yaml as the source.
+ * (after the frontmatter). Points readers at spec.yaml as the
+ * source of truth.
+ *
+ * SKILL.md may be edited by `skillet improve` between runs to tune
+ * prose so the agent's behavior matches the spec under eval. Those
+ * edits are preserved across improve iterations but get overwritten
+ * when the spec itself changes (since regen produces a fresh
+ * SKILL.md from the new spec).
  */
 export const SKILL_MD_BANNER = `<!--
-  This file is derived from spec.yaml. Do NOT edit by hand —
-  changes will be overwritten on the next \`skillet spec refine\`,
-  \`skillet add-eval\`, \`skillet improve\`, or \`skillet create\`
-  invocation. Edit spec.yaml or use the spec subcommands instead.
+  Generated from spec.yaml. The behavior set, must-nots, and
+  triggers live in spec.yaml — edit there. \`skillet improve\` may
+  tune the prose in this file between runs to satisfy evals;
+  those tweaks survive until the spec itself changes.
 -->
 `;
 

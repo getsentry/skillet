@@ -46,3 +46,6 @@ export { slugify, uniqueSlug } from "./slug.js";
 
 // Regenerate (spec → derived SKILL.md + eval YAMLs)
 export { regenerate, type RegenerateOptions, type RegenerateResult } from "./regen.js";
+
+// Promote passing LLM-generated evals back into the spec
+export { promotePassingEvals } from "./promote.js";

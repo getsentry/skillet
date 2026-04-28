@@ -1,21 +1,19 @@
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { resolveModels } from "../agent/provider.js";
-import { runEvals } from "../eval/index.js";
-import type { EvalRunResult } from "../eval/index.js";
+import { discoverEvalFiles, parseEvalFile, runEvals } from "../eval/index.js";
+import type { EvalCase, EvalRunResult } from "../eval/index.js";
 import {
-  applyPatches,
+  promotePassingEvals,
   readSpec,
   regenerate,
   specFileName,
-  validateSpecObject,
   writeSpec,
-  type SkillSpec,
 } from "../spec/index.js";
 import { loadSkill } from "../skill/loader.js";
 import { verifyCoverage, verifyResults } from "../verify/index.js";
 import type { CoverageReport, ResultsReport } from "../verify/index.js";
-import { runAssess } from "./phases/assess.js";
+import { runSkillImprove } from "./phases/skill-improve.js";
 import { runSpecImport } from "./phases/spec-import.js";
 import { runSpecInit } from "./phases/spec-init.js";
 
@@ -41,6 +39,8 @@ export interface AuthorSkillResult {
   finalEvalResult?: EvalRunResult;
   finalCoverage?: CoverageReport;
   finalResults?: ResultsReport;
+  /** Behavior IDs whose eval blocks were promoted into the spec */
+  promotedIds: string[];
   success: boolean;
 }
 
@@ -50,26 +50,29 @@ const DEFAULT_MAX_ITERATIONS = 3;
 const DEFAULT_TOTAL_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
 /**
- * Spec-driven authoring loop:
+ * Spec-driven authoring loop. The spec is the user's source of
+ * truth — improve never modifies it.
  *
  *   establish spec (init / import / load)
  *     ↓
- *   regenerate SKILL.md + evals
- *     ↓
- *   verify coverage (structural)         ──► fails: feed gaps to assess
+ *   regenerate SKILL.md + evals from spec
  *     ↓
  *   run evals
  *     ↓
- *   verify results (per-behavior)        ──► fails: feed verdicts to assess
+ *   promote passing LLM-generated cases back into the spec
  *     ↓
- *   assess → SpecPatch[]                 ──► [] terminates loop
- *     ↓
- *   apply patches → regenerate
- *     ↓
- *   loop until verifyResults.ok or max iterations
+ *   verify per-behavior coverage + results
+ *     ↓                                 ↓
+ *  pass: terminate              fail: tune SKILL.md prose only
+ *                                       (spec untouched)
+ *                                       ↓
+ *                                  re-run evals
+ *                                       ↓
+ *                                  loop
  *
- * Termination is conditioned on `verifyResults.ok` rather than raw
- * `summary.fail === 0` so missing-coverage failures are caught.
+ * Spec changes belong to user-initiated commands (`spec refine`,
+ * `add-eval`, hand-edits). The improve loop refines the rendering
+ * of fixed rules, never the rules themselves.
  */
 export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkillResult> => {
   const { mode, path: skillPath, description } = opts;
@@ -95,7 +98,6 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
     writeSpec(specPath, spec);
     console.log(`  Wrote ${specPath}`);
   } else if (existingSpec == null) {
-    // Improve mode without a spec — auto-import from SKILL.md
     const skillMdPath = join(skillPath, "SKILL.md");
     if (!existsSync(skillMdPath)) {
       throw new Error(
@@ -107,10 +109,10 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
     const spec = await runSpecImport(models.agent, skillMd);
     mkdirSync(skillPath, { recursive: true });
     writeSpec(specPath, spec);
-    console.log(`  Wrote ${specPath} (faithful capture; loop will refine)`);
+    console.log(`  Wrote ${specPath} (faithful capture; loop will tune prose to fit)`);
   }
 
-  // ── Phase 2: Initial regen ──────────────────────────────
+  // ── Phase 2: Initial regen from spec ────────────────────
   console.log("Regenerating SKILL.md and evals from spec...");
   await regenerate(skillPath, {
     model: models.agent,
@@ -124,13 +126,8 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
   let lastEvalResult: EvalRunResult | undefined;
   let lastCoverage: CoverageReport | undefined;
   let lastResults: ResultsReport | undefined;
-  let exitReason:
-    | "max-iterations"
-    | "timeout"
-    | "patch-failed"
-    | "no-patches"
-    | "validation-failed" = "max-iterations";
-  let exitDetail = "";
+  const allPromotedIds: string[] = [];
+  let exitReason: "max-iterations" | "timeout" | "no-improvement" = "max-iterations";
 
   for (let iteration = 1; iteration <= maxIterations; iteration++) {
     if (Date.now() - loopStart > totalTimeout) {
@@ -142,143 +139,117 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
     const elapsed = ((Date.now() - loopStart) / 1000).toFixed(0);
     console.log(`\nIteration ${iteration}/${maxIterations} (${elapsed}s elapsed)`);
 
-    // Reload spec each iteration since patches may have rewritten it.
+    // Reload spec each iteration in case promotion wrote it back.
     const spec = readSpec(specPath);
     if (spec == null) {
       throw new Error(`spec.yaml disappeared between iterations at ${specPath}`);
     }
 
-    // Layer-2 verify: coverage gaps surface here before we spend tokens
-    // running evals on a partially-generated suite.
+    // Coverage check — improve cannot add behaviors, so any coverage
+    // gap here means the eval-gen LLM dropped one. Surface it but
+    // don't try to fix it ourselves; the user runs `add-eval` or
+    // hand-edits the spec to fill the hole.
     const coverage = verifyCoverage(spec, skillPath);
     lastCoverage = coverage;
-    if (!coverage.ok) {
+    if (!coverage.ok && coverage.uncovered.length > 0) {
       console.log(
-        `  Coverage gap: ${coverage.uncovered.length} uncovered, ${coverage.orphans.length} orphan(s)`,
+        `  Coverage gap: ${coverage.uncovered.length} uncovered. Improve can't add behaviors — run \`skillet add-eval\` or edit spec.yaml.`,
       );
     }
 
-    // Run evals only if coverage is at least partial (i.e. there's
-    // something to run). Even with gaps we run, because failing cases
-    // also produce signal — but on a totally-empty suite, skip.
-    let coverageOnlyIteration = false;
-    if (coverage.covered.length === 0 && coverage.uncovered.length > 0) {
-      console.log("  No covered behaviors yet — skipping eval run, going straight to assess");
-      coverageOnlyIteration = true;
-    } else {
-      console.log("  Running evals...");
-      const skill = loadSkill(skillPath);
-      let currentCase = "";
-      let caseStart = Date.now();
-      lastEvalResult = await runEvals({
-        skill,
-        agentModel: models.agent,
-        judgeModel: models.judge,
-        onCaseComplete: (result) => {
-          const caseDuration = ((Date.now() - caseStart) / 1000).toFixed(1);
-          const icon = result.status === "pass" ? "✓" : result.status === "fail" ? "✗" : "○";
-          console.log(`    ${icon} ${result.name}  ${caseDuration}s`);
-          caseStart = Date.now();
-        },
-        onToolCall: (caseName, toolName, step) => {
-          if (caseName !== currentCase) {
-            currentCase = caseName;
-            console.log(`    ▸ ${caseName}`);
-          }
-          process.stderr.write(`\u001B[2m      step ${step}: ${toolName}\u001B[0m\n`);
-        },
-      });
-
-      const { summary } = lastEvalResult;
-      console.log(`  Eval results: ${summary.pass}/${summary.total} cases passed`);
-
-      // Layer-3 verify: per-behavior pass/fail.
-      lastResults = verifyResults(spec, lastEvalResult);
-      const passing = lastResults.behaviors.filter((b) => b.status === "covered+passing").length;
-      console.log(`  Per-behavior: ${passing}/${lastResults.behaviors.length} behaviors passing`);
-
-      // Loop terminates only when both coverage and per-behavior
-      // results are clean. Raw eval pass/fail is not enough — a skill
-      // with passing cases but uncovered behaviors isn't done.
-      if (coverage.ok && lastResults.ok) {
-        console.log("\nAll behaviors covered and passing.");
-        return {
-          skillRoot: skillPath,
-          iterations: iteration,
-          finalEvalResult: lastEvalResult,
-          finalCoverage: coverage,
-          finalResults: lastResults,
-          success: true,
-        };
-      }
-    }
-
-    // Last iteration — don't assess, just report.
-    if (iteration === maxIterations) break;
-
-    // ── Assess + patch + regen ───────────────────────────
-    console.log("  Assessing failures...");
-    const assessRunResult = lastEvalResult ?? emptyEvalRunResult();
-    const patches = await runAssess(models.agent, spec, coverage, lastResults, assessRunResult);
-
-    if (patches.length === 0) {
-      console.log("  Assessor produced no patches — terminating.");
-      exitReason = "no-patches";
-      break;
-    }
-
-    console.log(`  Applying ${patches.length} patch${patches.length === 1 ? "" : "es"}...`);
-    let updated: SkillSpec;
-    try {
-      updated = applyPatches(spec, patches);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.log(`  Patch application failed: ${msg}`);
-      exitReason = "patch-failed";
-      exitDetail = msg;
-      break;
-    }
-
-    const validation = validateSpecObject(updated, specPath);
-    if (!validation.valid) {
-      console.log("  Patched spec failed structural validation:");
-      for (const e of validation.errors) console.log(`    ${e.message}`);
-      exitReason = "validation-failed";
-      exitDetail = validation.errors.map((e) => e.message).join("; ");
-      break;
-    }
-
-    writeSpec(specPath, updated);
-
-    console.log("  Regenerating from patched spec...");
-    await regenerate(skillPath, {
-      model: models.agent,
-      onProgress: (msg) => {
-        console.log(`    ${msg}`);
+    // Run evals.
+    console.log("  Running evals...");
+    const skill = loadSkill(skillPath);
+    let currentCase = "";
+    let caseStart = Date.now();
+    lastEvalResult = await runEvals({
+      skill,
+      agentModel: models.agent,
+      judgeModel: models.judge,
+      onCaseComplete: (result) => {
+        const caseDuration = ((Date.now() - caseStart) / 1000).toFixed(1);
+        const icon = result.status === "pass" ? "✓" : result.status === "fail" ? "✗" : "○";
+        console.log(`    ${icon} ${result.name}  ${caseDuration}s`);
+        caseStart = Date.now();
+      },
+      onToolCall: (caseName, toolName, step) => {
+        if (caseName !== currentCase) {
+          currentCase = caseName;
+          console.log(`    ▸ ${caseName}`);
+        }
+        process.stderr.write(`\u001B[2m      step ${step}: ${toolName}\u001B[0m\n`);
       },
     });
 
-    // The patched-spec iteration ran without evals. Make sure we don't
-    // claim success on stale data — set a marker that the next loop
-    // iteration runs evals fresh.
-    if (coverageOnlyIteration) {
-      lastEvalResult = undefined;
-      lastResults = undefined;
+    const { summary } = lastEvalResult;
+    console.log(`  Eval results: ${summary.pass}/${summary.total} cases passed`);
+
+    lastResults = verifyResults(spec, lastEvalResult);
+    const passing = lastResults.behaviors.filter((b) => b.status === "covered+passing").length;
+    console.log(`  Per-behavior: ${passing}/${lastResults.behaviors.length} behaviors passing`);
+
+    // Promote passing LLM-generated cases back into the spec.
+    const evalFileObjs = readEvalFiles(skillPath);
+    const { spec: promotedSpec, promotedIds } = promotePassingEvals(
+      spec,
+      lastEvalResult,
+      evalFileObjs,
+    );
+    if (promotedIds.length > 0) {
+      writeSpec(specPath, promotedSpec);
+      allPromotedIds.push(...promotedIds);
+      console.log(
+        `  Promoted ${promotedIds.length} passing case${promotedIds.length === 1 ? "" : "s"} into spec.yaml: ${promotedIds.join(", ")}`,
+      );
     }
+
+    // Termination: every behavior has a passing case AND no orphan cases.
+    if (coverage.ok && lastResults.ok) {
+      console.log("\nAll behaviors covered and passing.");
+      return {
+        skillRoot: skillPath,
+        iterations: iteration,
+        finalEvalResult: lastEvalResult,
+        finalCoverage: coverage,
+        finalResults: lastResults,
+        promotedIds: allPromotedIds,
+        success: true,
+      };
+    }
+
+    if (iteration === maxIterations) break;
+
+    // ── Tune SKILL.md prose only ─────────────────────────
+    // Spec is read-only here — the rule set is fixed, we only
+    // re-render it with failure context as guidance.
+    console.log("  Tuning SKILL.md prose against failures...");
+    const skillMdPath = join(skillPath, "SKILL.md");
+    const currentSkillMd = readFileSync(skillMdPath, "utf-8");
+    const newSkillMd = await runSkillImprove(
+      models.agent,
+      promotedIds.length > 0 ? promotedSpec : spec,
+      currentSkillMd,
+      lastEvalResult,
+    );
+
+    if (newSkillMd === currentSkillMd) {
+      console.log("  Prose unchanged — assessor produced no improvements. Terminating.");
+      exitReason = "no-improvement";
+      break;
+    }
+
+    writeFileSync(skillMdPath, newSkillMd, "utf-8");
+    console.log("  SKILL.md updated; spec and eval YAMLs unchanged.");
   }
 
   const totalElapsed = ((Date.now() - loopStart) / 1000).toFixed(0);
   const exitLines: Record<typeof exitReason, string> = {
     "max-iterations": `Max iterations reached. (${totalElapsed}s total)`,
     timeout: `Timeout reached. (${totalElapsed}s total)`,
-    "patch-failed": `Loop aborted: assessor produced an invalid patch. (${totalElapsed}s total)`,
-    "no-patches": `Loop terminated: assessor produced no patches. (${totalElapsed}s total)`,
-    "validation-failed": `Loop aborted: patched spec failed structural validation. (${totalElapsed}s total)`,
+    "no-improvement": `Loop terminated: assessor produced no SKILL.md changes. (${totalElapsed}s total)`,
   };
   console.log(`\n${exitLines[exitReason]}`);
-  if (exitDetail !== "") {
-    console.log(`  Detail: ${exitDetail}`);
-  }
+
   if (lastResults != null) {
     const failing = lastResults.behaviors.filter((b) => b.status !== "covered+passing");
     if (failing.length > 0) {
@@ -286,12 +257,22 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
       for (const v of failing) {
         console.log(`  - ${v.kind}:${v.id} → ${v.status}`);
       }
+      console.log(
+        '\nIf the rules need tightening, run `skillet spec refine "<feedback>"` or edit spec.yaml directly.',
+      );
     }
+  }
+
+  if (allPromotedIds.length > 0) {
+    console.log(
+      `\nPromoted ${allPromotedIds.length} eval case${allPromotedIds.length === 1 ? "" : "s"} into spec.yaml during the run; future regens will be deterministic for those.`,
+    );
   }
 
   const result: AuthorSkillResult = {
     skillRoot: skillPath,
     iterations: maxIterations,
+    promotedIds: allPromotedIds,
     success: false,
   };
   if (lastEvalResult != null) result.finalEvalResult = lastEvalResult;
@@ -300,7 +281,14 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
   return result;
 };
 
-const emptyEvalRunResult = (): EvalRunResult => ({
-  cases: [],
-  summary: { total: 0, pass: 0, fail: 0, skip: 0, error: 0, durationMs: 0 },
-});
+const readEvalFiles = (skillPath: string): Array<{ path: string; cases: EvalCase[] }> => {
+  const out: Array<{ path: string; cases: EvalCase[] }> = [];
+  for (const filePath of discoverEvalFiles(skillPath)) {
+    try {
+      out.push(parseEvalFile(filePath));
+    } catch {
+      // Best effort — promotion shouldn't fail the loop.
+    }
+  }
+  return out;
+};
