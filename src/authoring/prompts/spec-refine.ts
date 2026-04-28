@@ -89,18 +89,33 @@ specific arguments:
    adjacent behaviors that weren't asked about. Each unnecessary op
    is a chance to introduce drift.
 
-6. **Merge duplicates instead of adding parallel rules.** Before
-   emitting \`add_behavior\` or \`add_must_not\`, scan the current spec
-   for an entry that says the same thing in different words. If you
-   find one, emit \`update_behavior\` (or \`update_must_not\`) on the
-   existing entry to incorporate the new wording — do NOT add a
-   second nearly-identical rule. Common indicators of duplication:
-   - Both rules apply to the same domain object (branch names,
-     PR titles, query patterns, etc.) with overlapping constraints.
-   - One rule is a special case of the other (e.g. "branch names
-     follow X" vs "branch names use suffix on collision" — these
-     belong in one combined rule, not two).
-   - The statements share the same imperative verb on the same noun.
+6. **Default to adding; merge only with high precision.** When the
+   user asks for a new behavior, your first question is "is there
+   an existing behavior + eval that already tests THIS SPECIFIC
+   scenario?" If you can't answer "yes" with confidence, treat the
+   user's request as a new behavior. Two narrow rules is always
+   better than one overloaded rule.
+
+   Decision matrix for an incoming behavior:
+
+   | Existing entry says... | Existing has eval? | Eval tests the user's specific scenario? | Action |
+   |---|---|---|---|
+   | Exact same rule | yes | yes, fully | skip — emit no patch for this entry; mention in passing |
+   | Exact same rule | yes | no — covers a different specific case | \`add_behavior\` (with eval) — separate, narrower entry |
+   | Exact same rule | no eval | n/a | \`update_eval\` on existing — fill in the missing eval, don't add a duplicate behavior |
+   | Related but different scope | any | partial overlap | \`add_behavior\` (with eval) — keep as separate narrow entry |
+   | Unrelated | any | n/a | \`add_behavior\` (with eval) |
+
+   Avoid merging into an existing entry just because the topics
+   overlap. "Branch names follow \`<prefix>/<type>/<short-desc>\`"
+   and "Branch names append a numeric suffix on collision" are
+   related but test different things — keep them separate. Forcing
+   them together produces an eval that has to assert both at once,
+   which the assessor can't repair cleanly when only one fails.
+
+   When you DO skip a user's request because an existing eval fully
+   covers it, that's fine — but only with confidence. Uncertainty
+   defaults to adding.
 
 7. **Empty array means no change.** Emit \`[]\` when:
    - The feedback asks a clarifying question rather than requesting

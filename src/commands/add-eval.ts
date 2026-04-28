@@ -12,6 +12,7 @@ import {
   validateSpecObject,
   writeSpec,
 } from "../spec/index.js";
+import { printCoverageReport } from "./coverage-report.js";
 
 const errorMessage = (err: unknown): string => {
   return err instanceof Error ? err.message : String(err);
@@ -102,7 +103,8 @@ export const addEvalCommand = async (args: string[]): Promise<number> => {
   }
 
   if (patches.length === 0) {
-    console.log("No patches produced — feedback didn't translate to a spec change.");
+    console.log("No patches produced — your behaviors are already represented in spec.yaml.");
+    printCoverageReport(skillRoot);
     return 0;
   }
 
@@ -138,5 +140,6 @@ export const addEvalCommand = async (args: string[]): Promise<number> => {
     return 1;
   }
 
+  printCoverageReport(skillRoot);
   return 0;
 };

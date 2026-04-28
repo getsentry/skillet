@@ -15,6 +15,7 @@ import {
   validateSpecObject,
   writeSpec,
 } from "../spec/index.js";
+import { printCoverageReport } from "./coverage-report.js";
 
 const errorMessage = (err: unknown): string => {
   return err instanceof Error ? err.message : String(err);
@@ -120,7 +121,7 @@ const specInit = async (args: string[]): Promise<number> => {
   }
 
   console.log(`\nSpec ready at ${skillRoot}.`);
-  console.log("Run `skillet improve` to iterate the spec until evals pass.");
+  printCoverageReport(skillRoot);
   return 0;
 };
 
@@ -182,6 +183,7 @@ const specRefine = async (args: string[]): Promise<number> => {
 
   if (patches.length === 0) {
     console.log("No patches produced (feedback didn't translate to a spec change).");
+    printCoverageReport(skillRoot);
     return 0;
   }
 
@@ -217,6 +219,7 @@ const specRefine = async (args: string[]): Promise<number> => {
     return 1;
   }
 
+  printCoverageReport(skillRoot);
   return 0;
 };
 
@@ -276,8 +279,7 @@ const specImport = async (args: string[]): Promise<number> => {
     return 1;
   }
 
-  console.log(
-    "\nImported spec is a faithful capture of SKILL.md, not improved. Run `skillet improve` to iterate.",
-  );
+  console.log("\nImported spec is a faithful capture of SKILL.md, not improved.");
+  printCoverageReport(skillRoot);
   return 0;
 };
