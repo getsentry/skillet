@@ -1,4 +1,4 @@
-import { judge as runJudge } from "../eval/judge.js";
+import { judge as runJudge, type JudgeArtifact } from "../eval/judge.js";
 import { resolveModels } from "../agent/provider.js";
 import type { BaseJudgeOptions, JudgeFn, JudgeResult } from "./types.js";
 
@@ -15,6 +15,25 @@ const named = <T extends BaseJudgeOptions>(
   return fn as JudgeFn<T>;
 };
 
+/**
+ * Convert `HarnessRun.artifacts` (a path → content map populated by
+ * skilletHarness with the agent's file edits) into the shape the
+ * underlying LLM judge consumes. The judge prompt formats each entry
+ * as a workspace artifact so the model grades the file, not just the
+ * agent's chat narration of what it did.
+ */
+const collectArtifactsForJudge = (run: BaseJudgeOptions["run"]): JudgeArtifact[] => {
+  const raw = run?.artifacts;
+  if (raw == null || typeof raw !== "object" || Array.isArray(raw)) return [];
+  const out: JudgeArtifact[] = [];
+  for (const [path, content] of Object.entries(raw)) {
+    if (typeof content === "string" && content.length > 0) {
+      out.push({ command: `cat ${path}`, stdout: content });
+    }
+  }
+  return out;
+};
+
 interface CriterionJudgeOptions extends BaseJudgeOptions {
   /** The judge criterion (sourced from case data). */
   criteria?: string;
@@ -24,11 +43,14 @@ interface CriterionJudgeOptions extends BaseJudgeOptions {
  * LLM-based criterion judge. Grades the agent's output against a
  * natural-language criterion sourced from `caseData.criteria`.
  *
+ * The judge sees both the agent's chat transcript AND any workspace
+ * artifacts the harness captured (files the agent created or modified).
+ * For coding skills whose deliverable is a file edit, the artifact is
+ * the actual thing being graded — without it, the judge has no view
+ * of the deliverable and can only grade the agent's narration.
+ *
  * Returns score 0–1 (mapped from grade A–E). Cases without a
  * `criteria` field score 1 (skipped).
- *
- * The judge model is auto-discovered via `resolveModels()`, matching
- * the rest of skillet's eval path.
  */
 export const CriterionJudge = (): JudgeFn => {
   return named("CriterionJudge", async (opts: CriterionJudgeOptions) => {
@@ -37,7 +59,8 @@ export const CriterionJudge = (): JudgeFn => {
       return { score: 1, metadata: { rationale: "no criteria — skipped" } };
     }
     const model = resolveModels().judge;
-    const result = await runJudge(model, opts.output, criteria);
+    const artifacts = collectArtifactsForJudge(opts.run);
+    const result = await runJudge(model, opts.output, criteria, artifacts);
     return {
       score: result.score,
       metadata: { rationale: result.reasoning, grade: result.grade },
@@ -54,6 +77,9 @@ interface SubstringJudgeOptions extends BaseJudgeOptions {
  * Cheap structural judge: does the agent's output contain a literal
  * substring? No LLM call. Cases without `expectedContains` score 1
  * (skipped). Used alongside CriterionJudge for fast positive checks.
+ *
+ * Substring matches are checked against chat output only — for
+ * file-deliverable skills, use CriterionJudge with a clear criterion.
  */
 export const SubstringJudge = (): JudgeFn => {
   return named("SubstringJudge", (opts: SubstringJudgeOptions) => {
