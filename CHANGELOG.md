@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.17.0
+
+### New Features ✨
+
+#### Evals
+
+- Vitest delegation + TypeScript eval generation by @gricha in [55f96ae0](https://github.com/getsentry/skillet/commit/55f96ae0fa74dd76888493185ede8aa5f873dfad)
+- Local vitest-evals mini-lib + skillet harness by @gricha in [443bf3dd](https://github.com/getsentry/skillet/commit/443bf3dd83af699d4aca02317733710af391b7a4)
+
+### Internal Changes 🔧
+
+- (evals) Convert remaining fixtures to .eval.ts; update README by @gricha in [31111ef4](https://github.com/getsentry/skillet/commit/31111ef4c9f4fc6385851f6969154b7322b14ed1)
+- (skillet-skill) Update spec/SKILL.md for the new eval format by @gricha in [be82987e](https://github.com/getsentry/skillet/commit/be82987e5520abb4343db5da65b8e1cc060958e9)
+- (spec) Drop eval blocks from spec; spec is intent only by @gricha in [7b049a78](https://github.com/getsentry/skillet/commit/7b049a7853294a92d28a51531fabcca23b02e574)
+
 ## 0.16.0
 
 ### New Features ✨
