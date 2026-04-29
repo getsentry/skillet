@@ -184,12 +184,7 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
     console.log("  Tuning SKILL.md prose against failures...");
     const skillMdPath = join(skillPath, "SKILL.md");
     const currentSkillMd = readFileSync(skillMdPath, "utf-8");
-    const newSkillMd = await runSkillImprove(
-      models.agent,
-      spec,
-      currentSkillMd,
-      lastEvalResult,
-    );
+    const newSkillMd = await runSkillImprove(models.agent, spec, currentSkillMd, lastEvalResult);
 
     if (newSkillMd === currentSkillMd) {
       console.log("  Prose unchanged — assessor produced no improvements. Terminating.");

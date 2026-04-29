@@ -12,12 +12,7 @@
  * delete `src/vitest-evals/`. Generated eval files don't change.
  */
 
-export {
-  describeEval,
-  toolCalls,
-  CriterionJudge,
-  SubstringJudge,
-} from "./vitest-evals/index.js";
+export { describeEval, toolCalls, CriterionJudge, SubstringJudge } from "./vitest-evals/index.js";
 
 export type {
   BaseJudgeOptions,

@@ -88,10 +88,7 @@ export type HarnessContext<TCase extends HarnessCase = HarnessCase> = {
   setArtifact: (name: string, value: JsonValue) => void;
 };
 
-export type Harness<
-  TInput = unknown,
-  TCase extends HarnessCase<TInput> = HarnessCase<TInput>,
-> = {
+export type Harness<TInput = unknown, TCase extends HarnessCase<TInput> = HarnessCase<TInput>> = {
   name: string;
   run: (input: TInput, context: HarnessContext<TCase>) => Promise<HarnessRun>;
 };

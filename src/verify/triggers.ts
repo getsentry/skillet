@@ -71,9 +71,7 @@ export const verifyTriggers = async (
     return { ok: true, triggers: [] };
   }
 
-  const phraseList = allPhrases
-    .map((p) => `- [${p.kind}] "${p.phrase}"`)
-    .join("\n");
+  const phraseList = allPhrases.map((p) => `- [${p.kind}] "${p.phrase}"`).join("\n");
 
   const userContent = `## Trigger phrases to evaluate\n\n${phraseList}\n\n## SKILL.md\n\n${skillMd}\n\nReturn one JSON array of verdicts, one per phrase, in the input order.`;
 

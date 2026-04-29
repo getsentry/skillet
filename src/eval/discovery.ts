@@ -118,10 +118,7 @@ export const extractCasesFromEvalTs = (filePath: string): DiscoveredCase[] => {
  * lines), but skillet's generated format is regular enough that
  * this works.
  */
-const findEnclosingObject = (
-  text: string,
-  pos: number,
-): { start: number; end: number } | null => {
+const findEnclosingObject = (text: string, pos: number): { start: number; end: number } | null => {
   // Walk backwards to find the opening brace at depth 0.
   let depth = 0;
   let start = -1;

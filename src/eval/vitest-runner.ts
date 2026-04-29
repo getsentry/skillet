@@ -9,22 +9,10 @@
  */
 
 import { spawn } from "node:child_process";
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
-import type {
-  EvalCaseResult,
-  EvalRunResult,
-  NormalizedSession,
-  UsageSummary,
-} from "./types.js";
+import type { EvalCaseResult, EvalRunResult, NormalizedSession, UsageSummary } from "./types.js";
 
 export interface RunVitestEvalsOptions {
   /** Skill root (the directory containing SKILL.md and evals/). */
@@ -113,8 +101,8 @@ const skilletRoot = (): string => {
     const pkg = join(dir, "package.json");
     if (existsSync(pkg)) {
       try {
-        const parsed = JSON.parse(readFileSync(pkg, "utf-8")) as { name?: string };
-        if (parsed.name === "@sentry/skillet") return dir;
+        const parsed: unknown = JSON.parse(readFileSync(pkg, "utf-8"));
+        if (isRecord(parsed) && parsed.name === "@sentry/skillet") return dir;
       } catch {
         // unreadable package.json — keep walking
       }
@@ -132,9 +120,7 @@ const skilletRoot = (): string => {
  * Run all eval files in a skill's evals/ directory via vitest.
  * Returns a normalized `EvalRunResult` regardless of pass/fail.
  */
-export const runVitestEvals = async (
-  opts: RunVitestEvalsOptions,
-): Promise<EvalRunResult> => {
+export const runVitestEvals = async (opts: RunVitestEvalsOptions): Promise<EvalRunResult> => {
   const skillRoot = resolvePath(opts.skillRoot);
   const evalsDir = join(skillRoot, "evals");
 
@@ -178,11 +164,11 @@ export const runVitestEvals = async (
   let report: VitestJsonReport;
   try {
     const raw = readFileSync(outputPath, "utf-8");
-    report = JSON.parse(raw) as VitestJsonReport;
+    report = parseVitestReport(raw);
   } catch (err: unknown) {
     rmSync(configDir, { recursive: true, force: true });
     const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(`vitest produced no parseable JSON output: ${msg}`);
+    throw new Error(`vitest produced no parseable JSON output: ${msg}`, { cause: err });
   }
   rmSync(configDir, { recursive: true, force: true });
 
@@ -277,4 +263,26 @@ const scoreToGrade = (score: number): string => {
   if (score >= 0.45) return "C";
   if (score >= 0.2) return "D";
   return "E";
+};
+
+/**
+ * Parse vitest's JSON reporter output into the loose-typed shape we
+ * read from. The reporter format is stable enough that we don't need
+ * a deep schema check — we look for `testResults`, then trust the
+ * field shape per-call. Any deeper malformedness surfaces as missing
+ * fields downstream rather than an exception.
+ */
+const parseVitestReport = (raw: string): VitestJsonReport => {
+  const parsed: unknown = JSON.parse(raw);
+  if (!isRecord(parsed)) {
+    throw new Error("vitest output is not a JSON object");
+  }
+  if (!Array.isArray(parsed.testResults)) {
+    throw new Error("vitest output missing 'testResults' array");
+  }
+  // The reporter format is well-known; the cast avoids re-validating
+  // every nested field. Missing optional fields surface as undefined
+  // at the read sites rather than crashing here.
+  // oxlint-disable-next-line no-unsafe-type-assertion
+  return parsed as unknown as VitestJsonReport;
 };

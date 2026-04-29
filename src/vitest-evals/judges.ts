@@ -25,16 +25,16 @@ interface CriterionJudgeOptions extends BaseJudgeOptions {
  * natural-language criterion sourced from `caseData.criteria`.
  *
  * Returns score 0–1 (mapped from grade A–E). Cases without a
- * `criteria` field score 1.0 (skipped).
+ * `criteria` field score 1 (skipped).
  *
  * The judge model is auto-discovered via `resolveModels()`, matching
  * the rest of skillet's eval path.
  */
-export const CriterionJudge = (): JudgeFn<CriterionJudgeOptions> => {
-  return named<CriterionJudgeOptions>("CriterionJudge", async (opts) => {
+export const CriterionJudge = (): JudgeFn => {
+  return named("CriterionJudge", async (opts: CriterionJudgeOptions) => {
     const criteria = opts.criteria;
     if (typeof criteria !== "string" || criteria.trim() === "") {
-      return { score: 1.0, metadata: { rationale: "no criteria — skipped" } };
+      return { score: 1, metadata: { rationale: "no criteria — skipped" } };
     }
     const model = resolveModels().judge;
     const result = await runJudge(model, opts.output, criteria);
@@ -52,20 +52,20 @@ interface SubstringJudgeOptions extends BaseJudgeOptions {
 
 /**
  * Cheap structural judge: does the agent's output contain a literal
- * substring? No LLM call. Cases without `expectedContains` score 1.0
+ * substring? No LLM call. Cases without `expectedContains` score 1
  * (skipped). Used alongside CriterionJudge for fast positive checks.
  */
-export const SubstringJudge = (): JudgeFn<SubstringJudgeOptions> => {
-  return named<SubstringJudgeOptions>("SubstringJudge", (opts) => {
+export const SubstringJudge = (): JudgeFn => {
+  return named("SubstringJudge", (opts: SubstringJudgeOptions) => {
     const expected = opts.expectedContains;
     if (typeof expected !== "string" || expected === "") {
-      return { score: 1.0, metadata: { rationale: "no expectedContains — skipped" } };
+      return { score: 1, metadata: { rationale: "no expectedContains — skipped" } };
     }
     if (opts.output.includes(expected)) {
-      return { score: 1.0, metadata: { rationale: `output contains "${expected}"` } };
+      return { score: 1, metadata: { rationale: `output contains "${expected}"` } };
     }
     return {
-      score: 0.0,
+      score: 0,
       metadata: { rationale: `output does NOT contain "${expected}"` },
     };
   });

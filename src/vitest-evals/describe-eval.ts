@@ -46,97 +46,98 @@ export const describeEval = <TCase extends HarnessCase>(
       const { input, name: testName } = caseData;
       const displayName = testName ?? formatTestName(input);
 
-      testFn(
-        displayName,
-        { timeout: options.timeout ?? 60_000 },
-        async ({ task: testTask }) => {
-          const artifacts: Record<string, JsonValue> = {};
-          const context: HarnessContext<TCase> = {
-            caseData,
-            task: testTask as unknown as { meta: Record<string, unknown> },
-            artifacts,
-            setArtifact: (artifactName, value) => {
-              artifacts[artifactName] = value;
-            },
-          };
+      testFn(displayName, { timeout: options.timeout ?? 60_000 }, async ({ task: testTask }) => {
+        const artifacts: Record<string, JsonValue> = {};
+        // testTask is vitest's RunnerTask; we treat its `meta` as a
+        // plain string-keyed bag for skillet's purposes. The runtime
+        // shape is always object — vitest constructs it as `{}`.
+        // oxlint-disable-next-line no-unsafe-type-assertion
+        const meta = testTask.meta as Record<string, unknown>;
+        const context: HarnessContext<TCase> = {
+          caseData,
+          task: { meta },
+          artifacts,
+          setArtifact: (artifactName, value) => {
+            artifacts[artifactName] = value;
+          },
+        };
 
-          const run = await options.harness.run(input, context);
+        const run = await options.harness.run(input, context);
 
-          if (Object.keys(artifacts).length > 0 && run.artifacts == null) {
-            run.artifacts = artifacts;
-          }
+        if (Object.keys(artifacts).length > 0 && run.artifacts == null) {
+          run.artifacts = artifacts;
+        }
 
-          (testTask.meta as Record<string, unknown>).harness = {
-            name: options.harness.name,
-            run,
-          };
-          // Skillet uses `tests_behavior` to map case results back to
-          // spec entries. Surface it on task.meta so the runner can
-          // read it from vitest's JSON reporter output.
-          if (typeof caseData.tests_behavior === "string") {
-            (testTask.meta as Record<string, unknown>).tests_behavior = caseData.tests_behavior;
-          }
+        meta.harness = {
+          name: options.harness.name,
+          run,
+        };
+        // Skillet uses `tests_behavior` to map case results back to
+        // spec entries. Surface it on task.meta so the runner can
+        // read it from vitest's JSON reporter output.
+        if (typeof caseData.tests_behavior === "string") {
+          meta.tests_behavior = caseData.tests_behavior;
+        }
 
-          // ── Judges ────────────────────────────────────
-          const judges = options.judges ?? [];
-          if (judges.length > 0) {
-            const output = formatOutput(run);
-            const tools = toolCalls(run.session);
-            const scores: Array<JudgeResult & { name: string }> = [];
+        // ── Judges ────────────────────────────────────
+        const judges = options.judges ?? [];
+        if (judges.length > 0) {
+          const output = formatOutput(run);
+          const tools = toolCalls(run.session);
+          const scores: Array<JudgeResult & { name: string }> = [];
 
-            for (const judge of judges) {
-              const result = await judge({
-                ...(caseData as Record<string, unknown>),
-                input: typeof input === "string" ? input : JSON.stringify(input),
-                rawInput: input,
-                output,
-                assistantOutput: run.session.outputText ?? output,
-                toolCalls: tools,
-                caseData,
-                run,
-                session: run.session,
-              });
-              scores.push({ ...result, name: judge.name || "AnonymousJudge" });
-            }
-
-            const avgScore =
-              scores.reduce((acc, s) => acc + (s.score ?? 0), 0) / scores.length;
-            const threshold = options.threshold === undefined ? 1.0 : options.threshold;
-            const thresholdFailed = threshold !== null && avgScore < threshold;
-
-            (testTask.meta as Record<string, unknown>).eval = {
-              scores,
-              avgScore,
+          for (const judge of judges) {
+            const result = await judge({
+              ...caseData,
+              input: typeof input === "string" ? input : JSON.stringify(input),
+              rawInput: input,
               output,
+              assistantOutput: run.session.outputText ?? output,
               toolCalls: tools,
-              thresholdFailed,
-            };
-
-            if (thresholdFailed) {
-              const lines = [
-                `Score: ${avgScore.toFixed(2)} below threshold: ${threshold!.toFixed(2)}`,
-                ...scores.map(
-                  (s) =>
-                    `  ${s.name}: ${s.score?.toFixed(2) ?? "null"}${
-                      s.metadata?.rationale != null ? ` — ${s.metadata.rationale}` : ""
-                    }`,
-                ),
-              ];
-              assert(false, lines.join("\n"));
-            }
-          }
-
-          // ── Optional test callback ────────────────────
-          if (options.test != null) {
-            await options.test({
-              input,
               caseData,
               run,
               session: run.session,
             });
+            scores.push({ ...result, name: judge.name === "" ? "AnonymousJudge" : judge.name });
           }
-        },
-      );
+
+          const avgScore = scores.reduce((acc, s) => acc + (s.score ?? 0), 0) / scores.length;
+          const threshold = options.threshold === undefined ? 1 : options.threshold;
+          const thresholdFailed = threshold !== null && avgScore < threshold;
+
+          meta.eval = {
+            scores,
+            avgScore,
+            output,
+            toolCalls: tools,
+            thresholdFailed,
+          };
+
+          if (thresholdFailed) {
+            const t = threshold ?? 1;
+            const lines = [
+              `Score: ${avgScore.toFixed(2)} below threshold: ${t.toFixed(2)}`,
+              ...scores.map(
+                (s) =>
+                  `  ${s.name}: ${s.score?.toFixed(2) ?? "null"}${
+                    s.metadata?.rationale != null ? ` — ${s.metadata.rationale}` : ""
+                  }`,
+              ),
+            ];
+            assert(false, lines.join("\n"));
+          }
+        }
+
+        // ── Optional test callback ────────────────────
+        if (options.test != null) {
+          await options.test({
+            input,
+            caseData,
+            run,
+            session: run.session,
+          });
+        }
+      });
     }
   });
 };
@@ -144,7 +145,8 @@ export const describeEval = <TCase extends HarnessCase>(
 const resolveCaseData = async <TCase extends HarnessCase>(
   data: DescribeEvalOptions<TCase>["data"],
 ): Promise<TCase[]> => {
-  return typeof data === "function" ? await data() : data;
+  if (typeof data === "function") return data();
+  return data;
 };
 
 const formatTestName = (input: unknown): string => {
@@ -152,7 +154,7 @@ const formatTestName = (input: unknown): string => {
   try {
     return JSON.stringify(input);
   } catch {
-    return String(input);
+    return safeStringify(input);
   }
 };
 
@@ -162,10 +164,20 @@ const formatOutput = (run: HarnessRun): string => {
     try {
       return JSON.stringify(run.output);
     } catch {
-      return String(run.output);
+      return safeStringify(run.output);
     }
   }
   return run.session.outputText ?? "";
+};
+
+const safeStringify = (v: unknown): string => {
+  if (v == null) return String(v);
+  if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") return String(v);
+  try {
+    return JSON.stringify(v);
+  } catch {
+    return Object.prototype.toString.call(v);
+  }
 };
 
 /**

@@ -50,16 +50,18 @@ const validateCase = (raw: unknown, index: number): RawCase => {
   const hasContains = isString(raw.expectedContains) && raw.expectedContains !== "";
   const hasCriteria = isString(raw.criteria) && raw.criteria !== "";
   if (!hasContains && !hasCriteria) {
-    throw new Error(
-      `case ${index} (${raw.name}): must have 'expectedContains' or 'criteria'`,
-    );
+    throw new Error(`case ${index} (${raw.name}): must have 'expectedContains' or 'criteria'`);
   }
   const out: RawCase = { name: raw.name, input: raw.input };
   if (isString(raw.tests_behavior) && raw.tests_behavior !== "") {
     out.tests_behavior = raw.tests_behavior;
   }
-  if (hasContains) out.expectedContains = raw.expectedContains as string;
-  if (hasCriteria) out.criteria = raw.criteria as string;
+  if (isString(raw.expectedContains) && raw.expectedContains !== "") {
+    out.expectedContains = raw.expectedContains;
+  }
+  if (isString(raw.criteria) && raw.criteria !== "") {
+    out.criteria = raw.criteria;
+  }
   if (isString(raw.setup) && raw.setup !== "") out.setup = raw.setup;
   if (isNumber(raw.timeout)) out.timeout = raw.timeout;
   return out;
@@ -173,7 +175,9 @@ export const runEvalGen = async (
     try {
       parsed = JSON.parse(stripFences(text, "json"));
     } catch (err: unknown) {
-      lastError = new Error(`response was not valid JSON: ${err instanceof Error ? err.message : String(err)}`);
+      lastError = new Error(
+        `response was not valid JSON: ${err instanceof Error ? err.message : String(err)}`,
+      );
       continue;
     }
     if (!Array.isArray(parsed)) {
