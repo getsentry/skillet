@@ -159,6 +159,17 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
     const { summary } = lastEvalResult;
     console.log(`  Eval results: ${summary.pass}/${summary.total} cases passed`);
 
+    // Fail fast if vitest collected zero cases despite the spec
+    // having behaviors. The runner already throws when files exist
+    // but load fails; this catches the rarer case where eval-gen
+    // produced an empty file. Either way, iterating on a zero-case
+    // signal would just churn SKILL.md prose against nothing.
+    if (summary.total === 0 && (spec.behaviors.length > 0 || spec.must_not.length > 0)) {
+      throw new Error(
+        `improve: vitest collected zero cases but spec has ${spec.behaviors.length} behavior(s) and ${spec.must_not.length} must_not(s). Eval generation may have failed — check evals/basic.eval.ts.`,
+      );
+    }
+
     lastResults = verifyResults(spec, lastEvalResult);
     const passing = lastResults.behaviors.filter((b) => b.status === "covered+passing").length;
     console.log(`  Per-behavior: ${passing}/${lastResults.behaviors.length} behaviors passing`);

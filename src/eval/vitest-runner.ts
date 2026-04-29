@@ -12,6 +12,7 @@ import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
+import { discoverEvalTsFiles } from "./discovery.js";
 import type { EvalCaseResult, EvalRunResult, NormalizedSession, UsageSummary } from "./types.js";
 
 export interface RunVitestEvalsOptions {
@@ -72,16 +73,37 @@ const isRecord = (v: unknown): v is Record<string, unknown> => {
   return v != null && typeof v === "object" && !Array.isArray(v);
 };
 
-const SKILLET_VITEST_CONFIG = `import { defineConfig } from "vitest/config";
+/**
+ * Build the vitest config for a single eval run. Critical pieces:
+ *
+ * 1. `root` is set to the SKILL directory, not skillet's package.
+ *    Without this, vitest scans from skillet's tree and never sees
+ *    the eval files in the user's external skill.
+ *
+ * 2. `resolve.alias` maps `@sentry/skillet/evals` to the absolute
+ *    path of skillet's compiled lib. Eval files import from this
+ *    package; without the alias, vitest tries to resolve from the
+ *    skill directory and fails (the user's repo doesn't necessarily
+ *    have skillet installed locally — they ran us via `npx`).
+ */
+const buildVitestConfig = (skillRoot: string, evalsLibAbs: string): string => {
+  return `import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  root: ${JSON.stringify(skillRoot)},
   test: {
-    include: ["**/*.eval.ts"],
+    include: ["evals/**/*.eval.ts"],
     exclude: ["**/node_modules/**", "**/dist/**"],
     reporters: ["json"],
   },
+  resolve: {
+    alias: {
+      "@sentry/skillet/evals": ${JSON.stringify(evalsLibAbs)},
+    },
+  },
 });
 `;
+};
 
 /**
  * Resolve the skillet package root by walking up from this module's
@@ -122,16 +144,22 @@ const skilletRoot = (): string => {
  */
 export const runVitestEvals = async (opts: RunVitestEvalsOptions): Promise<EvalRunResult> => {
   const skillRoot = resolvePath(opts.skillRoot);
-  const evalsDir = join(skillRoot, "evals");
+  const skilletPkgRoot = skilletRoot();
 
-  // Vitest must run from a directory that has access to the `vitest`
-  // package (and skillet's other deps). Put the transient config and
-  // output file inside a `.skillet-tmp/` dir at skillet's repo root.
-  const tmpRoot = join(skilletRoot(), ".skillet-tmp");
+  // Absolute path to the compiled `evals` entry. We alias
+  // `@sentry/skillet/evals` to this so generated eval files resolve
+  // even when the skill repo doesn't have skillet installed locally.
+  const evalsLibAbs = join(skilletPkgRoot, "dist", "lib", "evals.js");
+
+  // Config file must live in skillet's package so vitest can resolve
+  // its own `vitest/config` import. The `root` inside the config
+  // points at the user's skill so test discovery actually finds the
+  // eval files.
+  const tmpRoot = join(skilletPkgRoot, ".skillet-tmp");
   mkdirSync(tmpRoot, { recursive: true });
   const configDir = mkdtempSync(join(tmpRoot, "vitest-"));
   const configPath = join(configDir, "vitest.config.mjs");
-  writeFileSync(configPath, SKILLET_VITEST_CONFIG, "utf-8");
+  writeFileSync(configPath, buildVitestConfig(skillRoot, evalsLibAbs), "utf-8");
 
   const outputPath = join(configDir, "results.json");
   const args = [
@@ -143,19 +171,22 @@ export const runVitestEvals = async (opts: RunVitestEvalsOptions): Promise<EvalR
     "--outputFile",
     outputPath,
     "--no-coverage",
-    evalsDir,
   ];
 
   const start = Date.now();
+  let stderrBuf = "";
   await new Promise<void>((resolve) => {
     const proc = spawn("npx", args, {
-      cwd: skilletRoot(),
+      cwd: skilletPkgRoot,
       stdio: ["ignore", "pipe", "pipe"],
       env: { ...process.env },
     });
-    // Drain stdio; vitest writes the JSON to outputFile.
     proc.stdout.on("data", () => {});
-    proc.stderr.on("data", () => {});
+    // Capture stderr so a load failure (e.g. import error inside an
+    // eval file) can be surfaced when vitest produces no JSON output.
+    proc.stderr.on("data", (chunk: Buffer) => {
+      stderrBuf += chunk.toString();
+    });
     proc.on("close", () => {
       resolve();
     });
@@ -168,7 +199,9 @@ export const runVitestEvals = async (opts: RunVitestEvalsOptions): Promise<EvalR
   } catch (err: unknown) {
     rmSync(configDir, { recursive: true, force: true });
     const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(`vitest produced no parseable JSON output: ${msg}`, { cause: err });
+    const tail = stderrBuf.trim().split("\n").slice(-20).join("\n");
+    const detail = tail !== "" ? `\n\nvitest stderr:\n${tail}` : "";
+    throw new Error(`vitest produced no parseable JSON output: ${msg}${detail}`, { cause: err });
   }
   rmSync(configDir, { recursive: true, force: true });
 
@@ -178,6 +211,21 @@ export const runVitestEvals = async (opts: RunVitestEvalsOptions): Promise<EvalR
       const caseResult = assertionToCaseResult(file.name, assertion);
       cases.push(caseResult);
       opts.onCaseComplete?.(caseResult);
+    }
+  }
+
+  // If eval files exist on disk but vitest collected zero tests,
+  // something is wrong with the runner setup (root, alias, import
+  // resolution). Surface this as a load-time error so the caller
+  // doesn't treat it as "skill failed all evals".
+  if (cases.length === 0) {
+    const discoveredFiles = discoverEvalTsFiles(skillRoot);
+    if (discoveredFiles.length > 0) {
+      const tail = stderrBuf.trim().split("\n").slice(-30).join("\n");
+      const detail = tail !== "" ? `\n\nvitest stderr:\n${tail}` : "";
+      throw new Error(
+        `vitest collected zero tests despite ${discoveredFiles.length} eval file(s) on disk:\n  ${discoveredFiles.join("\n  ")}\n\nThis usually means the eval files failed to load (import error) or the runner config is wrong.${detail}`,
+      );
     }
   }
 
