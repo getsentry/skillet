@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.21.0
+
+### Internal Changes 🔧
+
+- (prompts) Code-example rubric for skill-gen by @gricha in [35970d14](https://github.com/getsentry/skillet/commit/35970d141562c659058fc02ababd9fb6bbde3d81)
+
 ## 0.20.0
 
 ### New Features ✨
