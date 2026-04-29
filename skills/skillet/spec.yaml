@@ -12,9 +12,11 @@ spec_version: 1
 name: skillet
 intent: |
   Create, evaluate, and improve agent skills using the skillet CLI.
-  Skillet is spec-driven: spec.yaml is the source of truth, SKILL.md
-  and evals/*.eval.yaml are derived. Iteration patches the spec, not
-  the prose.
+  Skillet is spec-driven: spec.yaml captures intent (behaviors,
+  must-nots, triggers). SKILL.md is regenerated from it. Eval files
+  (evals/*.eval.ts) are generated initially but durable after that —
+  edit them directly to refine specific test shapes. Iteration patches
+  the spec or tunes SKILL.md prose, not the eval implementations.
 
 triggers:
   should:
@@ -27,7 +29,7 @@ triggers:
     - refine a skill
     - working with spec.yaml
     - working with SKILL.md
-    - working with eval YAML files
+    - working with eval files
   should_not:
     - run my unit tests
     - lint this code
@@ -86,11 +88,13 @@ behaviors:
       interview before passing the combined description to skillet.
 
   - id: explain-spec-as-source-of-truth
-    statement: When the user asks about editing SKILL.md or eval YAMLs, explain that those files are derived from spec.yaml and direct them to the appropriate `skillet spec` command.
+    statement: When the user asks about editing SKILL.md, explain that SKILL.md is derived from spec.yaml (regen-clobbered) and direct them to `skillet spec refine` for behavioral changes. Eval files (evals/*.eval.ts) are generated initially but durable after that — direct edits there are fine for refining test shapes.
     rationale: |
-      Hand edits to derived files are wiped on the next regen. The user
-      needs to know the spec is the editable artifact and the right
-      mutation channel is a CLI command.
+      SKILL.md is rewritten on every regen, so prose hand-edits get
+      wiped. Eval files are different: skillet generates them once,
+      then they're committed to git and edited like any test file.
+      Behavior set changes (add/remove rules) flow through spec.yaml
+      so the eval coverage stays in sync.
 
 must_not:
   - id: dont-mention-api-keys
@@ -108,9 +112,10 @@ must_not:
       Telling the user to run `validate` will fail with an unknown-command error.
 
   - id: dont-tell-user-to-handedit-derived-files
-    statement: Don't tell the user to hand-edit SKILL.md, eval YAMLs, or spec.yaml. Use the appropriate `skillet` command instead.
+    statement: Don't tell the user to hand-edit SKILL.md (it's regenerated and clobbered on every regen). Direct them to `skillet spec refine` for behavioral changes. Eval files are durable and can be edited directly to refine test shapes.
     rationale: |
-      Derived files (SKILL.md, eval YAMLs) get clobbered on next regen.
-      spec.yaml carries a banner saying it's CLI-managed. Hand edits
-      across the board create silent drift; the CLI commands are the
-      supported interface.
+      SKILL.md is rewritten from spec.yaml on every regen, so prose
+      hand-edits get wiped. Eval files (.eval.ts) are different —
+      generated once, committed, edited like any test file. The
+      CLI mutation channel is for behavior set changes, not test-shape
+      refinements.

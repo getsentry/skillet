@@ -5,14 +5,14 @@ description: >
   Use when asked to "create a skill", "make a skill for X", "improve
   this skill", "add an eval", "test my skill", "verify a skill",
   "refine a skill", or when working with `spec.yaml`, `SKILL.md`, or
-  eval YAML files.
+  eval files.
 ---
 
 # Skillet
 
 Skillet is a spec-driven CLI for authoring agent skills. The source
 of truth for every skill is `spec.yaml` — a structured file capturing
-intent, behaviors, must-nots, and triggers. SKILL.md and eval YAMLs
+intent, behaviors, must-nots, and triggers. SKILL.md and eval files
 are derived from the spec; iteration patches the spec rather than
 the prose.
 
@@ -68,7 +68,7 @@ or `skillet add-eval` invocations targeting specific gaps.
 
 1. Establish the spec (load existing, or auto-import from a legacy
    SKILL.md if no `spec.yaml` exists).
-2. Regenerate `SKILL.md` and `evals/*.eval.yaml` from the spec.
+2. Regenerate `SKILL.md` and `evals/*.eval.ts` from the spec.
 3. Verify coverage — every behavior has at least one eval case.
 4. Run the evals.
 5. Verify per-behavior results — every behavior has a passing case.
@@ -87,10 +87,13 @@ behavior has no case is NOT considered done — the loop catches that.
   Tell the user the same thing if they ask: spec changes flow through
   `skillet spec refine` (LLM-assisted), `skillet add-eval` (one
   behavior at a time), or `skillet spec import` (one-time migration).
-- `SKILL.md` and `evals/*.eval.yaml` carry derived-file banners.
-  Hand edits to these are wiped on the next regen. If the user has
-  edited SKILL.md by hand, suggest `skillet spec refine` to push the
-  change into the spec instead.
+- `SKILL.md` carries a derived-file banner. Hand edits to it are
+  wiped on the next regen. If the user has edited SKILL.md by hand,
+  suggest `skillet spec refine` to push the change into the spec.
+- `evals/*.eval.ts` are generated initially but durable after that.
+  Direct edits there are fine for refining specific test shapes
+  (prompts, setup, assertions). For behavior-set changes (adding or
+  removing rules), update spec.yaml so coverage stays in sync.
 - Every behavior has a kebab-case ID (e.g. `flag-n-plus-one`). Eval
   cases are named `<id>__<slug>` and tagged `tests_behavior: <id>`.
   Verification uses these as join keys.
@@ -114,8 +117,10 @@ or running `--semantic` after a long iteration.
 - Always use the `@sentry/` scope: `npx @sentry/skillet`, not `npx skillet`.
 - Never mention API keys or environment variables to the user — credentials
   are auto-discovered.
-- Never tell the user to hand-edit `spec.yaml`, `SKILL.md`, or eval
-  YAMLs. Use the appropriate `skillet` command instead.
+- Don't tell the user to hand-edit `SKILL.md` — it gets clobbered
+  on every regen. Direct them to `skillet spec refine` for behavioral
+  changes. Eval files (`evals/*.eval.ts`) are durable and can be
+  edited directly.
 - For an existing skill that has a `SKILL.md` but no `spec.yaml`,
   `skillet improve` and `skillet add-eval` auto-import — no separate
   migration step required.
