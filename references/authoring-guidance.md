@@ -85,6 +85,35 @@ fine. The rule targets runtime behavior, not any mention.
 Pick one term per concept. Don't alternate between "API endpoint", "URL",
 "route", "path" — choose one and use it everywhere.
 
+### Code Examples
+Use code examples when they make a rule concrete that prose alone leaves
+abstract. Skip them when the rule is clear without one.
+
+The test: write the rule and rationale first, then read it back. Is the
+rule actionable as written? If yes, an added example is decoration. If a
+reader would still need to ask "what does that look like?", that's when
+an example earns its place.
+
+Examples tend to help when:
+- The rule names an anti-pattern whose alternative shape isn't obvious
+  in words. "Don't nest ternaries" reads ambiguously until the agent
+  sees the `if/else` shape written out.
+- The rule refers to an idiom whose specific shape carries meaning
+  prose can't compress (Result types, framework hooks, builder patterns).
+- A behavior has multiple plausible interpretations and the example
+  pins down which one is meant.
+
+Examples tend not to help when:
+- The rule is unambiguous in prose ("use ES modules", "explicit return
+  types"). An example just restates it in a different format.
+- The example is generic enough to illustrate several different rules —
+  the agent learns nothing from the shape.
+- They accumulate. A few well-chosen examples teach more than many
+  forgettable ones.
+
+Match length to what the rule needs. Short when short suffices, longer
+when the shape needs room. Don't pad and don't truncate past clarity.
+
 ## Depth Gates
 
 These are mandatory quality checks before a skill is considered complete:

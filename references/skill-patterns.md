@@ -100,7 +100,8 @@ Use when output depends on input characteristics:
 Provide exact templates for strict-format outputs.
 
 ### Examples Pattern
-Provide input/output pairs when style matters.
+Use code examples when they do work prose can't. See "Code Examples"
+in `authoring-guidance.md` for when an example earns its place.
 
 ## Reference Files
 
