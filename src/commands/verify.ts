@@ -9,13 +9,15 @@ export interface VerifyOptions {
   path?: string;
   json?: boolean;
   semantic?: boolean;
+  triggers?: boolean;
 }
 
 const parseVerifyArgs = (args: string[]): VerifyOptions => {
   const path = args.find((a) => !a.startsWith("--"));
   const json = args.includes("--json");
   const semantic = args.includes("--semantic");
-  const opts: VerifyOptions = { json, semantic };
+  const triggers = args.includes("--triggers");
+  const opts: VerifyOptions = { json, semantic, triggers };
   if (path != null) opts.path = path;
   return opts;
 };
@@ -41,12 +43,16 @@ export const verifyCommand = async (args: string[]): Promise<number> => {
     return 1;
   }
 
-  // Semantic layer needs the judge model; resolve only when requested
-  // so verify --json without --semantic still runs without LLM keys.
-  const verifyOpts: { semantic?: boolean; judgeModel?: ReturnType<typeof resolveModels>["judge"] } =
-    {};
-  if (opts.semantic === true) {
-    verifyOpts.semantic = true;
+  // LLM layers need the judge model; resolve only when requested
+  // so verify --json without --semantic/--triggers still runs without LLM keys.
+  const verifyOpts: {
+    semantic?: boolean;
+    triggers?: boolean;
+    judgeModel?: ReturnType<typeof resolveModels>["judge"];
+  } = {};
+  if (opts.semantic === true || opts.triggers === true) {
+    if (opts.semantic === true) verifyOpts.semantic = true;
+    if (opts.triggers === true) verifyOpts.triggers = true;
     verifyOpts.judgeModel = resolveModels().judge;
   }
 
@@ -137,5 +143,19 @@ const printPretty = (report: VerifyReport): void => {
       return;
     }
     console.log(`${ICON_PASS} Semantic (every behavior encoded in SKILL.md)`);
+  }
+
+  // Layer 5
+  if (report.triggers != null) {
+    if (!report.triggers.ok) {
+      console.log(`${ICON_FAIL} Triggers`);
+      for (const v of report.triggers.triggers) {
+        if (v.verdict === "activates") continue;
+        console.log(`      - [${v.kind}] "${v.phrase}" → ${v.verdict}: ${v.reasoning}`);
+      }
+      return;
+    }
+    const count = report.triggers.triggers.length;
+    console.log(`${ICON_PASS} Triggers (${count} phrase${count === 1 ? "" : "s"} verified)`);
   }
 };

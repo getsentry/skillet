@@ -21,6 +21,9 @@ export type {
   SemanticReport,
   SemanticBehaviorVerdict,
   SemanticVerdict,
+  TriggerReport,
+  TriggerPhraseVerdict,
+  TriggerVerdict,
 } from "./types.js";
 
 export { verify, type VerifyOptions } from "./runner.js";
@@ -28,3 +31,4 @@ export { verifyStructural } from "./structural.js";
 export { verifyCoverage } from "./coverage.js";
 export { verifyResults } from "./results.js";
 export { verifySemantic } from "./semantic.js";
+export { verifyTriggers } from "./triggers.js";

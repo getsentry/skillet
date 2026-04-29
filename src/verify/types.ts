@@ -94,6 +94,22 @@ export interface SemanticReport {
   behaviors: SemanticBehaviorVerdict[];
 }
 
+// ── Layer 5: trigger quality (LLM judge, opt-in) ─────────
+
+export type TriggerVerdict = "activates" | "weak" | "fails";
+
+export interface TriggerPhraseVerdict {
+  kind: "should" | "should_not";
+  phrase: string;
+  verdict: TriggerVerdict;
+  reasoning: string;
+}
+
+export interface TriggerReport {
+  ok: boolean;
+  triggers: TriggerPhraseVerdict[];
+}
+
 // ── Combined report ───────────────────────────────────────
 
 /**
@@ -107,4 +123,5 @@ export interface VerifyReport {
   coverage?: CoverageReport;
   results?: ResultsReport;
   semantic?: SemanticReport;
+  triggers?: TriggerReport;
 }
