@@ -35,18 +35,10 @@ specific arguments:
 { "op": "add_behavior", "behavior": {
     "id": "<kebab-case slug>",
     "statement": "<imperative one-line rule>",
-    "rationale": "<why>",
-    "eval": { "prompt": "...", "expect": "..." }
+    "rationale": "<why>"
 } }
 
 { "op": "remove_behavior", "id": "<behavior id>" }
-
-{ "op": "update_eval", "id": "<behavior or must_not id>", "eval": {
-    "prompt": "<new prompt>",
-    "expect": "<new substring>"
-    // OR (mutually exclusive):
-    // "criteria": "<new judge criterion>"
-} }
 
 { "op": "update_must_not", "id": "<must_not id>", "field": "statement", "value": "<new>" }
 { "op": "update_must_not", "id": "<must_not id>", "field": "rationale", "value": "<new>" }
@@ -55,8 +47,7 @@ specific arguments:
 { "op": "add_must_not", "must_not": {
     "id": "<kebab-case slug>",
     "statement": "<rule the skill must NOT do>",
-    "rationale": "<why>",
-    "eval": { "prompt": "...", "criteria": "..." }
+    "rationale": "<why>"
 } }
 
 { "op": "remove_must_not", "id": "<must_not id>" }
@@ -80,9 +71,11 @@ specific arguments:
 3. **New IDs must be kebab-case slugs starting with a letter** and
    unique across the combined behaviors + must_nots namespace.
 
-4. **\`update_eval\` works for both behaviors and must_nots** — the
-   patcher resolves the ID across both groups. Negative cases (must_not)
-   must use \`criteria\` not \`expect\`.
+4. **The spec captures intent, not eval implementation.** Behaviors
+   and must_nots are simple statements: \`{id, statement, rationale?}\`.
+   Eval cases are generated separately into \`evals/*.eval.ts\`.
+   Don't try to encode eval prompts, expected outputs, or test setup
+   into the spec — there's nowhere for them to go.
 
 5. **Be minimal.** If feedback says "tighten behavior X to also cover
    list comprehensions", emit one \`update_behavior\` op. Don't rewrite
@@ -91,29 +84,19 @@ specific arguments:
 
 6. **Default to adding; merge only with high precision.** When the
    user asks for a new behavior, your first question is "is there
-   an existing behavior + eval that already tests THIS SPECIFIC
-   scenario?" If you can't answer "yes" with confidence, treat the
-   user's request as a new behavior. Two narrow rules is always
-   better than one overloaded rule.
-
-   Decision matrix for an incoming behavior:
-
-   | Existing entry says... | Existing has eval? | Eval tests the user's specific scenario? | Action |
-   |---|---|---|---|
-   | Exact same rule | yes | yes, fully | skip — emit no patch for this entry; mention in passing |
-   | Exact same rule | yes | no — covers a different specific case | \`add_behavior\` (with eval) — separate, narrower entry |
-   | Exact same rule | no eval | n/a | \`update_eval\` on existing — fill in the missing eval, don't add a duplicate behavior |
-   | Related but different scope | any | partial overlap | \`add_behavior\` (with eval) — keep as separate narrow entry |
-   | Unrelated | any | n/a | \`add_behavior\` (with eval) |
+   an existing behavior that already covers THIS SPECIFIC scenario?"
+   If you can't answer "yes" with confidence, treat the user's
+   request as a new behavior. Two narrow rules is always better than
+   one overloaded rule.
 
    Avoid merging into an existing entry just because the topics
    overlap. "Branch names follow \`<prefix>/<type>/<short-desc>\`"
    and "Branch names append a numeric suffix on collision" are
    related but test different things — keep them separate. Forcing
-   them together produces an eval that has to assert both at once,
-   which the assessor can't repair cleanly when only one fails.
+   them together produces a behavior whose eval has to assert both
+   at once, which the assessor can't repair cleanly when only one fails.
 
-   When you DO skip a user's request because an existing eval fully
+   When you DO skip a user's request because an existing entry fully
    covers it, that's fine — but only with confidence. Uncertainty
    defaults to adding.
 

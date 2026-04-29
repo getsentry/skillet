@@ -1,15 +1,9 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { resolveModels } from "../agent/provider.js";
-import { discoverEvalFiles, parseEvalFile, runEvals } from "../eval/index.js";
-import type { EvalCase, EvalRunResult } from "../eval/index.js";
-import {
-  promotePassingEvals,
-  readSpec,
-  regenerate,
-  specFileName,
-  writeSpec,
-} from "../spec/index.js";
+import { runEvals } from "../eval/index.js";
+import type { EvalRunResult } from "../eval/index.js";
+import { readSpec, regenerate, specFileName, writeSpec } from "../spec/index.js";
 import { loadSkill } from "../skill/loader.js";
 import { verifyCoverage, verifyResults } from "../verify/index.js";
 import type { CoverageReport, ResultsReport } from "../verify/index.js";
@@ -39,8 +33,6 @@ export interface AuthorSkillResult {
   finalEvalResult?: EvalRunResult;
   finalCoverage?: CoverageReport;
   finalResults?: ResultsReport;
-  /** Behavior IDs whose eval blocks were promoted into the spec */
-  promotedIds: string[];
   success: boolean;
 }
 
@@ -126,7 +118,6 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
   let lastEvalResult: EvalRunResult | undefined;
   let lastCoverage: CoverageReport | undefined;
   let lastResults: ResultsReport | undefined;
-  const allPromotedIds: string[] = [];
   let exitReason: "max-iterations" | "timeout" | "no-improvement" = "max-iterations";
 
   for (let iteration = 1; iteration <= maxIterations; iteration++) {
@@ -139,7 +130,6 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
     const elapsed = ((Date.now() - loopStart) / 1000).toFixed(0);
     console.log(`\nIteration ${iteration}/${maxIterations} (${elapsed}s elapsed)`);
 
-    // Reload spec each iteration in case promotion wrote it back.
     const spec = readSpec(specPath);
     if (spec == null) {
       throw new Error(`spec.yaml disappeared between iterations at ${specPath}`);
@@ -188,21 +178,6 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
     const passing = lastResults.behaviors.filter((b) => b.status === "covered+passing").length;
     console.log(`  Per-behavior: ${passing}/${lastResults.behaviors.length} behaviors passing`);
 
-    // Promote passing LLM-generated cases back into the spec.
-    const evalFileObjs = readEvalFiles(skillPath);
-    const { spec: promotedSpec, promotedIds } = promotePassingEvals(
-      spec,
-      lastEvalResult,
-      evalFileObjs,
-    );
-    if (promotedIds.length > 0) {
-      writeSpec(specPath, promotedSpec);
-      allPromotedIds.push(...promotedIds);
-      console.log(
-        `  Promoted ${promotedIds.length} passing case${promotedIds.length === 1 ? "" : "s"} into spec.yaml: ${promotedIds.join(", ")}`,
-      );
-    }
-
     // Termination: every behavior has a passing case AND no orphan cases.
     if (coverage.ok && lastResults.ok) {
       console.log("\nAll behaviors covered and passing.");
@@ -212,7 +187,6 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
         finalEvalResult: lastEvalResult,
         finalCoverage: coverage,
         finalResults: lastResults,
-        promotedIds: allPromotedIds,
         success: true,
       };
     }
@@ -227,7 +201,7 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
     const currentSkillMd = readFileSync(skillMdPath, "utf-8");
     const newSkillMd = await runSkillImprove(
       models.agent,
-      promotedIds.length > 0 ? promotedSpec : spec,
+      spec,
       currentSkillMd,
       lastEvalResult,
     );
@@ -263,32 +237,13 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
     }
   }
 
-  if (allPromotedIds.length > 0) {
-    console.log(
-      `\nPromoted ${allPromotedIds.length} eval case${allPromotedIds.length === 1 ? "" : "s"} into spec.yaml during the run; future regens will be deterministic for those.`,
-    );
-  }
-
   const result: AuthorSkillResult = {
     skillRoot: skillPath,
     iterations: maxIterations,
-    promotedIds: allPromotedIds,
     success: false,
   };
   if (lastEvalResult != null) result.finalEvalResult = lastEvalResult;
   if (lastCoverage != null) result.finalCoverage = lastCoverage;
   if (lastResults != null) result.finalResults = lastResults;
   return result;
-};
-
-const readEvalFiles = (skillPath: string): Array<{ path: string; cases: EvalCase[] }> => {
-  const out: Array<{ path: string; cases: EvalCase[] }> = [];
-  for (const filePath of discoverEvalFiles(skillPath)) {
-    try {
-      out.push(parseEvalFile(filePath));
-    } catch {
-      // Best effort — promotion shouldn't fail the loop.
-    }
-  }
-  return out;
 };

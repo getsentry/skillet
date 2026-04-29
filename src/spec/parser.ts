@@ -1,5 +1,5 @@
 import { parse as parseYaml } from "yaml";
-import type { Behavior, BehaviorEval, MustNot, SkillSpec, Triggers } from "./types.js";
+import type { Behavior, MustNot, SkillSpec, Triggers } from "./types.js";
 
 // ── Type guards ────────────────────────────────────────────
 
@@ -42,24 +42,9 @@ const getStringArray = (obj: Record<string, unknown>, key: string): string[] => 
 
 // ── Field parsers ──────────────────────────────────────────
 
-const parseEvalBlock = (raw: Record<string, unknown> | undefined): BehaviorEval | undefined => {
-  if (raw == null) return undefined;
-  const setup = getString(raw, "setup");
-  const prompt = getString(raw, "prompt");
-  const expect = getString(raw, "expect");
-  const criteria = getString(raw, "criteria");
-
-  // The eval block must have at least a prompt to be meaningful at parse time.
-  // Structural validation enforces expect-or-criteria; the parser is permissive
-  // so callers can show the user useful errors instead of "missing field".
-  if (prompt == null) return undefined;
-
-  const result: BehaviorEval = { prompt };
-  if (setup != null) result.setup = setup;
-  if (expect != null) result.expect = expect;
-  if (criteria != null) result.criteria = criteria;
-  return result;
-};
+// Note: legacy specs may carry `eval:` blocks under behaviors/must_nots
+// from the pre-migration era. The parser silently ignores them — they
+// belong in the generated .eval.ts file now, not in the spec.
 
 const parseBehavior = (entry: Record<string, unknown>, index: number, source: string): Behavior => {
   const id = getString(entry, "id");
@@ -74,8 +59,6 @@ const parseBehavior = (entry: Record<string, unknown>, index: number, source: st
   const result: Behavior = { id, statement };
   const rationale = getString(entry, "rationale");
   if (rationale != null) result.rationale = rationale;
-  const evalBlock = parseEvalBlock(getRecord(entry, "eval"));
-  if (evalBlock != null) result.eval = evalBlock;
   return result;
 };
 
@@ -94,8 +77,6 @@ const parseMustNot = (entry: Record<string, unknown>, index: number, source: str
   if (rationale != null) result.rationale = rationale;
   const leakageRisk = getString(entry, "leakage_risk");
   if (leakageRisk != null) result.leakage_risk = leakageRisk;
-  const evalBlock = parseEvalBlock(getRecord(entry, "eval"));
-  if (evalBlock != null) result.eval = evalBlock;
   return result;
 };
 

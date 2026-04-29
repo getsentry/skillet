@@ -3,41 +3,19 @@
  *
  * `spec.yaml` is the source of truth for an authored skill. It is
  * managed by skillet (CLI-mediated writes only — never hand-edit) and
- * drives generation of SKILL.md and `evals/*.eval.yaml`. The file
+ * drives generation of SKILL.md and `evals/*.eval.ts`. The file
  * carries a banner declaring this contract.
+ *
+ * The spec captures intent (what the skill does), not eval
+ * implementation (how it's tested). Eval files are generated from
+ * the spec but live independently — once generated and committed,
+ * they are the durable test artifact, not a derived view of the spec.
  *
  * Iteration patches the spec, not the derived files: assessment
  * produces `SpecPatch[]` operations that are applied deterministically.
  */
 
 // ── Core spec shape ───────────────────────────────────────
-
-export interface BehaviorEval {
-  /**
-   * Optional shell setup script that prepares the eval workspace
-   * before the agent runs. Same semantics as `workspace.setup` in
-   * an eval YAML case (fresh shell, relative paths only).
-   */
-  setup?: string;
-  /**
-   * The user turn(s) sent to the agent. A single string is the common
-   * case; the array form is reserved for future multi-turn cases.
-   */
-  prompt: string;
-  /**
-   * Literal substring that must appear in the agent's output (or in a
-   * file the agent is asked to write — eval-gen decides the check
-   * shape based on the behavior's deliverable). Mutually exclusive
-   * with `criteria`.
-   */
-  expect?: string;
-  /**
-   * Natural-language judge criterion. Used when `expect` would be
-   * brittle (negative cases, refusal cases, subjective quality).
-   * Mutually exclusive with `expect`.
-   */
-  criteria?: string;
-}
 
 export interface Behavior {
   /**
@@ -50,11 +28,6 @@ export interface Behavior {
   statement: string;
   /** Optional free-text rationale explaining why this rule exists. */
   rationale?: string;
-  /**
-   * Optional eval block. When absent, eval-gen invents a case from
-   * the statement at generate time.
-   */
-  eval?: BehaviorEval;
 }
 
 export interface MustNot {
@@ -70,11 +43,6 @@ export interface MustNot {
    * the negative check.
    */
   leakage_risk?: string;
-  /**
-   * Optional eval block. Negative cases SHOULD use `criteria` rather
-   * than `expect` because agents commonly echo input tokens.
-   */
-  eval?: BehaviorEval;
 }
 
 export interface Triggers {
@@ -116,7 +84,6 @@ export type SpecPatch =
     }
   | { op: "add_behavior"; behavior: Behavior }
   | { op: "remove_behavior"; id: string }
-  | { op: "update_eval"; id: string; eval: BehaviorEval }
   | {
       op: "update_must_not";
       id: string;
@@ -134,7 +101,6 @@ export const SPEC_PATCH_OPS = [
   "update_behavior",
   "add_behavior",
   "remove_behavior",
-  "update_eval",
   "update_must_not",
   "add_must_not",
   "remove_must_not",

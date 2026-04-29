@@ -106,14 +106,6 @@ export const renderSpec = (spec: SkillSpec): string => {
       statement: b.statement,
     };
     if (b.rationale != null) out.rationale = b.rationale;
-    if (b.eval != null) {
-      const evalOut: Record<string, unknown> = {};
-      if (b.eval.setup != null) evalOut.setup = b.eval.setup;
-      evalOut.prompt = b.eval.prompt;
-      if (b.eval.expect != null) evalOut.expect = b.eval.expect;
-      if (b.eval.criteria != null) evalOut.criteria = b.eval.criteria;
-      out.eval = evalOut;
-    }
     return out;
   });
   ordered.must_not = spec.must_not.map((m) => {
@@ -123,14 +115,6 @@ export const renderSpec = (spec: SkillSpec): string => {
     };
     if (m.rationale != null) out.rationale = m.rationale;
     if (m.leakage_risk != null) out.leakage_risk = m.leakage_risk;
-    if (m.eval != null) {
-      const evalOut: Record<string, unknown> = {};
-      if (m.eval.setup != null) evalOut.setup = m.eval.setup;
-      evalOut.prompt = m.eval.prompt;
-      if (m.eval.expect != null) evalOut.expect = m.eval.expect;
-      if (m.eval.criteria != null) evalOut.criteria = m.eval.criteria;
-      out.eval = evalOut;
-    }
     return out;
   });
 

@@ -143,31 +143,6 @@ export const applyPatch = (spec: SkillSpec, patch: SpecPatch): SkillSpec => {
       return { ...spec, behaviors };
     }
 
-    case "update_eval": {
-      const id = resolveEntryId(spec, patch.id);
-      const bIdx = spec.behaviors.findIndex((b) => b.id === id);
-      if (bIdx !== -1) {
-        const existing = spec.behaviors[bIdx];
-        if (existing == null) {
-          throw new Error(`update_eval: behavior at index ${bIdx} is undefined`);
-        }
-        const behaviors = spec.behaviors.slice();
-        behaviors[bIdx] = { ...existing, eval: patch.eval };
-        return { ...spec, behaviors };
-      }
-      const mIdx = spec.must_not.findIndex((m) => m.id === id);
-      if (mIdx !== -1) {
-        const existing = spec.must_not[mIdx];
-        if (existing == null) {
-          throw new Error(`update_eval: must_not at index ${mIdx} is undefined`);
-        }
-        const mustNot = spec.must_not.slice();
-        mustNot[mIdx] = { ...existing, eval: patch.eval };
-        return { ...spec, must_not: mustNot };
-      }
-      throw new Error(`update_eval: no behavior or must_not with id '${patch.id}'`);
-    }
-
     case "update_must_not": {
       const id = resolveEntryId(spec, patch.id);
       const idx = spec.must_not.findIndex((m) => m.id === id);

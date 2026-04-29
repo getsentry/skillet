@@ -4,10 +4,10 @@ import { loadAuthoringGuidance, loadSkillPatterns } from "../references.js";
  * System prompt for the spec-init phase: produce a `spec.yaml` from
  * a free-form description.
  *
- * The output is YAML that we parse directly. We deliberately accept
- * partial output (the LLM may omit IDs, leave eval blocks empty,
- * etc.) and normalize after — auto-slugifying IDs from statements
- * and letting the eval-gen phase fill in eval blocks where missing.
+ * The output is JSON that we parse directly. The spec captures intent
+ * — behaviors, must_nots, triggers, intent — not eval implementation.
+ * Eval files are generated separately into `evals/*.eval.ts` from the
+ * spec's behaviors.
  */
 export const buildSpecInitPrompt = (): string => {
   const patterns = loadSkillPatterns();
@@ -47,11 +47,7 @@ Output a single JSON object with these fields:
     {
       "id": "<kebab-case slug>",
       "statement": "<imperative one-line rule>",
-      "rationale": "<why this rule matters>",
-      "eval": {
-        "prompt": "<realistic user turn>",
-        "expect": "<literal substring>"
-      }
+      "rationale": "<why this rule matters>"
     }
   ],
 
@@ -59,11 +55,7 @@ Output a single JSON object with these fields:
     {
       "id": "<kebab-case slug>",
       "statement": "<rule the skill must NOT do>",
-      "rationale": "<why>",
-      "eval": {
-        "prompt": "<realistic user turn>",
-        "criteria": "<judge instruction>"
-      }
+      "rationale": "<why>"
     }
   ]
 }
@@ -75,10 +67,10 @@ characters that YAML treats as syntax (e.g. \`Format PR titles as
 that whole class of parse errors. Skillet converts the JSON to YAML
 internally before writing \`spec.yaml\`.
 
-The \`eval\` block is optional — eval-gen invents one if absent.
-\`expect\` and \`criteria\` are mutually exclusive. Negative cases
-(must_not) SHOULD use \`criteria\` not \`expect\` because agents echo
-input tokens.
+The spec captures **what** the skill does — intent, behaviors,
+triggers. It does NOT carry eval implementation details. Eval cases
+(prompts, expected outputs, setup scripts) are generated separately
+into \`evals/*.eval.ts\` from the behavior statements.
 
 ## Authoring rules
 
@@ -103,14 +95,7 @@ input tokens.
 5. **Must-nots are explicit refusals or anti-patterns.** "Don't flag
    single .get() calls as N+1" is a must-not. "Never tell users to
    set DJANGO_SETTINGS_MODULE" is a must-not (with a leakage_risk hint
-   if applicable). Negative cases must use \`criteria\`, not \`expect\`,
-   because agents commonly echo input tokens.
-
-6. **Eval blocks are optional in this phase.** If you have a clean
-   eval shape (a prompt and a literal expect string), include it.
-   Otherwise leave the behavior without an eval block — the eval-gen
-   phase invents one from the statement. Never include a half-formed
-   eval block that's missing prompt+expect/criteria.
+   if applicable).
 
 Output ONLY the JSON object. No prose, no markdown fences. Start
 with \`{\` and end with \`}\`.`;

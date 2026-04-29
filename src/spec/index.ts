@@ -11,7 +11,6 @@ export type {
   SkillSpec,
   Behavior,
   MustNot,
-  BehaviorEval,
   Triggers,
   SpecPatch,
   SpecValidationError,
@@ -43,8 +42,5 @@ export { applyPatch, applyPatches, validateSpecPatch } from "./patcher.js";
 // Slug helpers
 export { slugify, uniqueSlug } from "./slug.js";
 
-// Regenerate (spec → derived SKILL.md + eval YAMLs)
+// Regenerate (spec → derived SKILL.md + eval files)
 export { regenerate, type RegenerateOptions, type RegenerateResult } from "./regen.js";
-
-// Promote passing LLM-generated evals back into the spec
-export { promotePassingEvals } from "./promote.js";

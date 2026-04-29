@@ -19,7 +19,10 @@ const SLUG_RE = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
  *   `intent`, `triggers.should` non-empty)
  * - Each behavior / must_not has `id` and `statement`
  * - IDs are kebab-case slugs and unique across the combined namespace
- * - Each non-empty `eval:` block has either `expect` or `criteria`
+ *
+ * Eval implementation lives in `evals/*.eval.ts`, not in the spec.
+ * Legacy specs may carry an `eval:` block under behaviors; the parser
+ * silently ignores it and the validator does not enforce its shape.
  */
 export const validateSpecYaml = (
   yamlText: string,
@@ -122,37 +125,6 @@ export const validateSpecYaml = (
       const ref = typeof id === "string" ? id : `index ${index}`;
       errors.push({ path: source, message: `${kind} '${ref}' missing required 'statement'` });
     }
-
-    // eval block validation
-    const evalBlock = entry.eval;
-    if (evalBlock !== undefined) {
-      if (!isRecord(evalBlock)) {
-        const ref = typeof id === "string" ? id : `index ${index}`;
-        errors.push({ path: source, message: `${kind} '${ref}' has 'eval' that is not an object` });
-        return;
-      }
-      const ref = typeof id === "string" ? id : `index ${index}`;
-      if (typeof evalBlock.prompt !== "string" || evalBlock.prompt.trim() === "") {
-        errors.push({
-          path: source,
-          message: `${kind} '${ref}' eval block missing required 'prompt'`,
-        });
-      }
-      const hasExpect = typeof evalBlock.expect === "string" && evalBlock.expect.length > 0;
-      const hasCriteria = typeof evalBlock.criteria === "string" && evalBlock.criteria.length > 0;
-      if (!hasExpect && !hasCriteria) {
-        errors.push({
-          path: source,
-          message: `${kind} '${ref}' eval block must include either 'expect' (substring) or 'criteria' (judge)`,
-        });
-      }
-      if (hasExpect && hasCriteria) {
-        errors.push({
-          path: source,
-          message: `${kind} '${ref}' eval block sets both 'expect' and 'criteria' — pick one`,
-        });
-      }
-    }
   };
 
   const behaviors = parsed.behaviors;
@@ -227,25 +199,6 @@ export const validateSpecObject = (
     if (b.statement.trim() === "") {
       errors.push({ path: source, message: `behavior '${b.id}' has empty statement` });
     }
-    if (b.eval != null) {
-      if (b.eval.prompt.trim() === "") {
-        errors.push({ path: source, message: `behavior '${b.id}' eval has empty prompt` });
-      }
-      const hasExpect = b.eval.expect != null && b.eval.expect.length > 0;
-      const hasCriteria = b.eval.criteria != null && b.eval.criteria.length > 0;
-      if (!hasExpect && !hasCriteria) {
-        errors.push({
-          path: source,
-          message: `behavior '${b.id}' eval must have 'expect' or 'criteria'`,
-        });
-      }
-      if (hasExpect && hasCriteria) {
-        errors.push({
-          path: source,
-          message: `behavior '${b.id}' eval has both 'expect' and 'criteria' — pick one`,
-        });
-      }
-    }
   }
 
   for (const [i, m] of spec.must_not.entries()) {
@@ -261,16 +214,6 @@ export const validateSpecObject = (
     }
     if (m.statement.trim() === "") {
       errors.push({ path: source, message: `must_not '${m.id}' has empty statement` });
-    }
-    if (m.eval != null) {
-      const hasExpect = m.eval.expect != null && m.eval.expect.length > 0;
-      const hasCriteria = m.eval.criteria != null && m.eval.criteria.length > 0;
-      if (!hasExpect && !hasCriteria) {
-        errors.push({
-          path: source,
-          message: `must_not '${m.id}' eval must have 'expect' or 'criteria'`,
-        });
-      }
     }
   }
 
