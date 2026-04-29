@@ -1,9 +1,10 @@
+import { execSync } from "node:child_process";
 import esbuild from "esbuild";
 
 const watch = process.argv.includes("--watch");
 
 /** @type {esbuild.BuildOptions} */
-const config = {
+const cliConfig = {
   entryPoints: ["src/cli.ts"],
   bundle: true,
   platform: "node",
@@ -24,10 +25,17 @@ const config = {
 };
 
 if (watch) {
-  const ctx = await esbuild.context(config);
+  const ctx = await esbuild.context(cliConfig);
   await ctx.watch();
   console.log("watching...");
 } else {
-  await esbuild.build(config);
+  await esbuild.build(cliConfig);
   console.log("built dist/cli.js");
+
+  // Library entry for generated `.eval.ts` files — emitted as
+  // unbundled tsc output so vitest can resolve imports normally
+  // through node_modules. Generated eval files import from
+  // `@sentry/skillet/evals`, which resolves to dist/lib/evals.js.
+  execSync("npx tsc -p tsconfig.lib.json", { stdio: "inherit" });
+  console.log("built dist/lib/ (library entries)");
 }
