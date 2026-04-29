@@ -31,7 +31,12 @@ export const describeEval = <TCase extends HarnessCase>(
   name: string,
   options: DescribeEvalOptions<TCase>,
 ): void => {
-  describe(name, async () => {
+  // `describe.concurrent` makes every `test()` inside run in parallel,
+  // up to vitest's `maxConcurrency` (default 5; we bump it to ≥4 in
+  // the runner's generated config). Without this, vitest serializes
+  // tests within a file — fine for unit tests but ruinous for
+  // LLM-backed eval cases that each take seconds.
+  describe.concurrent(name, async () => {
     if (options.beforeEach != null) {
       vitestBeforeEach(options.beforeEach);
     }

@@ -144,16 +144,14 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
       );
     }
 
-    // Run evals via vitest. The JSON reporter doesn't stream
-    // per-case events; results print together after the run.
+    // Run evals via vitest. Stream stdout so the user sees per-case
+    // progress live; the JSON reporter still produces a parseable
+    // result file in parallel. Vitest's reporter handles per-case
+    // output, so we don't subscribe to onCaseComplete here.
     console.log("  Running evals (vitest)...");
     lastEvalResult = await runVitestEvals({
       skillRoot: skillPath,
-      onCaseComplete: (result) => {
-        const icon = result.status === "pass" ? "✓" : result.status === "fail" ? "✗" : "○";
-        const seconds = (result.duration / 1000).toFixed(1);
-        console.log(`    ${icon} ${result.name}  ${seconds}s`);
-      },
+      streamProgress: true,
     });
 
     const { summary } = lastEvalResult;

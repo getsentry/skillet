@@ -2,14 +2,18 @@ import { resolve } from "node:path";
 import { findSkillRoot, loadSkill } from "../skill/loader.js";
 import { discoverEvalTsFiles } from "../eval/discovery.js";
 import { runVitestEvals } from "../eval/vitest-runner.js";
-import { printCaseResult, printSummary } from "../output/pretty.js";
+import { printSummary } from "../output/pretty.js";
 import { printJsonResult } from "../output/json.js";
 
 const errorMessage = (err: unknown): string => {
   return err instanceof Error ? err.message : String(err);
 };
 
-export const evalCommand = async (pathArg?: string, jsonOutput = false): Promise<number> => {
+export const evalCommand = async (
+  pathArg?: string,
+  jsonOutput = false,
+  concurrency?: number,
+): Promise<number> => {
   const startPath = resolve(pathArg ?? ".");
 
   let skillRoot: string;
@@ -48,10 +52,16 @@ export const evalCommand = async (pathArg?: string, jsonOutput = false): Promise
 
   let result;
   try {
-    result = await runVitestEvals({
+    const runOpts: Parameters<typeof runVitestEvals>[0] = {
       skillRoot,
-      onCaseComplete: jsonOutput ? undefined : printCaseResult,
-    });
+      // Stream vitest's progress when not in --json mode so the user
+      // sees per-test events instead of a quiet wait followed by a
+      // summary block. Vitest's reporter handles per-case lines, so
+      // we don't subscribe to onCaseComplete in streaming mode.
+      streamProgress: !jsonOutput,
+    };
+    if (concurrency != null) runOpts.maxConcurrency = concurrency;
+    result = await runVitestEvals(runOpts);
   } catch (err: unknown) {
     if (jsonOutput) {
       console.log(

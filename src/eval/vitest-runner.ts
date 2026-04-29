@@ -21,7 +21,25 @@ export interface RunVitestEvalsOptions {
   /** Called once per case as results stream in. Vitest doesn't expose
    *  per-case streaming via JSON reporter; this fires after the run. */
   onCaseComplete?: (result: EvalCaseResult) => void;
+  /**
+   * Max concurrent eval cases per file. Cases inside a `describeEval`
+   * use `describe.concurrent`, so this caps how many run in parallel.
+   * Default 8 — eval cases are LLM-backed and i/o-bound; modern
+   * providers handle 8-16 concurrent requests on typical accounts
+   * before tripping rate limits, and the wall-clock win on a 25-case
+   * suite is dramatic.
+   */
+  maxConcurrency?: number;
+  /**
+   * When true, vitest's stdout streams to the calling process's
+   * terminal so the user sees per-test progress live. When false
+   * (default), stdout is suppressed and only structured progress
+   * via `onCaseComplete` is shown.
+   */
+  streamProgress?: boolean;
 }
+
+const DEFAULT_MAX_CONCURRENCY = 8;
 
 interface VitestAssertionMeta {
   harness?: {
@@ -86,7 +104,17 @@ const isRecord = (v: unknown): v is Record<string, unknown> => {
  *    skill directory and fails (the user's repo doesn't necessarily
  *    have skillet installed locally — they ran us via `npx`).
  */
-const buildVitestConfig = (skillRoot: string, evalsLibAbs: string): string => {
+const buildVitestConfig = (
+  skillRoot: string,
+  evalsLibAbs: string,
+  maxConcurrency: number,
+  streamProgress: boolean,
+): string => {
+  // Use a default reporter alongside json when streaming so the user
+  // sees per-test progress; otherwise json-only keeps stdout clean.
+  const reporters = streamProgress
+    ? `["default", ["json", { outputFile: undefined }]]`
+    : `["json"]`;
   return `import { defineConfig } from "vitest/config";
 
 export default defineConfig({
@@ -94,7 +122,8 @@ export default defineConfig({
   test: {
     include: ["evals/**/*.eval.ts"],
     exclude: ["**/node_modules/**", "**/dist/**"],
-    reporters: ["json"],
+    reporters: ${reporters},
+    maxConcurrency: ${maxConcurrency},
   },
   resolve: {
     alias: {
@@ -145,6 +174,8 @@ const skilletRoot = (): string => {
 export const runVitestEvals = async (opts: RunVitestEvalsOptions): Promise<EvalRunResult> => {
   const skillRoot = resolvePath(opts.skillRoot);
   const skilletPkgRoot = skilletRoot();
+  const maxConcurrency = opts.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY;
+  const streamProgress = opts.streamProgress ?? false;
 
   // Absolute path to the compiled `evals` entry. We alias
   // `@sentry/skillet/evals` to this so generated eval files resolve
@@ -159,15 +190,21 @@ export const runVitestEvals = async (opts: RunVitestEvalsOptions): Promise<EvalR
   mkdirSync(tmpRoot, { recursive: true });
   const configDir = mkdtempSync(join(tmpRoot, "vitest-"));
   const configPath = join(configDir, "vitest.config.mjs");
-  writeFileSync(configPath, buildVitestConfig(skillRoot, evalsLibAbs), "utf-8");
+  writeFileSync(
+    configPath,
+    buildVitestConfig(skillRoot, evalsLibAbs, maxConcurrency, streamProgress),
+    "utf-8",
+  );
 
   const outputPath = join(configDir, "results.json");
+  // The JSON reporter inside the config doesn't take an outputFile
+  // there, so pass it on the CLI; the default reporter (when
+  // streamProgress) writes its progress to stdout independently.
   const args = [
     "vitest",
     "run",
     "--config",
     configPath,
-    "--reporter=json",
     "--outputFile",
     outputPath,
     "--no-coverage",
@@ -178,15 +215,20 @@ export const runVitestEvals = async (opts: RunVitestEvalsOptions): Promise<EvalR
   await new Promise<void>((resolve) => {
     const proc = spawn("npx", args, {
       cwd: skilletPkgRoot,
-      stdio: ["ignore", "pipe", "pipe"],
+      // When streaming, inherit stdout so vitest's progress reporter
+      // writes directly to the user's terminal. Otherwise pipe and
+      // ignore so output stays clean for `--json` callers.
+      stdio: ["ignore", streamProgress ? "inherit" : "pipe", "pipe"],
       env: { ...process.env },
     });
-    proc.stdout.on("data", () => {});
-    // Capture stderr so a load failure (e.g. import error inside an
-    // eval file) can be surfaced when vitest produces no JSON output.
-    proc.stderr.on("data", (chunk: Buffer) => {
-      stderrBuf += chunk.toString();
-    });
+    if (proc.stdout != null) {
+      proc.stdout.on("data", () => {});
+    }
+    if (proc.stderr != null) {
+      proc.stderr.on("data", (chunk: Buffer) => {
+        stderrBuf += chunk.toString();
+      });
+    }
     proc.on("close", () => {
       resolve();
     });

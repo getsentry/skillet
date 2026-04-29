@@ -19,7 +19,8 @@ const main = async (): Promise<number> => {
     case "eval": {
       const jsonFlag = args.includes("--json");
       const evalPath = args.find((a, i) => i > 0 && !a.startsWith("--"));
-      return evalCommand(evalPath, jsonFlag);
+      const concurrencyArg = parseConcurrency(args);
+      return evalCommand(evalPath, jsonFlag, concurrencyArg);
     }
 
     case "verify":
@@ -47,6 +48,28 @@ const main = async (): Promise<number> => {
   }
 };
 
+/**
+ * Parse `--concurrency N` (or `--concurrency=N`) from argv. Returns
+ * undefined when the flag is absent or the value isn't a positive
+ * integer — caller falls back to the runner's default (4).
+ */
+const parseConcurrency = (argv: string[]): number | undefined => {
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg == null) continue;
+    if (arg === "--concurrency") {
+      const next = argv[i + 1];
+      const n = next != null ? Number(next) : NaN;
+      return Number.isInteger(n) && n > 0 ? n : undefined;
+    }
+    if (arg.startsWith("--concurrency=")) {
+      const n = Number(arg.slice("--concurrency=".length));
+      return Number.isInteger(n) && n > 0 ? n : undefined;
+    }
+  }
+  return undefined;
+};
+
 const printUsage = (): void => {
   console.log(`
 skillet — Create, evaluate, and iterate on agent skills
@@ -54,7 +77,7 @@ skillet — Create, evaluate, and iterate on agent skills
 Usage:
   skillet create <description>             Create a new skill from a description
   skillet improve [path]                   Improve an existing skill (auto-imports legacy skills)
-  skillet eval [path] [--json]             Run evals for a skill
+  skillet eval [path] [--json] [--concurrency N]  Run evals (default 8 in parallel)
   skillet verify [path] [--semantic]       Check spec/SKILL.md/evals agree (subsumes the old validate)
   skillet add-eval [path] "behavior"       Add a behavior to spec.yaml and regenerate
   skillet install [path]                   Install the skillet skill into your agent
