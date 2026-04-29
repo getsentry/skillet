@@ -70,6 +70,12 @@ export const describeEval = <TCase extends HarnessCase>(
             name: options.harness.name,
             run,
           };
+          // Skillet uses `tests_behavior` to map case results back to
+          // spec entries. Surface it on task.meta so the runner can
+          // read it from vitest's JSON reporter output.
+          if (typeof caseData.tests_behavior === "string") {
+            (testTask.meta as Record<string, unknown>).tests_behavior = caseData.tests_behavior;
+          }
 
           // ── Judges ────────────────────────────────────
           const judges = options.judges ?? [];

@@ -1,14 +1,27 @@
 /**
  * Public API boundary for the eval engine.
  *
- * All external consumers (commands, authoring loop, tests) should import
- * from this module only — never from internal eval modules directly.
+ * Skillet's eval execution uses vitest under the hood. Generated
+ * `.eval.ts` files import from `@sentry/skillet/evals`; vitest runs
+ * them via `runVitestEvals`, which spawns vitest with skillet's
+ * config and parses the JSON reporter output back into `EvalRunResult`.
  *
- * This boundary is the future swap point for vitest-evals integration.
+ * External consumers (commands, authoring loop, verify) import from
+ * this module only.
  */
 
-// Runner
-export { runEvals, type RunEvalOptions } from "./runner.js";
+// Vitest runner adapter
+export { runVitestEvals, type RunVitestEvalsOptions } from "./vitest-runner.js";
+
+// Discovery (used by the verify layer to locate eval files and
+// extract `tests_behavior` metadata via regex scan)
+export {
+  discoverEvalTsFiles,
+  extractCasesFromEvalTs,
+  discoverAndExtract,
+  type DiscoveredCase,
+  type DiscoveredEvalFile,
+} from "./discovery.js";
 
 // Types (vitest-evals-compatible shapes)
 export type {
@@ -24,21 +37,3 @@ export type {
   EvalCaseResult,
   EvalRunResult,
 } from "./types.js";
-
-// Parser (for validation and eval discovery)
-export {
-  discoverEvalFiles,
-  parseEvalFile,
-  isWorkspaceCheck,
-  isOutputContains,
-  isOutputNotContains,
-  isOutputMatches,
-  type EvalFile,
-  type EvalCase,
-  type Check,
-  type WorkspaceCheck,
-  type OutputContainsCheck,
-} from "./parser.js";
-
-// Linter (for validating generated eval YAML)
-export { lintEvalYaml, type LintResult, type LintFix, type LintError } from "./linter.js";

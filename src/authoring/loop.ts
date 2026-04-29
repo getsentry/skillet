@@ -1,10 +1,9 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { resolveModels } from "../agent/provider.js";
-import { runEvals } from "../eval/index.js";
 import type { EvalRunResult } from "../eval/index.js";
+import { runVitestEvals } from "../eval/vitest-runner.js";
 import { readSpec, regenerate, specFileName, writeSpec } from "../spec/index.js";
-import { loadSkill } from "../skill/loader.js";
 import { verifyCoverage, verifyResults } from "../verify/index.js";
 import type { CoverageReport, ResultsReport } from "../verify/index.js";
 import { runSkillImprove } from "./phases/skill-improve.js";
@@ -49,9 +48,7 @@ const DEFAULT_TOTAL_TIMEOUT = 5 * 60 * 1000; // 5 minutes
  *     ↓
  *   regenerate SKILL.md + evals from spec
  *     ↓
- *   run evals
- *     ↓
- *   promote passing LLM-generated cases back into the spec
+ *   run evals (vitest)
  *     ↓
  *   verify per-behavior coverage + results
  *     ↓                                 ↓
@@ -147,27 +144,15 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
       );
     }
 
-    // Run evals.
-    console.log("  Running evals...");
-    const skill = loadSkill(skillPath);
-    let currentCase = "";
-    let caseStart = Date.now();
-    lastEvalResult = await runEvals({
-      skill,
-      agentModel: models.agent,
-      judgeModel: models.judge,
+    // Run evals via vitest. The JSON reporter doesn't stream
+    // per-case events; results print together after the run.
+    console.log("  Running evals (vitest)...");
+    lastEvalResult = await runVitestEvals({
+      skillRoot: skillPath,
       onCaseComplete: (result) => {
-        const caseDuration = ((Date.now() - caseStart) / 1000).toFixed(1);
         const icon = result.status === "pass" ? "✓" : result.status === "fail" ? "✗" : "○";
-        console.log(`    ${icon} ${result.name}  ${caseDuration}s`);
-        caseStart = Date.now();
-      },
-      onToolCall: (caseName, toolName, step) => {
-        if (caseName !== currentCase) {
-          currentCase = caseName;
-          console.log(`    ▸ ${caseName}`);
-        }
-        process.stderr.write(`\u001B[2m      step ${step}: ${toolName}\u001B[0m\n`);
+        const seconds = (result.duration / 1000).toFixed(1);
+        console.log(`    ${icon} ${result.name}  ${seconds}s`);
       },
     });
 
@@ -213,7 +198,7 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
     }
 
     writeFileSync(skillMdPath, newSkillMd, "utf-8");
-    console.log("  SKILL.md updated; spec and eval YAMLs unchanged.");
+    console.log("  SKILL.md updated; spec and eval files unchanged.");
   }
 
   const totalElapsed = ((Date.now() - loopStart) / 1000).toFixed(0);

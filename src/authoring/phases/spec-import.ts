@@ -41,31 +41,23 @@ const normalize = (spec: SkillSpec): SkillSpec => {
 };
 
 /**
- * Run the spec-import phase: SKILL.md content (+ optional existing
- * eval YAMLs) → SkillSpec.
+ * Run the spec-import phase: SKILL.md content → SkillSpec.
  *
  * Output is JSON (not YAML) for the same reason as spec-init: skill
  * statements often contain characters that break YAML quoting.
  * Retries up to `MAX_PARSE_RETRIES` times on parse failure with the
  * parser error fed back to the LLM.
- *
- * The eval YAML content is supplied as a single concatenated string
- * for the LLM's context — we don't structurally parse it here, since
- * the importer just looks for case names matching the
- * `<id>__<slug>` convention.
  */
 export const runSpecImport = async (
   model: AnyModel,
   skillMdContent: string,
-  existingEvalYaml?: string,
 ): Promise<SkillSpec> => {
-  const userBlocks = [`## SKILL.md\n\n${skillMdContent}`];
-  if (existingEvalYaml != null && existingEvalYaml.trim() !== "") {
-    userBlocks.push(`## Existing eval YAML\n\n${existingEvalYaml}`);
-  }
-
   const messages: Message[] = [
-    { role: "user", content: userBlocks.join("\n\n---\n\n"), timestamp: Date.now() },
+    {
+      role: "user",
+      content: `## SKILL.md\n\n${skillMdContent}`,
+      timestamp: Date.now(),
+    },
   ];
 
   let lastRaw = "";

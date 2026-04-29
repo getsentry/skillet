@@ -2,7 +2,6 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AnyModel } from "../agent/provider.js";
 import { runEvalGen } from "../authoring/phases/eval-gen.js";
-import { EVAL_YAML_BANNER } from "../authoring/phases/eval-gen.js";
 import { runSkillGen } from "../authoring/phases/skill-gen.js";
 import { readSpec, validateSpecObject } from "./index.js";
 import type { SkillSpec } from "./types.js";
@@ -17,11 +16,11 @@ export interface RegenerateOptions {
 export interface RegenerateResult {
   spec: SkillSpec;
   skillMdPath: string;
-  evalYamlPath: string;
+  evalFilePath: string;
 }
 
 /**
- * Regenerate SKILL.md and `evals/basic.eval.yaml` from `spec.yaml`.
+ * Regenerate SKILL.md and `evals/basic.eval.ts` from `spec.yaml`.
  * Pure function of the spec (modulo LLM determinism in the gen
  * prompts). Called by every spec-mutating CLI path:
  *
@@ -62,14 +61,14 @@ export const regenerate = async (
   log(`wrote ${skillMdPath}`);
 
   log("rendering eval cases from spec");
-  const evalYamlBody = await runEvalGen(model, spec, {
+  const evalFileBody = await runEvalGen(model, spec, {
     logProgress: log,
   });
   const evalsDir = join(skillRoot, "evals");
   mkdirSync(evalsDir, { recursive: true });
-  const evalYamlPath = join(evalsDir, "basic.eval.yaml");
-  writeFileSync(evalYamlPath, EVAL_YAML_BANNER + evalYamlBody, "utf-8");
-  log(`wrote ${evalYamlPath}`);
+  const evalFilePath = join(evalsDir, "basic.eval.ts");
+  writeFileSync(evalFilePath, evalFileBody, "utf-8");
+  log(`wrote ${evalFilePath}`);
 
-  return { spec, skillMdPath, evalYamlPath };
+  return { spec, skillMdPath, evalFilePath };
 };

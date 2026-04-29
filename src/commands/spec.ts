@@ -4,7 +4,6 @@ import { resolveModels } from "../agent/provider.js";
 import { runSpecImport } from "../authoring/phases/spec-import.js";
 import { runSpecInit } from "../authoring/phases/spec-init.js";
 import { runSpecRefine } from "../authoring/phases/spec-refine.js";
-import { discoverEvalFiles } from "../eval/index.js";
 import {
   applyPatches,
   readSpec,
@@ -248,16 +247,12 @@ const specImport = async (args: string[]): Promise<number> => {
   }
 
   const skillMd = readFileSync(skillMdPath, "utf-8");
-  const evalPaths = discoverEvalFiles(skillRoot);
-  const existingEvals = evalPaths
-    .map((p) => `# ${p}\n${readFileSync(p, "utf-8")}`)
-    .join("\n\n---\n\n");
 
   const models = resolveModels();
   console.log(`Importing spec from ${skillMdPath}...`);
   let spec;
   try {
-    spec = await runSpecImport(models.agent, skillMd, existingEvals);
+    spec = await runSpecImport(models.agent, skillMd);
   } catch (err: unknown) {
     console.error(`Error: ${errorMessage(err)}`);
     return 1;

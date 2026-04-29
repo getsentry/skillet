@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
-import { discoverEvalFiles, parseEvalFile } from "../eval/index.js";
+import { discoverEvalTsFiles, extractCasesFromEvalTs } from "../eval/discovery.js";
 import { specFileName, validateSpecYaml } from "../spec/index.js";
 import type { StructuralIssue, StructuralReport } from "./types.js";
 
@@ -16,9 +16,11 @@ const isRecord = (v: unknown): v is Record<string, unknown> => {
  *
  * Covers:
  * - `spec.yaml` (when present): valid YAML, required fields, unique
- *   IDs, well-formed eval blocks (delegates to `validateSpecYaml`)
+ *   IDs (delegates to `validateSpecYaml`)
  * - `SKILL.md`: frontmatter parse + required `name`, `description`
- * - `evals/*.eval.yaml`: YAML parse + required `name`, `turns` per case
+ * - `evals/*.eval.ts`: file is readable and contains at least one
+ *   case object with a `name` field (cheap regex scan; vitest itself
+ *   surfaces deeper TypeScript errors when the file actually runs)
  *
  * Returns errors but does not throw — callers aggregate across layers
  * and surface them together.
@@ -53,19 +55,29 @@ export const verifyStructural = (skillRoot: string): StructuralReport => {
     }
   }
 
-  // ── evals/*.eval.yaml ─────────────────────────────────────
-  let evalPaths: string[] = [];
-  try {
-    evalPaths = discoverEvalFiles(skillRoot);
-  } catch {
-    // No evals directory is fine — just skip the eval lint.
-  }
-  for (const evalPath of evalPaths) {
+  // ── evals/*.eval.ts ───────────────────────────────────────
+  for (const evalPath of discoverEvalTsFiles(skillRoot)) {
+    let content: string;
     try {
-      parseEvalFile(evalPath);
+      content = readFileSync(evalPath, "utf-8");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      errors.push({ path: evalPath, message: msg });
+      errors.push({ path: evalPath, message: `failed to read: ${msg}` });
+      continue;
+    }
+    if (!content.includes("describeEval")) {
+      errors.push({
+        path: evalPath,
+        message: "no `describeEval` call found — eval file must use the @sentry/skillet/evals API",
+      });
+      continue;
+    }
+    const cases = extractCasesFromEvalTs(evalPath);
+    if (cases.length === 0) {
+      errors.push({
+        path: evalPath,
+        message: "no case objects discovered (each case must have a `name` field)",
+      });
     }
   }
 

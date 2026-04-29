@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
-import { discoverEvalFiles, parseEvalFile, type EvalCase } from "../eval/index.js";
+import { discoverAndExtract, type DiscoveredCase } from "../eval/discovery.js";
 import type { SkillSpec } from "../spec/index.js";
 import type { CoverageReport, OrphanCase, StructuralIssue, UncoveredEntry } from "./types.js";
 
@@ -31,37 +31,22 @@ export const verifyCoverage = (spec: SkillSpec, skillRoot: string): CoverageRepo
     specEntries.set(m.id, { kind: "must_not", statement: m.statement });
   }
 
-  // Collect all eval cases across files in the skill.
-  const cases: Array<{ case: EvalCase; filePath: string }> = [];
-  let evalPaths: string[] = [];
-  try {
-    evalPaths = discoverEvalFiles(skillRoot);
-  } catch {
-    // No evals directory — covered counts will be zero.
-  }
-  for (const filePath of evalPaths) {
-    try {
-      const file = parseEvalFile(filePath);
-      for (const c of file.cases) {
-        cases.push({ case: c, filePath });
-      }
-    } catch (err: unknown) {
-      // A parse failure here means layer-1 should have caught it
-      // already, but we surface it as an issue rather than crashing.
-      const msg = err instanceof Error ? err.message : String(err);
-      issues.push({ path: filePath, message: `coverage layer skipped due to parse error: ${msg}` });
-    }
+  // Collect all eval cases by scanning .eval.ts files for the
+  // `name` and `tests_behavior` fields in each case object.
+  const allCases: DiscoveredCase[] = [];
+  for (const file of discoverAndExtract(skillRoot)) {
+    allCases.push(...file.cases);
   }
 
   // Index cases by the behavior ID they test (explicit field first,
   // case-name convention as fallback).
   const casesById = new Map<string, string[]>();
   const orphans: OrphanCase[] = [];
-  for (const { case: c, filePath } of cases) {
+  for (const c of allCases) {
     const id = resolveTestsBehavior(c);
     if (id == null) continue; // unlinked legacy case — not an orphan, just unmapped
     if (!specEntries.has(id)) {
-      orphans.push({ caseName: c.name, filePath, testsBehavior: id });
+      orphans.push({ caseName: c.name, filePath: c.filePath, testsBehavior: id });
       continue;
     }
     const list = casesById.get(id) ?? [];
@@ -96,8 +81,8 @@ export const verifyCoverage = (spec: SkillSpec, skillRoot: string): CoverageRepo
   return { ok, covered, uncovered, orphans, issues };
 };
 
-const resolveTestsBehavior = (c: EvalCase): string | undefined => {
-  if (c.tests_behavior != null && c.tests_behavior !== "") return c.tests_behavior;
+const resolveTestsBehavior = (c: DiscoveredCase): string | undefined => {
+  if (c.testsBehavior != null && c.testsBehavior !== "") return c.testsBehavior;
   if (c.name.includes("__")) {
     const prefix = c.name.split("__")[0];
     if (prefix != null && prefix !== "") return prefix;
