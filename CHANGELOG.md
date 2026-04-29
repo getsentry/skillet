@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.22.0
+
+### New Features ✨
+
+- (harness) Capture workspace artifacts for the judge by @gricha in [b607e11a](https://github.com/getsentry/skillet/commit/b607e11ae9042603eb024289290451622f6e5c2a)
+
 ## 0.21.0
 
 ### Internal Changes 🔧
