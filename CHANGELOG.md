@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.20.0
+
+### New Features ✨
+
+- (evals) One file per behavior; preserve user edits on regen by @gricha in [e65de94d](https://github.com/getsentry/skillet/commit/e65de94d036660de85074cf5c4acaf5ebb25c943)
+
 ## 0.19.0
 
 ### New Features ✨
