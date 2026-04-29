@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.18.0
+
+### Bug Fixes 🐛
+
+- (evals) Vitest runner config — set root + alias for external skills by @gricha in [7048380c](https://github.com/getsentry/skillet/commit/7048380c30c3e3b61a8e0261ec2b8a94af7811fd)
+
+### Documentation 📚
+
+- (openspec) Archive vitest-evals-migration change by @gricha in [dfed1bf2](https://github.com/getsentry/skillet/commit/dfed1bf287febae32cab7159433e60e181a9973f)
+
 ## 0.17.0
 
 ### New Features ✨
