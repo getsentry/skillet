@@ -4,6 +4,7 @@ import { createCommand } from "./commands/create.js";
 import { improveCommand } from "./commands/improve.js";
 import { installCommand } from "./commands/install.js";
 import { addEvalCommand } from "./commands/add-eval.js";
+import { compareCommand } from "./commands/compare.js";
 import { specCommand } from "./commands/spec.js";
 
 const args = process.argv.slice(2);
@@ -21,8 +22,23 @@ const main = async (): Promise<number> => {
       const positional = args.filter((a, i) => i > 0 && !a.startsWith("--"));
       const evalPath = positional[0];
       const concurrencyArg = parseConcurrency(args);
-      const againstArg = parseAgainst(args);
-      return evalCommand(evalPath, jsonFlag, concurrencyArg, againstArg);
+      return evalCommand(evalPath, jsonFlag, concurrencyArg);
+    }
+
+    case "compare": {
+      const jsonFlag = args.includes("--json");
+      const positional = args.filter((a, i) => i > 0 && !a.startsWith("--"));
+      const [first, second] = positional;
+      if (first == null || second == null) {
+        console.error(
+          "Usage: skillet compare <eval-source-skill> <comparison-skill> [--json] [--concurrency N]",
+        );
+        return 1;
+      }
+      const opts: { json?: boolean; concurrency?: number } = { json: jsonFlag };
+      const c = parseConcurrency(args);
+      if (c != null) opts.concurrency = c;
+      return compareCommand(first, second, opts);
     }
 
     case "verify":
@@ -51,30 +67,9 @@ const main = async (): Promise<number> => {
 };
 
 /**
- * Parse `--against <path>` (or `--against=<path>`) from argv. Used
- * by `skillet eval` to run one skill's evals against another skill's
- * SKILL.md as the system prompt — a fair head-to-head comparison.
- */
-const parseAgainst = (argv: string[]): string | undefined => {
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i];
-    if (arg == null) continue;
-    if (arg === "--against") {
-      const next = argv[i + 1];
-      return next != null && next !== "" && !next.startsWith("--") ? next : undefined;
-    }
-    if (arg.startsWith("--against=")) {
-      const v = arg.slice("--against=".length);
-      return v !== "" ? v : undefined;
-    }
-  }
-  return undefined;
-};
-
-/**
  * Parse `--concurrency N` (or `--concurrency=N`) from argv. Returns
  * undefined when the flag is absent or the value isn't a positive
- * integer — caller falls back to the runner's default (4).
+ * integer — caller falls back to the runner's default (8).
  */
 const parseConcurrency = (argv: string[]): number | undefined => {
   for (let i = 0; i < argv.length; i++) {
@@ -98,13 +93,14 @@ const printUsage = (): void => {
 skillet — Create, evaluate, and iterate on agent skills
 
 Usage:
-  skillet create <description>             Create a new skill from a description
-  skillet improve [path]                   Improve an existing skill (auto-imports legacy skills)
-  skillet eval [path] [--json] [--concurrency N] [--against <other-skill>]  Run evals (default 8 in parallel; --against runs the eval cases with another skill's SKILL.md)
-  skillet verify [path] [--semantic]       Check spec/SKILL.md/evals agree (subsumes the old validate)
-  skillet add-eval [path] "behavior"       Add a behavior to spec.yaml and regenerate
-  skillet install [path]                   Install the skillet skill into your agent
-  skillet spec <show|refine|import|init>   Manage spec.yaml (the source of truth)
+  skillet create <description>                            Create a new skill from a description
+  skillet improve [path]                                  Improve an existing skill (auto-imports legacy skills)
+  skillet eval [path] [--json] [--concurrency N]          Run evals (default 8 in parallel)
+  skillet compare <a> <b> [--json] [--concurrency N]      Run skill A's evals against both A and B; print side-by-side
+  skillet verify [path] [--semantic]                      Check spec/SKILL.md/evals agree (subsumes the old validate)
+  skillet add-eval [path] "behavior"                      Add a behavior to spec.yaml and regenerate
+  skillet install [path]                                  Install the skillet skill into your agent
+  skillet spec <show|refine|import|init>                  Manage spec.yaml (the source of truth)
 
 Environment:
   Auto-detected (just works when running inside Claude Code, Codex, Copilot, etc.):
