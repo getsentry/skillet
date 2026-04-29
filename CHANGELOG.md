@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.19.0
+
+### New Features ✨
+
+- (evals) Concurrent test execution + live progress by @gricha in [1ab166e6](https://github.com/getsentry/skillet/commit/1ab166e6d66b33ca7cfc7b3acd9c76480f21b835)
+
 ## 0.18.0
 
 ### Bug Fixes 🐛
