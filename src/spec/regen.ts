@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AnyModel } from "../agent/provider.js";
 import { runEvalGen } from "../authoring/phases/eval-gen.js";
@@ -16,13 +16,15 @@ export interface RegenerateOptions {
 export interface RegenerateResult {
   spec: SkillSpec;
   skillMdPath: string;
-  evalFilePath: string;
+  /** Per-behavior eval files written this run (new only). */
+  evalFilesWritten: string[];
+  /** Behavior IDs whose eval file already existed and was preserved. */
+  evalFilesSkipped: string[];
 }
 
 /**
- * Regenerate SKILL.md and `evals/basic.eval.ts` from `spec.yaml`.
- * Pure function of the spec (modulo LLM determinism in the gen
- * prompts). Called by every spec-mutating CLI path:
+ * Regenerate `SKILL.md` and per-behavior `evals/<id>.eval.ts` files
+ * from `spec.yaml`. Called by every spec-mutating CLI path:
  *
  * - `skillet spec init`  — after writing the new spec
  * - `skillet spec refine` — after applying patches
@@ -30,10 +32,14 @@ export interface RegenerateResult {
  * - `skillet add-eval`    — after appending the new behavior
  * - The iteration loop    — after each round of assessment patches
  *
- * Reads spec.yaml from disk, structurally validates, runs skill-gen
- * and eval-gen phases, writes the derived files. Throws on invalid
- * spec — callers should run verify before regen if they want a clean
- * upstream signal.
+ * SKILL.md is rewritten on every run (it's a pure render of the spec).
+ * Eval files are NEW-ONLY: existing `evals/<id>.eval.ts` files are
+ * preserved so direct edits to prompts/setup/assertions survive.
+ * Behaviors removed from the spec leave orphan files behind; verify
+ * coverage flags them, the user deletes manually.
+ *
+ * Throws on invalid spec — callers should run verify before regen if
+ * they want a clean upstream signal.
  */
 export const regenerate = async (
   skillRoot: string,
@@ -61,14 +67,12 @@ export const regenerate = async (
   log(`wrote ${skillMdPath}`);
 
   log("rendering eval cases from spec");
-  const evalFileBody = await runEvalGen(model, spec, {
-    logProgress: log,
-  });
-  const evalsDir = join(skillRoot, "evals");
-  mkdirSync(evalsDir, { recursive: true });
-  const evalFilePath = join(evalsDir, "basic.eval.ts");
-  writeFileSync(evalFilePath, evalFileBody, "utf-8");
-  log(`wrote ${evalFilePath}`);
+  const { written, skipped } = await runEvalGen(model, spec, skillRoot, { logProgress: log });
 
-  return { spec, skillMdPath, evalFilePath };
+  return {
+    spec,
+    skillMdPath,
+    evalFilesWritten: written,
+    evalFilesSkipped: skipped,
+  };
 };

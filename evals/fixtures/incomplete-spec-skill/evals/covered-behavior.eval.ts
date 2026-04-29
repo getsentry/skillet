@@ -1,8 +1,5 @@
-// Test fixture for verify's coverage layer. Intentionally has an
-// orphan case (tests_behavior pointing at a non-existent spec id)
-// alongside a covered case. Skillet's own evals don't actually run
-// this — it's discovery-only fixture data for verify tests.
-
+// Test fixture for verify's coverage layer. Discovery-only;
+// not run as part of skillet's own self-tests.
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 import {
@@ -13,18 +10,11 @@ import {
 
 const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, "");
 
-describeEval("incomplete-skill", {
+describeEval("covered-behavior", {
   data: [
     {
       name: "covered-behavior__placeholder",
       tests_behavior: "covered-behavior",
-      input: "test",
-      expectedContains: "test",
-    },
-    // Intentional orphan — tests_behavior does not exist in spec.yaml.
-    {
-      name: "orphan-case__intentional",
-      tests_behavior: "nonexistent-behavior",
       input: "test",
       expectedContains: "test",
     },

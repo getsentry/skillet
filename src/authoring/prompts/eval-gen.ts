@@ -42,9 +42,10 @@ You receive a JSON object:
 
 ## Output format
 
-A single JSON array of case objects. The array is interpolated into
-a TypeScript template — skillet handles the imports, harness, judges,
-and \`describeEval\` wrapper.
+A single JSON array of case objects. Skillet groups the array by
+\`tests_behavior\` and writes one \`evals/<behavior-id>.eval.ts\` file
+per group. Skillet handles the imports, harness, judges, and
+\`describeEval\` wrapper — you only contribute the case data.
 
 Each case object has these fields:
 
@@ -66,15 +67,23 @@ Each case object has these fields:
 }
 \`\`\`
 
+\`tests_behavior\` is REQUIRED on every case — skillet uses it as
+the file-grouping key. Cases without it are rejected.
+
 ## Hard rules
 
-1. **One case per spec entry.** If the spec has 5 behaviors and 2
-   must_nots, output exactly 7 cases. No more, no less.
+1. **At least one case per spec entry.** If the spec has 5 behaviors
+   and 2 must_nots, every one of those 7 IDs must appear in at least
+   one case's \`tests_behavior\`. Multiple cases per entry are fine
+   when the behavior has natural variations worth testing separately
+   — they end up in the same file. Default to one case per entry.
 
 2. **Case order matches spec order** — behaviors first, then must_nots.
+   When a single entry has multiple cases, keep them adjacent.
 
 3. **\`tests_behavior\` is the spec entry's exact id** — no slugification
-   here, copy it verbatim. The verify layer joins on this string.
+   here, copy it verbatim. Skillet groups cases into per-behavior eval
+   files keyed on this string.
 
 4. **Case name format: \`<id>__<short-slug>\`.** The slug is derived
    from the prompt or statement, lowercase, snake or kebab-case, max
