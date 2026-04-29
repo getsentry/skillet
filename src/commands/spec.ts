@@ -4,6 +4,7 @@ import { resolveModels } from "../agent/provider.js";
 import { runSpecImport } from "../authoring/phases/spec-import.js";
 import { runSpecInit } from "../authoring/phases/spec-init.js";
 import { runSpecRefine } from "../authoring/phases/spec-refine.js";
+import { withStaging } from "../staging/index.js";
 import {
   applyPatches,
   readSpec,
@@ -103,20 +104,23 @@ const specInit = async (args: string[]): Promise<number> => {
   }
 
   mkdirSync(skillRoot, { recursive: true });
-  writeSpec(specPath, spec);
-  console.log(`✓ Wrote ${specPath}`);
 
-  console.log("Regenerating SKILL.md and evals...");
   try {
-    await regenerate(skillRoot, {
-      model: models.agent,
-      evalGenModel: models.evalGen,
-      onProgress: (msg) => {
-        console.log(`  ${msg}`);
-      },
+    await withStaging(skillRoot, async (stagingDir) => {
+      writeSpec(join(stagingDir, specFileName()), spec);
+      console.log(`✓ Staged ${specFileName()}`);
+      console.log("Regenerating SKILL.md and evals...");
+      await regenerate(stagingDir, {
+        model: models.agent,
+        evalGenModel: models.evalGen,
+        onProgress: (msg) => {
+          console.log(`  ${msg}`);
+        },
+      });
     });
   } catch (err: unknown) {
-    console.error(`Error during regen: ${errorMessage(err)}`);
+    console.error(`Error during init: ${errorMessage(err)}`);
+    console.error("No partial files written.");
     return 1;
   }
 
@@ -203,20 +207,22 @@ const specRefine = async (args: string[]): Promise<number> => {
     return 1;
   }
 
-  writeSpec(specPath, updated);
-  console.log(`✓ Updated ${specPath}`);
-
-  console.log("Regenerating SKILL.md and evals...");
   try {
-    await regenerate(skillRoot, {
-      model: models.agent,
-      evalGenModel: models.evalGen,
-      onProgress: (msg) => {
-        console.log(`  ${msg}`);
-      },
+    await withStaging(skillRoot, async (stagingDir) => {
+      writeSpec(join(stagingDir, specFileName()), updated);
+      console.log(`✓ Staged ${specFileName()}`);
+      console.log("Regenerating SKILL.md and evals...");
+      await regenerate(stagingDir, {
+        model: models.agent,
+        evalGenModel: models.evalGen,
+        onProgress: (msg) => {
+          console.log(`  ${msg}`);
+        },
+      });
     });
   } catch (err: unknown) {
-    console.error(`Error during regen: ${errorMessage(err)}`);
+    console.error(`Error during refine: ${errorMessage(err)}`);
+    console.error("Original skill is unchanged.");
     return 1;
   }
 
@@ -260,20 +266,26 @@ const specImport = async (args: string[]): Promise<number> => {
     return 1;
   }
 
-  writeSpec(specPath, spec);
-  console.log(`✓ Wrote ${specPath}`);
-
-  console.log("Regenerating SKILL.md and evals from imported spec...");
+  // Stage all writes (spec.yaml + SKILL.md + eval files) so a
+  // failure during regen leaves the original skill untouched.
+  // Pre-fix: writeSpec ran first, then regen — a regen failure
+  // left the user with a clobbered SKILL.md and no spec.yaml.
   try {
-    await regenerate(skillRoot, {
-      model: models.agent,
-      evalGenModel: models.evalGen,
-      onProgress: (msg) => {
-        console.log(`  ${msg}`);
-      },
+    await withStaging(skillRoot, async (stagingDir) => {
+      writeSpec(join(stagingDir, specFileName()), spec);
+      console.log(`✓ Staged ${specFileName()}`);
+      console.log("Regenerating SKILL.md and evals from imported spec...");
+      await regenerate(stagingDir, {
+        model: models.agent,
+        evalGenModel: models.evalGen,
+        onProgress: (msg) => {
+          console.log(`  ${msg}`);
+        },
+      });
     });
   } catch (err: unknown) {
-    console.error(`Error during regen: ${errorMessage(err)}`);
+    console.error(`Error during import: ${errorMessage(err)}`);
+    console.error("Original skill is unchanged.");
     return 1;
   }
 

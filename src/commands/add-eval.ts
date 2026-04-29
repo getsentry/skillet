@@ -4,6 +4,7 @@ import { resolveModels } from "../agent/provider.js";
 import { runSpecImport } from "../authoring/phases/spec-import.js";
 import { runSpecRefine } from "../authoring/phases/spec-refine.js";
 import { findSkillRoot } from "../skill/loader.js";
+import { withStaging } from "../staging/index.js";
 import {
   applyPatches,
   readSpec,
@@ -124,20 +125,22 @@ export const addEvalCommand = async (args: string[]): Promise<number> => {
     return 1;
   }
 
-  writeSpec(specPath, updated);
-  console.log(`✓ Updated ${specPath}`);
-
-  console.log("Regenerating SKILL.md and evals from updated spec...");
   try {
-    await regenerate(skillRoot, {
-      model: models.agent,
-      evalGenModel: models.evalGen,
-      onProgress: (msg) => {
-        console.log(`  ${msg}`);
-      },
+    await withStaging(skillRoot, async (stagingDir) => {
+      writeSpec(join(stagingDir, specFileName()), updated);
+      console.log(`✓ Staged updated ${specFileName()}`);
+      console.log("Regenerating SKILL.md and evals from updated spec...");
+      await regenerate(stagingDir, {
+        model: models.agent,
+        evalGenModel: models.evalGen,
+        onProgress: (msg) => {
+          console.log(`  ${msg}`);
+        },
+      });
     });
   } catch (err: unknown) {
-    console.error(`Error during regen: ${errorMessage(err)}`);
+    console.error(`Error during add-eval: ${errorMessage(err)}`);
+    console.error("Original skill is unchanged.");
     return 1;
   }
 

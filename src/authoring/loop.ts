@@ -4,6 +4,8 @@ import { resolveModels } from "../agent/provider.js";
 import type { EvalRunResult } from "../eval/index.js";
 import { runVitestEvals } from "../eval/vitest-runner.js";
 import { readSpec, regenerate, specFileName, writeSpec } from "../spec/index.js";
+import type { SkillSpec } from "../spec/index.js";
+import { withStaging } from "../staging/index.js";
 import { verifyCoverage, verifyResults } from "../verify/index.js";
 import type { CoverageReport, ResultsReport } from "../verify/index.js";
 import { runSkillImprove } from "./phases/skill-improve.js";
@@ -74,6 +76,12 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
   // ── Phase 1: Establish spec ─────────────────────────────
   const existingSpec = existsSync(specPath) ? readSpec(specPath) : null;
 
+  // Phase 1+2 are transactional as a unit: spec write + initial
+  // regen all hit a staging dir; commit only if everything succeeds.
+  // Pre-fix: spec wrote first, then regen — a regen failure left a
+  // half-mutated skill (clobbered SKILL.md, dangling spec.yaml, no
+  // eval files) with no path back to the user's original.
+  let preparedSpec: { spec: SkillSpec; reason: "create" | "import" | "existing" } | null = null;
   if (mode === "create") {
     if (description == null || description === "") {
       throw new Error("Description is required for create mode");
@@ -83,9 +91,7 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
     }
     console.log("Generating spec from description...");
     const spec = await runSpecInit(models.agent, description);
-    mkdirSync(skillPath, { recursive: true });
-    writeSpec(specPath, spec);
-    console.log(`  Wrote ${specPath}`);
+    preparedSpec = { spec, reason: "create" };
   } else if (existingSpec == null) {
     const skillMdPath = join(skillPath, "SKILL.md");
     if (!existsSync(skillMdPath)) {
@@ -96,19 +102,30 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
     console.log("No spec.yaml found — importing from existing SKILL.md...");
     const skillMd = readFileSync(skillMdPath, "utf-8");
     const spec = await runSpecImport(models.agent, skillMd);
-    mkdirSync(skillPath, { recursive: true });
-    writeSpec(specPath, spec);
-    console.log(`  Wrote ${specPath} (faithful capture; loop will tune prose to fit)`);
+    preparedSpec = { spec, reason: "import" };
   }
 
-  // ── Phase 2: Initial regen from spec ────────────────────
+  // ── Initial regen from spec, staged ─────────────────────
+  // For create / import, write spec.yaml + run regen inside a
+  // staging dir. For existing-spec mode, regen still goes through
+  // staging so failures don't clobber an already-good SKILL.md
+  // when only eval-gen blew up.
   console.log("Regenerating SKILL.md and evals from spec...");
-  await regenerate(skillPath, {
-    model: models.agent,
-    evalGenModel: models.evalGen,
-    onProgress: (msg) => {
-      console.log(`  ${msg}`);
-    },
+  mkdirSync(skillPath, { recursive: true });
+  await withStaging(skillPath, async (stagingDir) => {
+    if (preparedSpec != null) {
+      writeSpec(join(stagingDir, specFileName()), preparedSpec.spec);
+      const note =
+        preparedSpec.reason === "import" ? " (faithful capture; loop will tune prose to fit)" : "";
+      console.log(`  Staged ${specFileName()}${note}`);
+    }
+    await regenerate(stagingDir, {
+      model: models.agent,
+      evalGenModel: models.evalGen,
+      onProgress: (msg) => {
+        console.log(`  ${msg}`);
+      },
+    });
   });
 
   // ── Phase 3: Iteration loop ─────────────────────────────
