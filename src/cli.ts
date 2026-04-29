@@ -6,9 +6,17 @@ import { installCommand } from "./commands/install.js";
 import { addEvalCommand } from "./commands/add-eval.js";
 import { compareCommand } from "./commands/compare.js";
 import { specCommand } from "./commands/spec.js";
+import { setVerbose } from "./log.js";
 
 const args = process.argv.slice(2);
 const command = args[0];
+
+// Activate verbose logging early so all command-level work flows
+// through the structured logger. Both `--verbose` (any position) and
+// `SKILLET_VERBOSE=1` toggle it; commands don't need to plumb the
+// flag themselves.
+const verboseFlag = args.includes("--verbose") || process.env.SKILLET_VERBOSE === "1";
+setVerbose(verboseFlag);
 
 const main = async (): Promise<number> => {
   if (command == null || command === "" || command === "--help" || command === "-h") {
@@ -111,6 +119,8 @@ Environment:
 
   SKILLET_MODEL              Override agent model (e.g. anthropic/claude-sonnet-4-20250514)
   SKILLET_JUDGE_MODEL        Override judge model separately
+  SKILLET_EVAL_GEN_MODEL     Override the model used for per-behavior eval generation
+  SKILLET_VERBOSE=1          Enable verbose logging (same as --verbose on any command)
 `);
 };
 

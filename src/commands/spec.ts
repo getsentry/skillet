@@ -110,6 +110,7 @@ const specInit = async (args: string[]): Promise<number> => {
   try {
     await regenerate(skillRoot, {
       model: models.agent,
+      evalGenModel: models.evalGen,
       onProgress: (msg) => {
         console.log(`  ${msg}`);
       },
@@ -209,6 +210,7 @@ const specRefine = async (args: string[]): Promise<number> => {
   try {
     await regenerate(skillRoot, {
       model: models.agent,
+      evalGenModel: models.evalGen,
       onProgress: (msg) => {
         console.log(`  ${msg}`);
       },
@@ -265,6 +267,7 @@ const specImport = async (args: string[]): Promise<number> => {
   try {
     await regenerate(skillRoot, {
       model: models.agent,
+      evalGenModel: models.evalGen,
       onProgress: (msg) => {
         console.log(`  ${msg}`);
       },

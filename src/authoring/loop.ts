@@ -105,6 +105,7 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
   console.log("Regenerating SKILL.md and evals from spec...");
   await regenerate(skillPath, {
     model: models.agent,
+    evalGenModel: models.evalGen,
     onProgress: (msg) => {
       console.log(`  ${msg}`);
     },

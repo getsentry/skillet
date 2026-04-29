@@ -131,6 +131,7 @@ export const addEvalCommand = async (args: string[]): Promise<number> => {
   try {
     await regenerate(skillRoot, {
       model: models.agent,
+      evalGenModel: models.evalGen,
       onProgress: (msg) => {
         console.log(`  ${msg}`);
       },

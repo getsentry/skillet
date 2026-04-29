@@ -103,23 +103,32 @@ const envVarIsSet = (name: string): boolean => {
  *  2. Auto-discovery: loop through known providers, check pi-ai's getEnvApiKey
  *     plus extra env vars for agent-inherited tokens (Claude Code, Codex, Copilot)
  *
- * Returns both an agent model and a judge model (judge can be overridden
- * separately via SKILLET_JUDGE_MODEL).
+ * Returns three roles:
+ *  - `agent`: the skill-running model (default: SKILLET_MODEL or auto-discovered).
+ *  - `judge`: the LLM judge for criteria-based eval grading (default: agent).
+ *    Override via `SKILLET_JUDGE_MODEL`.
+ *  - `evalGen`: the model used for per-behavior eval case generation.
+ *    Override via `SKILLET_EVAL_GEN_MODEL`. Defaults to the judge model
+ *    since both tasks are constrained and benefit from a fast/cheap model.
  */
 export const resolveModels = (): {
   agent: AnyModel;
   judge: AnyModel;
+  evalGen: AnyModel;
 } => {
   const explicitModel = process.env.SKILLET_MODEL;
   const explicitJudge = process.env.SKILLET_JUDGE_MODEL;
+  const explicitEvalGen = process.env.SKILLET_EVAL_GEN_MODEL;
 
   const agentModel = resolveModel(
     explicitModel != null && explicitModel !== "" ? explicitModel : undefined,
   );
   const judgeModel =
     explicitJudge != null && explicitJudge !== "" ? resolveModel(explicitJudge) : agentModel;
+  const evalGenModel =
+    explicitEvalGen != null && explicitEvalGen !== "" ? resolveModel(explicitEvalGen) : judgeModel;
 
-  return { agent: agentModel, judge: judgeModel };
+  return { agent: agentModel, judge: judgeModel, evalGen: evalGenModel };
 };
 
 const resolveModel = (explicit?: string): AnyModel => {

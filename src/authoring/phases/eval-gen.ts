@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { Context } from "@mariozechner/pi-ai";
 import { completeWithBackoff } from "../../agent/complete-with-backoff.js";
 import type { AnyModel } from "../../agent/provider.js";
+import { event } from "../../log.js";
 import type { Behavior, MustNot, SkillSpec } from "../../spec/index.js";
 import { buildEvalGenPrompt } from "../prompts/eval-gen.js";
 import { extractText, isRecord, stripFences } from "./_text.js";
@@ -28,9 +29,15 @@ export interface RunEvalGenResult {
   written: string[];
   /** Behavior IDs whose eval file already existed and was preserved. */
   skipped: string[];
+  /** Behavior IDs whose generation failed after retries. */
+  failed: Array<{ id: string; error: string }>;
 }
 
-/** Shape skillet enforces on each case object emitted by the LLM. */
+/** Maximum concurrent per-behavior LLM calls. */
+const DEFAULT_GEN_CONCURRENCY = 6;
+/** Maximum retries per behavior on parse/validation failure. */
+const MAX_ATTEMPTS_PER_ENTRY = 3;
+
 interface RawCase {
   name: string;
   input: string;
@@ -44,11 +51,7 @@ interface RawCase {
 const isString = (v: unknown): v is string => typeof v === "string";
 const isNumber = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 
-/**
- * Validate that an LLM-produced object matches the case schema, and
- * return a typed copy. Throws on malformed input — caller retries.
- */
-const validateCase = (raw: unknown, index: number, validIds: Set<string>): RawCase => {
+const validateCase = (raw: unknown, index: number, expectedId: string): RawCase => {
   if (!isRecord(raw)) {
     throw new Error(`case ${index}: not a JSON object`);
   }
@@ -61,9 +64,9 @@ const validateCase = (raw: unknown, index: number, validIds: Set<string>): RawCa
   if (!isString(raw.tests_behavior) || raw.tests_behavior === "") {
     throw new Error(`case ${index} (${raw.name}): missing 'tests_behavior'`);
   }
-  if (!validIds.has(raw.tests_behavior)) {
+  if (raw.tests_behavior !== expectedId) {
     throw new Error(
-      `case ${index} (${raw.name}): tests_behavior '${raw.tests_behavior}' is not in the requested set`,
+      `case ${index} (${raw.name}): tests_behavior '${raw.tests_behavior}' does not match the requested entry '${expectedId}'`,
     );
   }
   const out: RawCase = {
@@ -86,12 +89,10 @@ const validateCase = (raw: unknown, index: number, validIds: Set<string>): RawCa
 };
 
 /**
- * Render a single behavior's eval file. The wrapper is fixed —
- * skillet provides describeEval, judges, and the harness, so the LLM
- * only contributes the case list. The describeEval suite name is the
- * behavior id so vitest's reporter groups output by behavior.
+ * Render one behavior's eval file. The describeEval suite name is
+ * the entry id so vitest's reporter groups output by behavior.
  */
-const renderEvalFile = (behaviorId: string, cases: RawCase[]): string => {
+const renderEvalFile = (entryId: string, cases: RawCase[]): string => {
   const dataLines: string[] = [];
   for (const c of cases) {
     const obj: string[] = [];
@@ -124,7 +125,7 @@ import {
 
 const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\\/evals$/, "");
 
-describeEval(${JSON.stringify(behaviorId)}, {
+describeEval(${JSON.stringify(entryId)}, {
   data: [
 ${dataLines.join("\n")}
   ],
@@ -136,98 +137,129 @@ ${dataLines.join("\n")}
 `;
 };
 
+interface SingleEntryInput {
+  entry: Behavior | MustNot;
+  kind: "behavior" | "must_not";
+  mustNotRules: Array<{ id: string; statement: string }>;
+}
+
 /**
- * Group LLM-produced cases by their `tests_behavior` field. Each group
- * becomes one eval file. The set of valid IDs is provided so the
- * validator can reject cases that target unknown behaviors.
+ * Issue ONE LLM call for a single spec entry, retrying on
+ * parse/validation failure. Returns the parsed cases.
  */
-const groupCasesById = (cases: RawCase[]): Map<string, RawCase[]> => {
-  const groups = new Map<string, RawCase[]>();
-  for (const c of cases) {
-    const list = groups.get(c.tests_behavior) ?? [];
-    list.push(c);
-    groups.set(c.tests_behavior, list);
-  }
-  return groups;
-};
+const generateForEntry = async (model: AnyModel, input: SingleEntryInput): Promise<RawCase[]> => {
+  const userContent = `Generate eval case(s) for this single spec entry:\n\n\`\`\`json\n${JSON.stringify(
+    {
+      kind: input.kind,
+      entry: input.entry,
+      must_not_rules: input.mustNotRules,
+    },
+    null,
+    2,
+  )}\n\`\`\``;
 
-const callLlm = async (
-  model: AnyModel,
-  entries: Array<Behavior | MustNot>,
-  kind: Map<string, "behavior" | "must_not">,
-): Promise<RawCase[]> => {
-  const validIds = new Set(entries.map((e) => e.id));
-  const input = {
-    behaviors: entries
-      .filter((e) => kind.get(e.id) === "behavior")
-      .map((b) => ({ id: b.id, statement: b.statement, rationale: b.rationale })),
-    must_not: entries
-      .filter((e) => kind.get(e.id) === "must_not")
-      .map((m) => {
-        const mn = m as MustNot;
-        return {
-          id: mn.id,
-          statement: mn.statement,
-          rationale: mn.rationale,
-          leakage_risk: mn.leakage_risk,
-        };
-      }),
-  };
-
-  const userContent = `Generate eval cases for the following spec entries:\n\n\`\`\`json\n${JSON.stringify(input, null, 2)}\n\`\`\``;
   const context: Context = {
     systemPrompt: buildEvalGenPrompt(),
     messages: [{ role: "user", content: userContent, timestamp: Date.now() }],
   };
 
   let lastError: Error | null = null;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    if (attempt > 0) {
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS_PER_ENTRY; attempt++) {
+    if (attempt > 1) {
       context.messages.push({
         role: "user",
         content: `Your previous output failed validation: ${lastError?.message}\n\nReturn a valid JSON array of cases — only the array, no prose, no fences.`,
         timestamp: Date.now(),
       });
     }
-    const response = await completeWithBackoff(model, context, { maxTokens: 8000 });
+    event("debug", `eval-gen request behavior=${input.entry.id} attempt=${attempt}`, {
+      prompt: userContent,
+    });
+    const response = await completeWithBackoff(model, context, { maxTokens: 4000 });
     context.messages.push(response);
     const text = extractText(response);
+    event("debug", `eval-gen response behavior=${input.entry.id} attempt=${attempt}`, {
+      response: text,
+    });
+
     let parsed: unknown;
     try {
       parsed = JSON.parse(stripFences(text, "json"));
     } catch (err: unknown) {
-      lastError = new Error(
-        `response was not valid JSON: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      const msg = err instanceof Error ? err.message : String(err);
+      lastError = new Error(`response was not valid JSON: ${msg}`);
+      event("warn", `eval-gen behavior=${input.entry.id} attempt=${attempt} parse-fail`, {
+        message: lastError.message,
+        responseHead: text.slice(0, 200),
+      });
       continue;
     }
     if (!Array.isArray(parsed)) {
       lastError = new Error("response was JSON but not an array");
+      event("warn", `eval-gen behavior=${input.entry.id} attempt=${attempt} not-array`, {
+        responseHead: text.slice(0, 200),
+      });
+      continue;
+    }
+    if (parsed.length === 0) {
+      lastError = new Error("response array was empty");
+      event("warn", `eval-gen behavior=${input.entry.id} attempt=${attempt} empty-array`);
       continue;
     }
     try {
-      return parsed.map((raw, i) => validateCase(raw, i, validIds));
+      return parsed.map((raw, i) => validateCase(raw, i, input.entry.id));
     } catch (err: unknown) {
       lastError = err instanceof Error ? err : new Error(String(err));
+      event("warn", `eval-gen behavior=${input.entry.id} attempt=${attempt} validate-fail`, {
+        message: lastError.message,
+      });
       continue;
     }
   }
 
-  throw new Error(`eval-gen: failed after 3 attempts. Last error: ${lastError?.message}`);
+  throw lastError ?? new Error("eval-gen: unknown failure");
+};
+
+/**
+ * Run a list of async functions with a max concurrency cap. Lighter
+ * weight than pulling in p-limit; we have one caller and a known shape.
+ */
+const runWithConcurrency = async <T>(
+  tasks: Array<() => Promise<T>>,
+  concurrency: number,
+): Promise<T[]> => {
+  const results: T[] = Array.from({ length: tasks.length });
+  let nextIndex = 0;
+  const worker = async (): Promise<void> => {
+    while (true) {
+      const i = nextIndex;
+      nextIndex += 1;
+      if (i >= tasks.length) break;
+      const task = tasks[i];
+      if (task == null) break;
+      results[i] = await task();
+    }
+  };
+  const workers: Array<Promise<void>> = [];
+  for (let i = 0; i < Math.min(concurrency, tasks.length); i++) {
+    workers.push(worker());
+  }
+  await Promise.all(workers);
+  return results;
 };
 
 /**
  * Run the eval-gen phase: spec entries → one `.eval.ts` file per
  * behavior/must_not.
  *
- * Files are written directly to `<skillRoot>/evals/<id>.eval.ts`.
- * Existing files are PRESERVED — regen never overwrites a file the
- * user (or a prior run) has already produced. This is what makes
- * eval files durable: edit the prompt, assertion, or setup directly
- * and the change survives the next regen.
+ * Each missing entry gets its own LLM call, run in parallel up to
+ * `DEFAULT_GEN_CONCURRENCY`. Calls are retried independently. A
+ * failure on entry X does not abort entries Y and Z; the result
+ * surfaces { written, skipped, failed } so the caller can decide
+ * whether partial success is acceptable.
  *
- * Behaviors removed from the spec leave orphan files behind. Verify
- * coverage flags them; the user deletes manually.
+ * Existing eval files are PRESERVED. Edit them directly to refine
+ * prompts/setup/assertions; regen leaves them alone.
  */
 export const runEvalGen = async (
   model: AnyModel,
@@ -238,50 +270,61 @@ export const runEvalGen = async (
   const log = opts.logProgress;
   const evalsDir = join(skillRoot, "evals");
 
-  const entries: Array<Behavior | MustNot> = [...spec.behaviors, ...spec.must_not];
-  const kind = new Map<string, "behavior" | "must_not">();
-  for (const b of spec.behaviors) kind.set(b.id, "behavior");
-  for (const m of spec.must_not) kind.set(m.id, "must_not");
+  const entries: Array<{ entry: Behavior | MustNot; kind: "behavior" | "must_not" }> = [
+    ...spec.behaviors.map((b) => ({ entry: b, kind: "behavior" as const })),
+    ...spec.must_not.map((m) => ({ entry: m, kind: "must_not" as const })),
+  ];
+  const mustNotRules = spec.must_not.map((m) => ({ id: m.id, statement: m.statement }));
 
   const skipped: string[] = [];
-  const missing: Array<Behavior | MustNot> = [];
-  for (const entry of entries) {
-    const filePath = join(evalsDir, `${entry.id}.eval.ts`);
+  const missing: typeof entries = [];
+  for (const e of entries) {
+    const filePath = join(evalsDir, `${e.entry.id}.eval.ts`);
     if (existsSync(filePath)) {
-      skipped.push(entry.id);
+      skipped.push(e.entry.id);
     } else {
-      missing.push(entry);
+      missing.push(e);
     }
   }
 
   log?.(`eval-gen: ${missing.length} new file(s) to generate, ${skipped.length} preserved`);
+  event("info", `eval-gen plan`, {
+    missing: missing.map((m) => m.entry.id),
+    skipped,
+    concurrency: DEFAULT_GEN_CONCURRENCY,
+  });
 
   if (missing.length === 0) {
-    return { written: [], skipped };
-  }
-
-  const cases = await callLlm(model, missing, kind);
-  const groups = groupCasesById(cases);
-
-  // Every entry in `missing` should have at least one case. If the
-  // LLM dropped one, that's a bug; surface it loudly so the user can
-  // re-run rather than silently shipping a coverage gap.
-  const dropped = missing.filter((e) => !groups.has(e.id));
-  if (dropped.length > 0) {
-    throw new Error(
-      `eval-gen: LLM produced no cases for ${dropped.length} entry(ies): ${dropped.map((e) => e.id).join(", ")}`,
-    );
+    return { written: [], skipped, failed: [] };
   }
 
   mkdirSync(evalsDir, { recursive: true });
   const written: string[] = [];
-  for (const entry of missing) {
-    const groupCases = groups.get(entry.id) ?? [];
-    const filePath = join(evalsDir, `${entry.id}.eval.ts`);
-    writeFileSync(filePath, renderEvalFile(entry.id, groupCases), "utf-8");
-    written.push(filePath);
-    log?.(`  wrote ${filePath}`);
-  }
+  const failed: Array<{ id: string; error: string }> = [];
 
-  return { written, skipped };
+  // One task per missing entry — independent LLM call, retries
+  // isolated to that entry. Successful files are written immediately
+  // so a downstream failure leaves N-k files persisted with k pending.
+  const tasks = missing.map(({ entry, kind }) => async (): Promise<void> => {
+    const start = Date.now();
+    try {
+      const cases = await generateForEntry(model, { entry, kind, mustNotRules });
+      const filePath = join(evalsDir, `${entry.id}.eval.ts`);
+      writeFileSync(filePath, renderEvalFile(entry.id, cases), "utf-8");
+      const elapsed = Date.now() - start;
+      written.push(filePath);
+      event("info", `eval-gen behavior=${entry.id} ok=true cases=${cases.length} (${elapsed}ms)`);
+      log?.(`  wrote ${filePath}`);
+    } catch (err: unknown) {
+      const elapsed = Date.now() - start;
+      const msg = err instanceof Error ? err.message : String(err);
+      failed.push({ id: entry.id, error: msg });
+      event("error", `eval-gen behavior=${entry.id} ok=false (${elapsed}ms): ${msg}`);
+      log?.(`  failed ${entry.id}: ${msg}`);
+    }
+  });
+
+  await runWithConcurrency(tasks, DEFAULT_GEN_CONCURRENCY);
+
+  return { written, skipped, failed };
 };
