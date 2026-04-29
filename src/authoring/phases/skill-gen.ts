@@ -1,6 +1,8 @@
 import type { Context } from "@mariozechner/pi-ai";
+import { stringify as stringifyYaml } from "yaml";
 import { completeWithBackoff } from "../../agent/complete-with-backoff.js";
 import type { AnyModel } from "../../agent/provider.js";
+import { parseFrontmatter } from "../../skill/loader.js";
 import type { SkillSpec } from "../../spec/index.js";
 import { buildSkillGenPrompt } from "../prompts/skill-gen.js";
 import { extractText } from "./_text.js";
@@ -70,7 +72,55 @@ export const runSkillGen = async (model: AnyModel, spec: SkillSpec): Promise<str
   }
 
   const raw = extractText(response).trim();
-  return injectDerivedBanner(raw);
+  const withExtras = injectFrontmatterExtras(raw, spec);
+  return injectDerivedBanner(withExtras);
+};
+
+/**
+ * Merge `frontmatter_extras` from the spec into the generated
+ * SKILL.md frontmatter. Skillet captures keys like `allowed-tools`
+ * during import; rendering them here keeps the round-trip safe.
+ *
+ * The LLM never produces these keys (the prompt only mentions
+ * `name` and `description`) — they're injected mechanically.
+ */
+const injectFrontmatterExtras = (skillMd: string, spec: SkillSpec): string => {
+  const extras = spec.frontmatter_extras;
+  if (extras == null || Object.keys(extras).length === 0) return skillMd;
+  if (!skillMd.startsWith("---")) {
+    // Defensive: if the LLM dropped frontmatter, build one from
+    // scratch with the spec's typed fields plus extras.
+    const built = stringifyYaml(
+      {
+        name: spec.name,
+        description: extractDescriptionFromBody(skillMd),
+        ...extras,
+      },
+      { lineWidth: 0 },
+    );
+    return `---\n${built}---\n\n${skillMd}`;
+  }
+  const closingIdx = skillMd.indexOf("\n---", 3);
+  if (closingIdx === -1) return skillMd;
+  const yamlBlock = skillMd.slice(3, closingIdx).trim();
+  const { meta } = parseFrontmatter(`---\n${yamlBlock}\n---\n`);
+  for (const [key, value] of Object.entries(extras)) {
+    // Don't clobber a key the LLM already produced — typed fields
+    // (`name`, `description`) take precedence over extras.
+    if (!(key in meta)) {
+      meta[key] = value;
+    }
+  }
+  const rebuilt = stringifyYaml(meta, { lineWidth: 0 }).trimEnd();
+  const after = skillMd.slice(closingIdx);
+  return `---\n${rebuilt}\n${after}`;
+};
+
+const extractDescriptionFromBody = (md: string): string => {
+  // Best-effort fallback when the LLM omitted frontmatter entirely.
+  // Use the first non-empty paragraph as the description.
+  const para = md.split(/\n\s*\n/).find((p) => p.trim() !== "");
+  return para?.trim().slice(0, 500) ?? "";
 };
 
 /**

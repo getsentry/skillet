@@ -3,36 +3,101 @@ import { join, resolve } from "node:path";
 import { authorSkill } from "../authoring/loop.js";
 import { specFileName } from "../spec/index.js";
 
+/** Default `allowed-tools` for fresh skills. Permissive enough that
+ *  authoring workflows aren't blocked by permission prompts on the
+ *  first run; intentionally excludes destructive/network tools. */
+export const DEFAULT_ALLOWED_TOOLS = "Read Grep Glob Bash Edit Write";
+
 export interface CreateOptions {
   description: string;
   path?: string;
   maxIterations?: number;
+  /**
+   * Allowed-tools value for the SKILL.md frontmatter. `undefined`
+   * uses the default; an explicit empty string means "no allowed-tools
+   * line at all" (set by `--no-default-tools`).
+   */
+  allowedTools?: string;
+  noDefaultTools?: boolean;
 }
 
 const parseCreateArgs = (args: string[]): CreateOptions | null => {
-  const descParts = args.filter((a) => !a.startsWith("--"));
-  const description = descParts.join(" ").trim();
+  // Strip flags that take a value before treating remaining tokens as
+  // free-form description words. `--tools "Read Grep"` is two tokens
+  // in argv: `--tools` and `Read Grep`.
+  const desc: string[] = [];
+  let i = 0;
+  let path: string | undefined;
+  let maxIterations: number | undefined;
+  let allowedTools: string | undefined;
+  let noDefaultTools = false;
+  while (i < args.length) {
+    const a = args[i] ?? "";
+    if (a === "--no-default-tools") {
+      noDefaultTools = true;
+      i += 1;
+      continue;
+    }
+    if (a === "--tools") {
+      const next = args[i + 1];
+      if (next != null && !next.startsWith("--")) {
+        allowedTools = next;
+        i += 2;
+        continue;
+      }
+    }
+    if (a.startsWith("--tools=")) {
+      allowedTools = a.slice("--tools=".length);
+      i += 1;
+      continue;
+    }
+    if (a.startsWith("--path=")) {
+      path = a.slice("--path=".length);
+      i += 1;
+      continue;
+    }
+    if (a.startsWith("--max-iterations=")) {
+      const n = Number.parseInt(a.slice("--max-iterations=".length), 10);
+      if (!Number.isNaN(n)) maxIterations = n;
+      i += 1;
+      continue;
+    }
+    if (a.startsWith("--")) {
+      // Unknown flag — skip silently rather than treat as description.
+      i += 1;
+      continue;
+    }
+    desc.push(a);
+    i += 1;
+  }
+  const description = desc.join(" ").trim();
   if (description === "") {
     return null;
   }
 
-  const pathFlag = args.find((a) => a.startsWith("--path="));
-  const path = pathFlag?.split("=")[1];
-
-  const iterFlag = args.find((a) => a.startsWith("--max-iterations="));
-  const maxIterations = iterFlag != null ? parseInt(iterFlag.split("=")[1] ?? "", 10) : undefined;
-
   const opts: CreateOptions = { description };
   if (path != null) opts.path = path;
-  if (maxIterations != null && !Number.isNaN(maxIterations)) opts.maxIterations = maxIterations;
+  if (maxIterations != null) opts.maxIterations = maxIterations;
+  if (allowedTools != null) opts.allowedTools = allowedTools;
+  if (noDefaultTools) opts.noDefaultTools = true;
   return opts;
 };
 
 export const createCommand = async (args: string[]): Promise<number> => {
   const opts = parseCreateArgs(args);
   if (opts == null) {
-    console.error("Usage: skillet create <description> [--path=./my-skill] [--max-iterations=3]");
+    console.error(
+      'Usage: skillet create <description> [--path=./my-skill] [--max-iterations=3] [--tools "Read Grep ..."] [--no-default-tools]',
+    );
     return 1;
+  }
+
+  // Resolve the allowed-tools value for the new skill's frontmatter.
+  // Default: a permissive Claude Code subset. --tools overrides;
+  // --no-default-tools omits the field entirely.
+  let allowedTools: string | undefined;
+  if (opts.noDefaultTools !== true) {
+    allowedTools = opts.allowedTools ?? DEFAULT_ALLOWED_TOOLS;
   }
 
   const targetDir = resolve(
@@ -57,13 +122,14 @@ export const createCommand = async (args: string[]): Promise<number> => {
   }
 
   try {
-    const result = await authorSkill({
+    const authorOpts: Parameters<typeof authorSkill>[0] = {
       mode: "create",
       description: opts.description,
       path: targetDir,
-      ...(opts.maxIterations != null ? { maxIterations: opts.maxIterations } : {}),
-    });
-
+    };
+    if (opts.maxIterations != null) authorOpts.maxIterations = opts.maxIterations;
+    if (allowedTools != null) authorOpts.allowedTools = allowedTools;
+    const result = await authorSkill(authorOpts);
     return result.success ? 0 : 1;
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);

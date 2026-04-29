@@ -26,6 +26,12 @@ export interface AuthorSkillOptions {
   maxIterations?: number;
   /** Total timeout in ms for the entire authoring loop (default: 5 minutes) */
   totalTimeout?: number;
+  /**
+   * Allowed-tools value to seed into the new spec's frontmatter_extras.
+   * Only consulted in `create` mode. Pass undefined to skip; passing a
+   * string sets `frontmatter_extras["allowed-tools"]` on the new spec.
+   */
+  allowedTools?: string;
 }
 
 export interface AuthorSkillResult {
@@ -91,6 +97,12 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
     }
     console.log("Generating spec from description...");
     const spec = await runSpecInit(models.agent, description);
+    if (opts.allowedTools != null) {
+      spec.frontmatter_extras = {
+        ...spec.frontmatter_extras,
+        "allowed-tools": opts.allowedTools,
+      };
+    }
     preparedSpec = { spec, reason: "create" };
   } else if (existingSpec == null) {
     const skillMdPath = join(skillPath, "SKILL.md");

@@ -37,7 +37,7 @@ const isRecord = (v: unknown): v is Record<string, unknown> => {
  * Parse YAML frontmatter delimited by --- lines.
  * Returns { meta, body } where body is everything after the closing ---.
  */
-const parseFrontmatter = (
+export const parseFrontmatter = (
   content: string,
 ): {
   meta: Record<string, unknown>;

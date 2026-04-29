@@ -1,12 +1,35 @@
 import type { Context, Message } from "@mariozechner/pi-ai";
 import { completeWithBackoff } from "../../agent/complete-with-backoff.js";
 import type { AnyModel } from "../../agent/provider.js";
+import { parseFrontmatter } from "../../skill/loader.js";
 import { parseSpecJson, uniqueSlug, validateSpecObject, type SkillSpec } from "../../spec/index.js";
 import { buildSpecImportPrompt } from "../prompts/spec-import.js";
 import { extractText, stripFences } from "./_text.js";
 
 const SLUG_RE = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 const MAX_PARSE_RETRIES = 2;
+
+/** Frontmatter keys that skillet's typed schema covers — anything
+ *  else gets passed through opaquely as `frontmatter_extras`. */
+const KNOWN_FRONTMATTER_KEYS = new Set(["name", "description"]);
+
+/**
+ * Pluck unknown SKILL.md frontmatter keys (e.g. `allowed-tools`,
+ * `argument-hint`, `model`) from the source content so they survive
+ * the import → regen round-trip. Skillet's typed fields stay in the
+ * structured spec; everything else lives under frontmatter_extras
+ * and is rendered back into the regenerated SKILL.md.
+ */
+const captureFrontmatterExtras = (skillMdContent: string): Record<string, unknown> | undefined => {
+  const { meta } = parseFrontmatter(skillMdContent);
+  const extras: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(meta)) {
+    if (!KNOWN_FRONTMATTER_KEYS.has(key)) {
+      extras[key] = value;
+    }
+  }
+  return Object.keys(extras).length > 0 ? extras : undefined;
+};
 
 const normalize = (spec: SkillSpec): SkillSpec => {
   const usedIds = new Set<string>();
@@ -75,6 +98,13 @@ export const runSpecImport = async (
     try {
       const spec = parseSpecJson(lastRaw, "spec-import output");
       const normalized = normalize(spec);
+      // Capture unknown frontmatter keys from the source SKILL.md so
+      // the regenerated frontmatter doesn't lose them. The LLM never
+      // sees these — skillet handles them mechanically.
+      const extras = captureFrontmatterExtras(skillMdContent);
+      if (extras != null) {
+        normalized.frontmatter_extras = extras;
+      }
       const validation = validateSpecObject(normalized, "spec-import output");
       if (!validation.valid) {
         const summary = validation.errors.map((e) => `- ${e.message}`).join("\n");

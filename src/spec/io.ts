@@ -118,6 +118,13 @@ export const renderSpec = (spec: SkillSpec): string => {
     return out;
   });
 
+  // Pass-through SKILL.md frontmatter keys that aren't part of
+  // skillet's typed schema. Rendering them last keeps the read order
+  // intuitive (intent → behaviors → extras at the bottom).
+  if (spec.frontmatter_extras != null && Object.keys(spec.frontmatter_extras).length > 0) {
+    ordered.frontmatter_extras = spec.frontmatter_extras;
+  }
+
   // `lineWidth: 0` disables auto-wrapping so multi-line strings keep
   // their structure (block scalars for `intent`, `rationale`, etc).
   const yaml = stringifyYaml(ordered, { lineWidth: 0 });

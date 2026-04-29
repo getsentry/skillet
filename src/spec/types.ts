@@ -64,6 +64,14 @@ export interface SkillSpec {
   triggers: Triggers;
   behaviors: Behavior[];
   must_not: MustNot[];
+  /**
+   * Arbitrary frontmatter keys that aren't part of skillet's typed
+   * schema (e.g. `allowed-tools`, `argument-hint`, `model`). spec-import
+   * captures them from the source SKILL.md; skill-gen renders them
+   * back into the regenerated frontmatter on every regen, so unknown
+   * keys round-trip safely. Values are passed through unchanged.
+   */
+  frontmatter_extras?: Record<string, unknown>;
 }
 
 // ── Patch operations ──────────────────────────────────────

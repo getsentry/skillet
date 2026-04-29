@@ -176,6 +176,14 @@ const parseSpecValue = (parsed: unknown, source: string): SkillSpec => {
     must_not: mustNot,
   };
 
+  // Capture unknown frontmatter passthrough opaquely. Values are
+  // not type-checked — they're rendered back to SKILL.md on regen
+  // unchanged. spec-import populates this from the source SKILL.md.
+  const extras = getRecord(parsed, "frontmatter_extras");
+  if (extras != null && Object.keys(extras).length > 0) {
+    result.frontmatter_extras = extras;
+  }
+
   // Note: the `managed_by` and `spec_version` casts above are
   // deliberately permissive — wrong values pass parsing so structural
   // validation can report a useful error. The literal type is what
