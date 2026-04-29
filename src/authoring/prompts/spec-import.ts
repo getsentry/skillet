@@ -1,3 +1,5 @@
+import { OUTPUT_JSON_ONLY, SPEC_JSON_RATIONALE } from "./_spec-output-format.js";
+
 /**
  * System prompt for the spec-import phase: extract a `spec.yaml`
  * from an existing SKILL.md so a legacy skill can be migrated into
@@ -52,13 +54,7 @@ Output a single JSON object with these fields:
 }
 \`\`\`
 
-Why JSON: skill statements frequently contain colons, backticks, and
-other characters that YAML treats as syntax. JSON eliminates that
-whole class of parse errors. Skillet converts the JSON to YAML
-before writing \`spec.yaml\`.
-
-The spec captures intent only. Eval cases (prompts, expected outputs,
-setup) live in the generated \`evals/*.eval.ts\` file, not in the spec.
+${SPEC_JSON_RATIONALE}
 
 ## Extraction rules
 
@@ -84,6 +80,5 @@ setup) live in the generated \`evals/*.eval.ts\` file, not in the spec.
    spec. The improve loop's job is to tighten — yours is to capture
    faithfully.
 
-Output ONLY the JSON object. No prose, no markdown fences. Start
-with \`{\` and end with \`}\`.`;
+${OUTPUT_JSON_ONLY}`;
 };

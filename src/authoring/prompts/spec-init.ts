@@ -1,4 +1,5 @@
 import { loadAuthoringGuidance, loadSkillPatterns } from "../references.js";
+import { OUTPUT_JSON_ONLY, SPEC_JSON_RATIONALE } from "./_spec-output-format.js";
 
 /**
  * System prompt for the spec-init phase: produce a `spec.yaml` from
@@ -61,16 +62,7 @@ Output a single JSON object with these fields:
 }
 \`\`\`
 
-Why JSON: skill statements often contain colons, backticks, and other
-characters that YAML treats as syntax (e.g. \`Format PR titles as
-'feat(scope): subject'\`). JSON's strict string quoting eliminates
-that whole class of parse errors. Skillet converts the JSON to YAML
-internally before writing \`spec.yaml\`.
-
-The spec captures **what** the skill does — intent, behaviors,
-triggers. It does NOT carry eval implementation details. Eval cases
-(prompts, expected outputs, setup scripts) are generated separately
-into \`evals/*.eval.ts\` from the behavior statements.
+${SPEC_JSON_RATIONALE}
 
 ## Authoring rules
 
@@ -97,6 +89,5 @@ into \`evals/*.eval.ts\` from the behavior statements.
    set DJANGO_SETTINGS_MODULE" is a must-not (with a leakage_risk hint
    if applicable).
 
-Output ONLY the JSON object. No prose, no markdown fences. Start
-with \`{\` and end with \`}\`.`;
+${OUTPUT_JSON_ONLY}`;
 };
