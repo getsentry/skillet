@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.16.0
+
+### New Features ✨
+
+- (verify) Add trigger quality verification layer (--triggers) by @gricha in [ed11c5af](https://github.com/getsentry/skillet/commit/ed11c5af825b2837566b855ddae30e9fdfa6fe9d)
+
+### Internal Changes 🔧
+
+- Remove dead weight — assess phase, spec-format, class field, duplication by @gricha in [71646a6d](https://github.com/getsentry/skillet/commit/71646a6da0b0f7aed4cedde63c67b59e2775ef07)
+
 ## 0.15.0
 
 ### New Features ✨
