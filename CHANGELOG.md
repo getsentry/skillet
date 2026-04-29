@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.24.0
+
+### New Features ✨
+
+- (eval) Skillet compare for skill-to-skill head-to-head by @gricha in [d82deba8](https://github.com/getsentry/skillet/commit/d82deba8d457aa3c8d32ef4e033706cce6339a86)
+
 ## 0.23.0
 
 ### New Features ✨
