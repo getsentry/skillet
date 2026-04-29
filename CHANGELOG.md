@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.23.0
+
+### New Features ✨
+
+- (eval) --against flag for skill-to-skill comparison by @gricha in [ef42db1b](https://github.com/getsentry/skillet/commit/ef42db1b4f21078b86971e72e1914e636c11e67e)
+
 ## 0.22.0
 
 ### New Features ✨
