@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.24.1
+
+### New Features ✨
+
+- (authoring) Per-behavior eval-gen + structured logger by @gricha in [f7790eca](https://github.com/getsentry/skillet/commit/f7790eca66bd1c39c4d8869cf94bd047f1db03cd)
+- (spec) Frontmatter_extras + default tools on create by @gricha in [066392b1](https://github.com/getsentry/skillet/commit/066392b1a69c6e45237f94c01acfadcd1d29ea1b)
+- (staging) Transactional writes — failure leaves originals intact by @gricha in [d9100a32](https://github.com/getsentry/skillet/commit/d9100a32efc58494935987dc0f9db8d05a52061c)
+
+### Documentation 📚
+
+- (openspec) Archive resilience-and-fidelity change by @gricha in [a15096d5](https://github.com/getsentry/skillet/commit/a15096d5cf0f78a01cdcbfe88a57cf7ea9b9c3cc)
+
+### Internal Changes 🔧
+
+- (authoring) Share retry harness, normalize, prompt fragments by @gricha in [74b10312](https://github.com/getsentry/skillet/commit/74b103129b4ed57ef26b6057452bcf42504af159)
+
 ## 0.24.0
 
 ### New Features ✨
