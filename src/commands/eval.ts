@@ -13,6 +13,7 @@ export const evalCommand = async (
   pathArg?: string,
   jsonOutput = false,
   concurrency?: number,
+  againstPath?: string,
 ): Promise<number> => {
   const startPath = resolve(pathArg ?? ".");
 
@@ -25,6 +26,24 @@ export const evalCommand = async (
   }
 
   const skill = loadSkill(skillRoot);
+
+  // --against: run the eval cases with another skill's SKILL.md as
+  // the system prompt. The eval data (inputs, criteria, expected
+  // contains) stays the same; only the skill body changes. This is
+  // a fair head-to-head — same cases, same judge, two skills.
+  let comparisonSkillRoot: string | undefined;
+  if (againstPath != null) {
+    try {
+      comparisonSkillRoot = findSkillRoot(resolve(againstPath));
+      // Validate the comparison skill loads cleanly before spawning
+      // vitest — surfaces malformed SKILL.md immediately rather than
+      // producing N case-level failures.
+      loadSkill(comparisonSkillRoot);
+    } catch (err: unknown) {
+      console.error(`Error: --against skill is invalid: ${errorMessage(err)}`);
+      return 1;
+    }
+  }
 
   // Distinguish "no eval files exist" from "eval files exist but
   // vitest failed to load them" before invoking the runner. Saves
@@ -47,6 +66,10 @@ export const evalCommand = async (
   if (!jsonOutput) {
     console.log(`\nSkill: ${skill.meta.name}`);
     console.log(`Root:  ${skill.root}`);
+    if (comparisonSkillRoot != null) {
+      const compareSkill = loadSkill(comparisonSkillRoot);
+      console.log(`Against: ${compareSkill.meta.name} (${comparisonSkillRoot})`);
+    }
     console.log(`Eval files: ${evalFiles.length}\n`);
   }
 
@@ -61,6 +84,7 @@ export const evalCommand = async (
       streamProgress: !jsonOutput,
     };
     if (concurrency != null) runOpts.maxConcurrency = concurrency;
+    if (comparisonSkillRoot != null) runOpts.compareSkillRoot = comparisonSkillRoot;
     result = await runVitestEvals(runOpts);
   } catch (err: unknown) {
     if (jsonOutput) {

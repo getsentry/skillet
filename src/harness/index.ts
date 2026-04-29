@@ -60,8 +60,18 @@ const isSkilletCase = (c: HarnessCase): c is SkilletCase => {
   return typeof c.input === "string";
 };
 
+/**
+ * Env var that overrides which skill the harness loads. Set by
+ * `skillet eval <a> --against <b>` so case data from skill A runs
+ * against skill B's SKILL.md as the system prompt — a fair
+ * head-to-head where the only variable is the skill body.
+ */
+export const COMPARE_SKILL_ENV = "SKILLET_COMPARE_SKILL";
+
 export const skilletHarness = (opts: SkilletHarnessOptions): Harness<string, SkilletCase> => {
-  const skill = loadSkill(opts.skill);
+  const override = process.env[COMPARE_SKILL_ENV];
+  const skillPath = override != null && override !== "" ? override : opts.skill;
+  const skill = loadSkill(skillPath);
   const defaultTimeout = opts.defaultTimeout ?? 120_000;
 
   return {

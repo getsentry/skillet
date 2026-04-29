@@ -12,6 +12,7 @@ import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
+import { COMPARE_SKILL_ENV } from "../harness/index.js";
 import { discoverEvalTsFiles } from "./discovery.js";
 import type { EvalCaseResult, EvalRunResult, NormalizedSession, UsageSummary } from "./types.js";
 
@@ -37,6 +38,13 @@ export interface RunVitestEvalsOptions {
    * via `onCaseComplete` is shown.
    */
   streamProgress?: boolean;
+  /**
+   * Absolute path to a skill whose SKILL.md should be loaded by the
+   * harness in place of the eval file's own skill. Surfaces as the
+   * `SKILLET_COMPARE_SKILL` env var; the harness reads it and swaps
+   * the skill body before running the agent.
+   */
+  compareSkillRoot?: string;
 }
 
 const DEFAULT_MAX_CONCURRENCY = 8;
@@ -212,6 +220,14 @@ export const runVitestEvals = async (opts: RunVitestEvalsOptions): Promise<EvalR
 
   const start = Date.now();
   let stderrBuf = "";
+  // The harness reads `SKILLET_COMPARE_SKILL` at construction time;
+  // when set, it loads that skill's SKILL.md instead of the eval
+  // file's own. Used by `--against` for head-to-head comparisons.
+  const childEnv = { ...process.env };
+  if (opts.compareSkillRoot != null) {
+    childEnv[COMPARE_SKILL_ENV] = opts.compareSkillRoot;
+  }
+
   await new Promise<void>((resolve) => {
     const proc = spawn("npx", args, {
       cwd: skilletPkgRoot,
@@ -219,7 +235,7 @@ export const runVitestEvals = async (opts: RunVitestEvalsOptions): Promise<EvalR
       // writes directly to the user's terminal. Otherwise pipe and
       // ignore so output stays clean for `--json` callers.
       stdio: ["ignore", streamProgress ? "inherit" : "pipe", "pipe"],
-      env: { ...process.env },
+      env: childEnv,
     });
     if (proc.stdout != null) {
       proc.stdout.on("data", () => {});
