@@ -103,7 +103,6 @@ const validateSkill = (path: string, label: string): { skill: Skill; root: strin
 
 interface CompareOptions {
   json?: boolean;
-  concurrency?: number;
 }
 
 export const compareCommand = async (
@@ -158,7 +157,6 @@ export const compareCommand = async (
         skillRoot: target.root,
         streamProgress: !jsonOutput,
       };
-      if (opts.concurrency != null) runOpts.maxConcurrency = opts.concurrency;
       if (target.compareWith != null) runOpts.compareSkillRoot = target.compareWith;
       result = await runVitestEvals(runOpts);
     } catch (err: unknown) {

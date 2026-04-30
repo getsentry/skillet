@@ -9,11 +9,7 @@ const errorMessage = (err: unknown): string => {
   return err instanceof Error ? err.message : String(err);
 };
 
-export const evalCommand = async (
-  pathArg?: string,
-  jsonOutput = false,
-  concurrency?: number,
-): Promise<number> => {
+export const evalCommand = async (pathArg?: string, jsonOutput = false): Promise<number> => {
   const startPath = resolve(pathArg ?? ".");
 
   let skillRoot: string;
@@ -49,12 +45,10 @@ export const evalCommand = async (
 
   let result;
   try {
-    const runOpts: Parameters<typeof runVitestEvals>[0] = {
+    result = await runVitestEvals({
       skillRoot,
       streamProgress: !jsonOutput,
-    };
-    if (concurrency != null) runOpts.maxConcurrency = concurrency;
-    result = await runVitestEvals(runOpts);
+    });
   } catch (err: unknown) {
     if (jsonOutput) {
       console.log(JSON.stringify({ ok: false, error: errorMessage(err), evalFiles }, null, 2));
