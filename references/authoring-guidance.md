@@ -128,6 +128,40 @@ These are mandatory quality checks before a skill is considered complete:
 8. Tables used for decision logic instead of prose
 9. Under 500 lines (or properly extracted to references/)
 
+## Class-Specific Depth
+
+Before authoring, classify the skill. The class determines how much
+coverage is enough.
+
+| Class | Required depth |
+|---|---|
+| `workflow-process` | Preconditions, ordered workflow, failure handling, safety boundaries, validation/exit criteria |
+| `integration-documentation` | API surface, configuration/runtime options, common use cases, known issues, version or migration variance |
+| `security-review` | Vulnerability classes, exploitability checks, investigation workflow, false-positive traps, severity calibration, concrete remediations |
+| `skill-authoring` | Source provenance, depth gates, transformed examples, registration and validation |
+| `generic` | Explicit dimensions chosen from the request, with no hidden assumptions |
+
+For broad domain-expert skills, shallow is a failure mode. A concise
+description can still imply a large surface. For example, "review
+authorization bugs" implies IDOR, tenant scoping, role checks,
+mass assignment, token/session claim trust, framework guard chains,
+false-positive traps, severity calibration, and output format.
+
+Use these depth targets unless the user explicitly asks for a tiny skill:
+
+- simple procedural or convention skills: 5-10 behaviors/must-nots
+- integration/documentation skills: 10-20 behaviors/must-nots
+- security-review or domain-expert skills: 18-40 behaviors/must-nots,
+  split between detection behaviors, investigation workflow,
+  false-positive traps, severity/output rules, and neighboring classes
+  to avoid
+
+If a domain is too broad for a single compact SKILL.md, include a
+conditional reference-loading behavior and render a clear reference
+table in SKILL.md. Reference files should be introduced only when the
+authoring system supports writing them; until then, encode the
+reference routing as runtime guidance and behaviors.
+
 ## Frontmatter Template
 
 ```yaml

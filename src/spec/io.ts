@@ -118,6 +118,16 @@ export const renderSpec = (spec: SkillSpec): string => {
     return out;
   });
 
+  if (spec.references != null && spec.references.length > 0) {
+    ordered.references = spec.references.map((r) => ({
+      path: r.path,
+      title: r.title,
+      load_when: r.load_when,
+      purpose: r.purpose,
+      topics: r.topics,
+    }));
+  }
+
   // Pass-through SKILL.md frontmatter keys that aren't part of
   // skillet's typed schema. Rendering them last keeps the read order
   // intuitive (intent → behaviors → extras at the bottom).

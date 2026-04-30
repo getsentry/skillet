@@ -183,6 +183,42 @@ export const applyPatch = (spec: SkillSpec, patch: SpecPatch): SkillSpec => {
       return { ...spec, must_not: mustNot };
     }
 
+    case "add_reference": {
+      assertReferencePathAvailable(spec, patch.reference.path, "add_reference");
+      return { ...spec, references: [...(spec.references ?? []), patch.reference] };
+    }
+
+    case "update_reference": {
+      const idx = (spec.references ?? []).findIndex((r) => r.path === patch.path);
+      if (idx === -1) {
+        throw new Error(`update_reference: no reference with path '${patch.path}'`);
+      }
+      const references = (spec.references ?? []).slice();
+      const existing = references[idx];
+      if (existing == null) {
+        throw new Error(`update_reference: reference at index ${idx} is undefined`);
+      }
+      if (patch.field === "topics") {
+        if (!Array.isArray(patch.value)) {
+          throw new Error("update_reference: topics value must be an array of strings");
+        }
+        references[idx] = { ...existing, topics: patch.value };
+      } else if (typeof patch.value !== "string") {
+        throw new Error(`update_reference: ${patch.field} value must be a string`);
+      } else {
+        references[idx] = { ...existing, [patch.field]: patch.value };
+      }
+      return { ...spec, references };
+    }
+
+    case "remove_reference": {
+      const references = (spec.references ?? []).filter((r) => r.path !== patch.path);
+      if (references.length === (spec.references ?? []).length) {
+        throw new Error(`remove_reference: no reference with path '${patch.path}'`);
+      }
+      return { ...spec, references };
+    }
+
     case "add_trigger": {
       const list = patch.kind === "should" ? spec.triggers.should : spec.triggers.should_not;
       if (list.includes(patch.phrase)) {
@@ -249,5 +285,11 @@ const assertIdAvailable = (spec: SkillSpec, id: string, opName: string): void =>
     throw new Error(
       `${opName}: id '${id}' is already used by an existing ${kind}; behavior and must_not share an id namespace`,
     );
+  }
+};
+
+const assertReferencePathAvailable = (spec: SkillSpec, path: string, opName: string): void => {
+  if ((spec.references ?? []).some((r) => r.path === path)) {
+    throw new Error(`${opName}: reference path '${path}' already exists`);
   }
 };

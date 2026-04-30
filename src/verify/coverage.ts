@@ -15,6 +15,7 @@ import type { CoverageReport, OrphanCase, StructuralIssue, UncoveredEntry } from
  *   case with matching `tests_behavior` (or `<id>__<slug>` name)
  * - Every eval case's `tests_behavior` resolves to a real spec entry
  * - SKILL.md `name` (when present) matches `spec.name`
+ * - Every `references[]` entry points at an existing file
  *
  * No LLM calls. Sub-second on typical skills.
  */
@@ -67,12 +68,34 @@ export const verifyCoverage = (spec: SkillSpec, skillRoot: string): CoverageRepo
 
   // SKILL.md / spec name agreement.
   const skillMdPath = join(skillRoot, "SKILL.md");
+  let skillMdContent: string | undefined;
   if (existsSync(skillMdPath)) {
+    try {
+      skillMdContent = readFileSync(skillMdPath, "utf-8");
+    } catch {
+      skillMdContent = undefined;
+    }
     const skillName = readSkillMdName(skillMdPath);
     if (skillName != null && skillName !== spec.name) {
       issues.push({
         path: skillMdPath,
         message: `SKILL.md frontmatter name '${skillName}' does not match spec.name '${spec.name}' — run regen to refresh`,
+      });
+    }
+  }
+
+  for (const reference of spec.references ?? []) {
+    const referencePath = join(skillRoot, reference.path);
+    if (!existsSync(referencePath)) {
+      issues.push({
+        path: referencePath,
+        message: `spec references '${reference.path}' but the file is missing — run regen to create it or remove the reference from spec.yaml`,
+      });
+    }
+    if (skillMdContent != null && !skillMdContent.includes(reference.path)) {
+      issues.push({
+        path: skillMdPath,
+        message: `spec references '${reference.path}' but SKILL.md does not mention it — run regen so agents know when to load it`,
       });
     }
   }

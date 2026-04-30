@@ -27,6 +27,7 @@ export {
 export type {
   JsonPrimitive,
   JsonValue,
+  ToolCallRecord,
   NormalizedMessage,
   NormalizedSession,
   UsageSummary,

@@ -11,6 +11,7 @@ export type {
   SkillSpec,
   Behavior,
   MustNot,
+  ReferenceDoc,
   Triggers,
   SpecPatch,
   SpecValidationError,

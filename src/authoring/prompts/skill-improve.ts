@@ -37,6 +37,9 @@ Only the prose that renders them in SKILL.md is yours to tune.
 - Examples and rationale. Pull from the spec's \`rationale\` fields
   and add concrete cases showing what the rule does and doesn't
   cover.
+- Reference loading prose. If the spec has \`references[]\`, make the
+  SKILL.md clearly tell the agent which listed \`references/*.md\`
+  files to read and when.
 - Wording of the "Don't" section for must-nots.
 - Description trigger phrasing in the frontmatter.
 
@@ -46,6 +49,8 @@ Only the prose that renders them in SKILL.md is yours to tune.
   SKILL.md still has exactly 5 behavior sections — one per spec
   entry, in spec order. No additions, no removals.
 - The set of must-nots. Same rule.
+- The set of references. Same rule: keep every listed path, load
+  condition, and purpose visible; do not add new reference paths.
 - The skill name in frontmatter (\`name:\` matches \`spec.name\`).
 - The \`description\` field's trigger list. Same phrases as
   \`spec.triggers.should\`, possibly reworded but not added to.
@@ -74,7 +79,8 @@ Produce a complete SKILL.md with this structure:
 1. **Frontmatter**: \`name\` matches \`spec.name\`; \`description\`
    uses spec.intent + spec.triggers.should phrases.
 2. **One H2 section per behavior**, in spec order.
-3. **One "Don't" section** if any must-nots exist.
+3. **One reference-loading section** if \`spec.references\` is non-empty.
+4. **One "Don't" section** if any must-nots exist.
 
 Output ONLY the SKILL.md content. No explanations, no markdown
 fences. Start with \`---\` (the frontmatter delimiter).`;

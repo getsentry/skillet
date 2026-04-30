@@ -52,6 +52,19 @@ specific arguments:
 
 { "op": "remove_must_not", "id": "<must_not id>" }
 
+{ "op": "add_reference", "reference": {
+    "path": "references/<slug>.md",
+    "title": "<short title>",
+    "load_when": "<when the agent should read it>",
+    "purpose": "<why this reference exists>",
+    "topics": ["<topic>", "..."]
+} }
+{ "op": "update_reference", "path": "references/<slug>.md", "field": "title", "value": "<new title>" }
+{ "op": "update_reference", "path": "references/<slug>.md", "field": "load_when", "value": "<new condition>" }
+{ "op": "update_reference", "path": "references/<slug>.md", "field": "purpose", "value": "<new purpose>" }
+{ "op": "update_reference", "path": "references/<slug>.md", "field": "topics", "value": ["<topic>", "..."] }
+{ "op": "remove_reference", "path": "references/<slug>.md" }
+
 { "op": "add_trigger", "kind": "should", "phrase": "<phrase>" }
 { "op": "add_trigger", "kind": "should_not", "phrase": "<phrase>" }
 { "op": "remove_trigger", "kind": "should", "phrase": "<exact existing phrase>" }
@@ -77,12 +90,18 @@ specific arguments:
    Don't try to encode eval prompts, expected outputs, or test setup
    into the spec — there's nowhere for them to go.
 
-5. **Be minimal.** If feedback says "tighten behavior X to also cover
+5. **References capture durable depth, not one-off prose.** Add or
+   update a reference when feedback asks for deeper framework guidance,
+   security-review checklists, false-positive traps, severity rules, or
+   large examples that would bloat SKILL.md. Reference paths must be
+   one-level files under \`references/\`.
+
+6. **Be minimal.** If feedback says "tighten behavior X to also cover
    list comprehensions", emit one \`update_behavior\` op. Don't rewrite
    adjacent behaviors that weren't asked about. Each unnecessary op
    is a chance to introduce drift.
 
-6. **Default to adding; merge only with high precision.** When the
+7. **Default to adding; merge only with high precision.** When the
    user asks for a new behavior, your first question is "is there
    an existing behavior that already covers THIS SPECIFIC scenario?"
    If you can't answer "yes" with confidence, treat the user's
@@ -100,7 +119,7 @@ specific arguments:
    covers it, that's fine — but only with confidence. Uncertainty
    defaults to adding.
 
-7. **Empty array means no change.** Emit \`[]\` when:
+8. **Empty array means no change.** Emit \`[]\` when:
    - The feedback asks a clarifying question rather than requesting
      a change.
    - The feedback applies cleanly via existing entries (already

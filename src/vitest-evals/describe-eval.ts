@@ -50,8 +50,10 @@ export const describeEval = <TCase extends HarnessCase>(
     for (const caseData of cases) {
       const { input, name: testName } = caseData;
       const displayName = testName ?? formatTestName(input);
+      const agentTimeout = caseTimeout(caseData, options.timeout ?? 60_000);
+      const testTimeout = agentTimeout + 60_000;
 
-      testFn(displayName, { timeout: options.timeout ?? 60_000 }, async ({ task: testTask }) => {
+      testFn(displayName, { timeout: testTimeout }, async ({ task: testTask }) => {
         const artifacts: Record<string, JsonValue> = {};
         // testTask is vitest's RunnerTask; we treat its `meta` as a
         // plain string-keyed bag for skillet's purposes. The runtime
@@ -145,6 +147,11 @@ export const describeEval = <TCase extends HarnessCase>(
       });
     }
   });
+};
+
+const caseTimeout = (caseData: HarnessCase, fallback: number): number => {
+  const raw = caseData.timeout;
+  return typeof raw === "number" && Number.isFinite(raw) && raw > 0 ? raw : fallback;
 };
 
 const resolveCaseData = async <TCase extends HarnessCase>(

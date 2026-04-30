@@ -28,7 +28,6 @@
 import {
   copyFileSync,
   existsSync,
-  linkSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -133,9 +132,9 @@ const moveTree = (src: string, dst: string): void => {
  * read-modify-write (e.g. add-eval reading existing eval files,
  * spec refine reading the existing spec) see a consistent view.
  *
- * Files are HARD-LINKED rather than copied where possible to keep
- * the staging cheap. On systems without hard links (Windows, some
- * filesystems) we fall back to copy.
+ * Files are copied rather than hard-linked. A hard link would make
+ * `writeFileSync(stagedPath, ...)` truncate the live file before
+ * commit, defeating the staging contract.
  */
 export const seedStagingFromSkill = (stagingDir: string, skillRoot: string): void => {
   if (!existsSync(skillRoot)) return;
@@ -148,25 +147,13 @@ export const seedStagingFromSkill = (stagingDir: string, skillRoot: string): voi
       seedStagingFromSkill(dstPath, srcPath);
     } else if (entry.isFile()) {
       try {
-        // Hard link is cheap and identical contents until written.
-        // When a write happens against the staged path, node's
-        // writeFileSync replaces the inode rather than mutating it,
-        // so the live skill's link is unaffected.
-        linkOrCopy(srcPath, dstPath);
+        copyFileSync(srcPath, dstPath);
       } catch {
         // skip unreadable files — they'll just not appear in the
         // staged tree, which means commit won't move them; the
         // original stays put.
       }
     }
-  }
-};
-
-const linkOrCopy = (src: string, dst: string): void => {
-  try {
-    linkSync(src, dst);
-  } catch {
-    copyFileSync(src, dst);
   }
 };
 

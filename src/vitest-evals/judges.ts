@@ -1,6 +1,12 @@
 import { judge as runJudge, type JudgeArtifact } from "../eval/judge.js";
 import { resolveModels } from "../agent/provider.js";
-import type { BaseJudgeOptions, JudgeFn, JudgeResult } from "./types.js";
+import type {
+  BaseJudgeOptions,
+  HarnessRun,
+  JudgeFn,
+  JudgeResult,
+  NormalizedMessage,
+} from "./types.js";
 
 /**
  * Tag a JudgeFn with a stable name attribute. vitest-evals uses
@@ -34,6 +40,41 @@ const collectArtifactsForJudge = (run: BaseJudgeOptions["run"]): JudgeArtifact[]
   return out;
 };
 
+const stringifyForTranscript = (value: unknown): string => {
+  if (typeof value === "string") return value;
+  if (value == null) return "";
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return Object.prototype.toString.call(value);
+  }
+};
+
+const formatToolCalls = (message: NormalizedMessage): string => {
+  const calls = message.toolCalls ?? [];
+  if (calls.length === 0) return "";
+  const blocks = calls.map((call) => {
+    const details: string[] = [`name=${call.name}`];
+    if (call.arguments != null) details.push(`args=${JSON.stringify(call.arguments)}`);
+    if (call.result != null) details.push(`result=${stringifyForTranscript(call.result)}`);
+    if (call.error != null) details.push(`error=${call.error.message}`);
+    return `  - ${details.join(" ")}`;
+  });
+  return `\nTool calls:\n${blocks.join("\n")}`;
+};
+
+const formatTranscriptForJudge = (run: HarnessRun | undefined, fallbackOutput: string): string => {
+  const messages = run?.session.messages ?? [];
+  if (messages.length === 0) return fallbackOutput;
+  return messages
+    .map((message, i) => {
+      const content = stringifyForTranscript(message.content);
+      const tools = formatToolCalls(message);
+      return `### ${i + 1}. ${message.role}\n\n${content}${tools}`;
+    })
+    .join("\n\n");
+};
+
 interface CriterionJudgeOptions extends BaseJudgeOptions {
   /** The judge criterion (sourced from case data). */
   criteria?: string;
@@ -60,7 +101,8 @@ export const CriterionJudge = (): JudgeFn => {
     }
     const model = resolveModels().judge;
     const artifacts = collectArtifactsForJudge(opts.run);
-    const result = await runJudge(model, opts.output, criteria, artifacts);
+    const transcript = formatTranscriptForJudge(opts.run, opts.output);
+    const result = await runJudge(model, transcript, criteria, artifacts);
     return {
       score: result.score,
       metadata: { rationale: result.reasoning, grade: result.grade },

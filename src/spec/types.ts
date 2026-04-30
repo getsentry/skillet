@@ -52,6 +52,22 @@ export interface Triggers {
   should_not: string[];
 }
 
+export interface ReferenceDoc {
+  /**
+   * Relative path under the skill root. Must be one-level-deep under
+   * `references/`, e.g. `references/django.md`.
+   */
+  path: string;
+  /** Human-readable title for the reference file. */
+  title: string;
+  /** Condition for when SKILL.md should tell the agent to read it. */
+  load_when: string;
+  /** Why this reference exists and what gap it fills. */
+  purpose: string;
+  /** Focused topics the generated reference should cover. */
+  topics: string[];
+}
+
 export interface SkillSpec {
   /** Always the literal string `"skillet"` — declares CLI ownership. */
   managed_by: "skillet";
@@ -64,6 +80,12 @@ export interface SkillSpec {
   triggers: Triggers;
   behaviors: Behavior[];
   must_not: MustNot[];
+  /**
+   * Optional reference artifacts for domain-expert skills. These are
+   * generated when missing and then preserved so authors can tune
+   * them by hand, mirroring eval file durability.
+   */
+  references?: ReferenceDoc[];
   /**
    * Arbitrary frontmatter keys that aren't part of skillet's typed
    * schema (e.g. `allowed-tools`, `argument-hint`, `model`). spec-import
@@ -100,6 +122,14 @@ export type SpecPatch =
     }
   | { op: "add_must_not"; must_not: MustNot }
   | { op: "remove_must_not"; id: string }
+  | { op: "add_reference"; reference: ReferenceDoc }
+  | {
+      op: "update_reference";
+      path: string;
+      field: "title" | "load_when" | "purpose" | "topics";
+      value: string | string[];
+    }
+  | { op: "remove_reference"; path: string }
   | { op: "add_trigger"; kind: "should" | "should_not"; phrase: string }
   | { op: "remove_trigger"; kind: "should" | "should_not"; phrase: string };
 
@@ -112,6 +142,9 @@ export const SPEC_PATCH_OPS = [
   "update_must_not",
   "add_must_not",
   "remove_must_not",
+  "add_reference",
+  "update_reference",
+  "remove_reference",
   "add_trigger",
   "remove_trigger",
 ] as const satisfies ReadonlyArray<SpecPatch["op"]>;

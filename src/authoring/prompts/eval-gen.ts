@@ -88,7 +88,11 @@ Each case object:
 
 6. **\`setup\` is shell.** Multi-line scripts are fine. Use heredocs to
    write fixture files. Relative paths only — the harness drops you
-   into a fresh temp directory.
+   into a fresh temp directory. Always create parent directories before
+   writing nested files (\`mkdir -p config app/controllers tests/fixtures\`
+   as needed). Setup is preflighted before the eval file is written, so
+   missing directories, failed \`git commit\`, and shell syntax errors
+   will be rejected and retried.
 
 ## Must-not awareness (critical)
 

@@ -52,35 +52,76 @@ interface RawVerdict {
   reasoning?: unknown;
 }
 
+interface SemanticRuleInput {
+  id: string;
+  kind: "behavior" | "must_not";
+  statement: string;
+  rationale?: string;
+}
+
+const SEMANTIC_BATCH_SIZE = 12;
+
 const isVerdict = (v: unknown): v is SemanticVerdict => {
   return v === "encoded" || v === "partial" || v === "missing";
 };
 
-const formatRules = (behaviors: Behavior[], mustNots: MustNot[]): string => {
-  const blocks: string[] = [];
-  if (behaviors.length > 0) {
-    blocks.push(
-      "## Behavior rules (skill MUST do)\n\n" +
-        behaviors
-          .map((b) => {
-            const rationale = b.rationale != null ? `\n  rationale: ${b.rationale}` : "";
-            return `- id: ${b.id}\n  statement: ${b.statement}${rationale}`;
-          })
-          .join("\n"),
-    );
+const toRules = (behaviors: Behavior[], mustNots: MustNot[]): SemanticRuleInput[] => {
+  return [
+    ...behaviors.map((b) => ({
+      id: b.id,
+      kind: "behavior" as const,
+      statement: b.statement,
+      rationale: b.rationale,
+    })),
+    ...mustNots.map((m) => ({
+      id: m.id,
+      kind: "must_not" as const,
+      statement: m.statement,
+      rationale: m.rationale,
+    })),
+  ];
+};
+
+const formatRules = (rules: SemanticRuleInput[]): string => {
+  return rules
+    .map((r) => {
+      const label = r.kind === "behavior" ? "behavior" : "must_not";
+      const rationale = r.rationale != null ? `\n  rationale: ${r.rationale}` : "";
+      return `- kind: ${label}\n  id: ${r.id}\n  statement: ${r.statement}${rationale}`;
+    })
+    .join("\n");
+};
+
+const chunks = <T>(items: T[], size: number): T[][] => {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    out.push(items.slice(i, i + size));
   }
-  if (mustNots.length > 0) {
-    blocks.push(
-      "## Must-not rules (skill MUST NOT do)\n\n" +
-        mustNots
-          .map((m) => {
-            const rationale = m.rationale != null ? `\n  rationale: ${m.rationale}` : "";
-            return `- id: ${m.id}\n  statement: ${m.statement}${rationale}`;
-          })
-          .join("\n"),
-    );
+  return out;
+};
+
+const parseJsonArray = (text: string): unknown[] => {
+  const stripped = stripFences(text, "json");
+  try {
+    const parsed: unknown = JSON.parse(stripped);
+    if (!Array.isArray(parsed)) {
+      throw new Error("semantic judge response was JSON but not an array");
+    }
+    return parsed;
+  } catch (firstErr: unknown) {
+    const start = stripped.indexOf("[");
+    const end = stripped.lastIndexOf("]");
+    if (start === -1 || end === -1 || end <= start) {
+      const msg = firstErr instanceof Error ? firstErr.message : String(firstErr);
+      throw new Error(`semantic judge response was not a JSON array: ${msg}`, { cause: firstErr });
+    }
+    const candidate = stripped.slice(start, end + 1);
+    const parsed: unknown = JSON.parse(candidate);
+    if (!Array.isArray(parsed)) {
+      throw new Error("semantic judge response was JSON but not an array", { cause: firstErr });
+    }
+    return parsed;
   }
-  return blocks.join("\n\n");
 };
 
 /**
@@ -94,68 +135,48 @@ export const verifySemantic = async (
   skillMd: string,
   judgeModel: AnyModel,
 ): Promise<SemanticReport> => {
-  const rules = formatRules(spec.behaviors, spec.must_not);
-  const userContent = `${rules}\n\n## SKILL.md\n\n${skillMd}\n\nReturn one JSON array of verdicts in spec order.`;
-
-  const context: Context = {
-    systemPrompt: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: userContent, timestamp: Date.now() }],
-  };
-
-  const response = await completeWithBackoff(judgeModel, context, { maxTokens: 2000 });
-  const text = extractText(response);
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(stripFences(text, "json"));
-  } catch {
-    // The judge produced malformed JSON. We can't grade — treat every
-    // rule as `missing` so the user sees the failure rather than a
-    // silent green light.
-    const fallback: SemanticBehaviorVerdict[] = [];
-    for (const b of spec.behaviors) {
-      fallback.push({
-        id: b.id,
-        kind: "behavior",
-        verdict: "missing",
-        reasoning: "judge response was not valid JSON; cannot determine semantic coverage",
-      });
-    }
-    for (const m of spec.must_not) {
-      fallback.push({
-        id: m.id,
-        kind: "must_not",
-        verdict: "missing",
-        reasoning: "judge response was not valid JSON; cannot determine semantic coverage",
-      });
-    }
-    return { ok: false, behaviors: fallback };
-  }
-
-  if (!Array.isArray(parsed)) {
-    return {
-      ok: false,
-      behaviors: [],
-    };
-  }
-
-  const verdictsById = new Map<string, RawVerdict>();
-  for (const v of parsed) {
-    if (!isRecord(v)) continue;
-    const id = v.id;
-    if (typeof id === "string") {
-      verdictsById.set(id, { id, verdict: v.verdict, reasoning: v.reasoning });
-    }
-  }
-
   const out: SemanticBehaviorVerdict[] = [];
-  for (const b of spec.behaviors) {
-    const raw = verdictsById.get(b.id);
-    out.push(toVerdict(b.id, "behavior", raw));
-  }
-  for (const m of spec.must_not) {
-    const raw = verdictsById.get(m.id);
-    out.push(toVerdict(m.id, "must_not", raw));
+
+  for (const batch of chunks(toRules(spec.behaviors, spec.must_not), SEMANTIC_BATCH_SIZE)) {
+    const rules = formatRules(batch);
+    const userContent = `## Rules to check in this batch\n\n${rules}\n\n## SKILL.md\n\n${skillMd}\n\nReturn one JSON array of verdicts for this batch only, in the same order as the rules above.`;
+
+    const context: Context = {
+      systemPrompt: SYSTEM_PROMPT,
+      messages: [{ role: "user", content: userContent, timestamp: Date.now() }],
+    };
+
+    const response = await completeWithBackoff(judgeModel, context, { maxTokens: 3000 });
+    const text = extractText(response);
+
+    let parsed: unknown[];
+    try {
+      parsed = parseJsonArray(text);
+    } catch {
+      for (const rule of batch) {
+        out.push({
+          id: rule.id,
+          kind: rule.kind,
+          verdict: "missing",
+          reasoning: "judge response was not valid JSON; cannot determine semantic coverage",
+        });
+      }
+      continue;
+    }
+
+    const verdictsById = new Map<string, RawVerdict>();
+    for (const v of parsed) {
+      if (!isRecord(v)) continue;
+      const id = v.id;
+      if (typeof id === "string") {
+        verdictsById.set(id, { id, verdict: v.verdict, reasoning: v.reasoning });
+      }
+    }
+
+    for (const rule of batch) {
+      const raw = verdictsById.get(rule.id);
+      out.push(toVerdict(rule.id, rule.kind, raw));
+    }
   }
 
   const ok = out.every((v) => v.verdict === "encoded");

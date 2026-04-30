@@ -72,7 +72,7 @@ export const skilletHarness = (opts: SkilletHarnessOptions): Harness<string, Ski
   const override = process.env[COMPARE_SKILL_ENV];
   const skillPath = override != null && override !== "" ? override : opts.skill;
   const skill = loadSkill(skillPath);
-  const defaultTimeout = opts.defaultTimeout ?? 120_000;
+  const defaultTimeout = opts.defaultTimeout ?? 180_000;
 
   return {
     name: "skillet",

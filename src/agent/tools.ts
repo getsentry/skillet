@@ -43,10 +43,11 @@ export const createToolDefs = (): Tool[] => {
     },
     {
       name: "read_file",
-      description: "Read the contents of a file.",
+      description:
+        "Read the contents of a file. Paths are relative to the workspace; skill reference files under references/*.md are also readable by their relative path.",
       parameters: Type.Object({
         path: Type.String({
-          description: "File path relative to workspace or absolute",
+          description: "File path relative to workspace, absolute path, or references/<name>.md",
         }),
       }),
     },
@@ -72,7 +73,8 @@ export const createToolDefs = (): Tool[] => {
     },
     {
       name: "list_files",
-      description: "List files in a directory.",
+      description:
+        "List files in a directory. Use path='references' to list skill reference files when available.",
       parameters: Type.Object({
         path: Type.Optional(
           Type.String({
@@ -84,7 +86,8 @@ export const createToolDefs = (): Tool[] => {
     },
     {
       name: "grep",
-      description: "Search for a regex pattern in files under the workspace.",
+      description:
+        "Search for a regex pattern in files under the workspace. Skill references under references/*.md are searchable by using path='references' or an exact references/<name>.md path.",
       parameters: Type.Object({
         pattern: Type.String({ description: "Regex pattern to search for" }),
         path: Type.Optional(
@@ -105,12 +108,13 @@ export const executeTool = (
   workDir: string,
   name: string,
   args: Record<string, unknown>,
+  skillRoot?: string,
 ): string => {
   switch (name) {
     case "bash":
       return execBash(workDir, stringArg(args, "command"));
     case "read_file":
-      return execReadFile(workDir, stringArg(args, "path"));
+      return execReadFile(workDir, stringArg(args, "path"), skillRoot);
     case "write_file":
       return execWriteFile(workDir, stringArg(args, "path"), stringArg(args, "content"));
     case "edit_file":
@@ -121,9 +125,9 @@ export const executeTool = (
         stringArg(args, "new_string"),
       );
     case "list_files":
-      return execListFiles(workDir, stringArg(args, "path", "."));
+      return execListFiles(workDir, stringArg(args, "path", "."), skillRoot);
     case "grep":
-      return execGrep(workDir, stringArg(args, "pattern"), stringArg(args, "path", "."));
+      return execGrep(workDir, stringArg(args, "pattern"), stringArg(args, "path", "."), skillRoot);
     default:
       return `Error: unknown tool "${name}"`;
   }
@@ -151,8 +155,8 @@ const execBash = (workDir: string, command: string): string => {
   }
 };
 
-const execReadFile = (workDir: string, path: string): string => {
-  const abs = resolve(workDir, path);
+const execReadFile = (workDir: string, path: string, skillRoot?: string): string => {
+  const abs = resolveReadablePath(workDir, path, skillRoot);
   if (!existsSync(abs)) return `Error: file not found: ${path}`;
   try {
     return readFileSync(abs, "utf-8");
@@ -193,8 +197,8 @@ const execEditFile = (
   }
 };
 
-const execListFiles = (workDir: string, path: string): string => {
-  const abs = resolve(workDir, path);
+const execListFiles = (workDir: string, path: string, skillRoot?: string): string => {
+  const abs = resolveReadablePath(workDir, path, skillRoot);
   if (!existsSync(abs)) return `Error: directory not found: ${path}`;
   try {
     const entries = collectFiles(abs, abs);
@@ -204,9 +208,10 @@ const execListFiles = (workDir: string, path: string): string => {
   }
 };
 
-const execGrep = (workDir: string, pattern: string, path: string): string => {
+const execGrep = (workDir: string, pattern: string, path: string, skillRoot?: string): string => {
+  const abs = resolveReadablePath(workDir, path, skillRoot);
   try {
-    const result = execSync(`grep -rn --include='*' "${pattern.replace(/"/g, '\\"')}" "${path}"`, {
+    const result = execSync(`grep -rn --include='*' "${pattern.replace(/"/g, '\\"')}" "${abs}"`, {
       cwd: workDir,
       stdio: "pipe",
       timeout: 10_000,
@@ -216,6 +221,18 @@ const execGrep = (workDir: string, pattern: string, path: string): string => {
   } catch {
     return "(no matches)";
   }
+};
+
+const isSkillReferencePath = (path: string): boolean => {
+  return path === "references" || /^references\/[a-z][a-z0-9-]*\.md$/.test(path);
+};
+
+const resolveReadablePath = (workDir: string, path: string, skillRoot?: string): string => {
+  if (skillRoot != null && isSkillReferencePath(path)) {
+    const skillPath = resolve(skillRoot, path);
+    if (existsSync(skillPath)) return skillPath;
+  }
+  return resolve(workDir, path);
 };
 
 const collectFiles = (dir: string, root: string, maxDepth = 4, depth = 0): string[] => {

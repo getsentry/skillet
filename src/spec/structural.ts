@@ -7,6 +7,7 @@ const isRecord = (v: unknown): v is Record<string, unknown> => {
 
 /** Slug regex — kebab-case, must start with a letter. */
 const SLUG_RE = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
+const REFERENCE_PATH_RE = /^references\/[a-z][a-z0-9-]*\.md$/;
 
 /**
  * Validate raw `spec.yaml` text for structural issues that prevent
@@ -149,7 +150,61 @@ export const validateSpecYaml = (
     }
   }
 
+  const references = parsed.references;
+  if (references != null) {
+    if (!Array.isArray(references)) {
+      errors.push({ path: source, message: "'references' must be an array (or omitted)" });
+    } else {
+      const seenPaths = new Set<string>();
+      references.forEach((entry, i) => {
+        validateReferenceEntry(entry, i, source, errors, seenPaths);
+      });
+    }
+  }
+
   return { valid: errors.length === 0, errors };
+};
+
+const validateReferenceEntry = (
+  entry: unknown,
+  index: number,
+  source: string,
+  errors: SpecValidationError[],
+  seenPaths: Set<string>,
+): void => {
+  if (!isRecord(entry)) {
+    errors.push({ path: source, message: `references[${index}] must be an object` });
+    return;
+  }
+  const rawPath = entry.path;
+  if (typeof rawPath !== "string" || rawPath.trim() === "") {
+    errors.push({ path: source, message: `references[${index}] missing required 'path'` });
+  } else if (!REFERENCE_PATH_RE.test(rawPath)) {
+    errors.push({
+      path: source,
+      message: `reference path '${rawPath}' must match references/<slug>.md with no nested directories`,
+    });
+  } else if (seenPaths.has(rawPath)) {
+    errors.push({ path: source, message: `duplicate reference path '${rawPath}'` });
+  } else {
+    seenPaths.add(rawPath);
+  }
+
+  for (const field of ["title", "load_when", "purpose"] as const) {
+    if (typeof entry[field] !== "string" || entry[field].trim() === "") {
+      const ref = typeof rawPath === "string" ? rawPath : `index ${index}`;
+      errors.push({ path: source, message: `reference '${ref}' missing required '${field}'` });
+    }
+  }
+
+  const topics = entry.topics;
+  if (!Array.isArray(topics) || topics.length === 0) {
+    const ref = typeof rawPath === "string" ? rawPath : `index ${index}`;
+    errors.push({ path: source, message: `reference '${ref}' must include non-empty topics[]` });
+  } else if (!topics.every((topic) => typeof topic === "string" && topic.trim() !== "")) {
+    const ref = typeof rawPath === "string" ? rawPath : `index ${index}`;
+    errors.push({ path: source, message: `reference '${ref}' topics[] entries must be strings` });
+  }
 };
 
 /**
@@ -214,6 +269,35 @@ export const validateSpecObject = (
     }
     if (m.statement.trim() === "") {
       errors.push({ path: source, message: `must_not '${m.id}' has empty statement` });
+    }
+  }
+
+  const seenReferences = new Set<string>();
+  for (const [i, r] of (spec.references ?? []).entries()) {
+    if (!REFERENCE_PATH_RE.test(r.path)) {
+      errors.push({
+        path: source,
+        message: `references[${i}] path '${r.path}' must match references/<slug>.md`,
+      });
+    } else if (seenReferences.has(r.path)) {
+      errors.push({ path: source, message: `duplicate reference path '${r.path}'` });
+    } else {
+      seenReferences.add(r.path);
+    }
+    if (r.title.trim() === "") {
+      errors.push({ path: source, message: `reference '${r.path}' has empty title` });
+    }
+    if (r.load_when.trim() === "") {
+      errors.push({ path: source, message: `reference '${r.path}' has empty load_when` });
+    }
+    if (r.purpose.trim() === "") {
+      errors.push({ path: source, message: `reference '${r.path}' has empty purpose` });
+    }
+    if (r.topics.length === 0 || r.topics.some((topic) => topic.trim() === "")) {
+      errors.push({
+        path: source,
+        message: `reference '${r.path}' must include non-empty topics[]`,
+      });
     }
   }
 

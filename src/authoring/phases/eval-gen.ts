@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { Context } from "@mariozechner/pi-ai";
 import { completeWithBackoff } from "../../agent/complete-with-backoff.js";
 import type { AnyModel } from "../../agent/provider.js";
+import { createWorkspace } from "../../eval/workspace.js";
 import { event } from "../../log.js";
 import type { Behavior, MustNot, SkillSpec } from "../../spec/index.js";
 import { buildEvalGenPrompt } from "../prompts/eval-gen.js";
@@ -88,6 +89,19 @@ const validateCase = (raw: unknown, index: number, expectedId: string): RawCase 
   return out;
 };
 
+const validateCaseSetup = (c: RawCase): void => {
+  if (c.setup == null || c.setup === "") return;
+  const workspace = createWorkspace({ setup: c.setup });
+  workspace.cleanup();
+};
+
+const validateGeneratedCases = (cases: RawCase[]): RawCase[] => {
+  for (const c of cases) {
+    validateCaseSetup(c);
+  }
+  return cases;
+};
+
 /**
  * Render one behavior's eval file. The describeEval suite name is
  * the entry id so vitest's reporter groups output by behavior.
@@ -132,7 +146,7 @@ ${dataLines.join("\n")}
   harness: skilletHarness({ skill: skillRoot }),
   judges: [SubstringJudge(), CriterionJudge()],
   threshold: 0.75,
-  timeout: 120_000,
+  timeout: 180_000,
 });
 `;
 };
@@ -207,7 +221,8 @@ const generateForEntry = async (model: AnyModel, input: SingleEntryInput): Promi
       continue;
     }
     try {
-      return parsed.map((raw, i) => validateCase(raw, i, input.entry.id));
+      const cases = parsed.map((raw, i) => validateCase(raw, i, input.entry.id));
+      return validateGeneratedCases(cases);
     } catch (err: unknown) {
       lastError = err instanceof Error ? err : new Error(String(err));
       event("warn", `eval-gen behavior=${input.entry.id} attempt=${attempt} validate-fail`, {

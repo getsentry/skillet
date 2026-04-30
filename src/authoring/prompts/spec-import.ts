@@ -50,6 +50,16 @@ Output a single JSON object with these fields:
       "id": "<kebab-case slug>",
       "statement": "<SKILL.md's explicit 'don't do X' rule>"
     }
+  ],
+
+  "references": [
+    {
+      "path": "references/<slug>.md",
+      "title": "<title from SKILL.md or path-derived title>",
+      "load_when": "<condition described in SKILL.md>",
+      "purpose": "<why SKILL.md says to load it>",
+      "topics": ["<topic from surrounding context>", "..."]
+    }
   ]
 }
 \`\`\`
@@ -71,11 +81,17 @@ ${SPEC_JSON_RATIONALE}
    mention X", "Never tell the user Y", "Refuse to do Z". If the
    SKILL.md has no negative rules, leave \`must_not\` empty.
 
-4. **IDs must be kebab-case slugs unique across behaviors AND
+4. **References come from explicit reference-loading guidance.** If
+   SKILL.md names files under \`references/\`, capture them in
+   \`references[]\` with the exact path. Infer \`title\`, \`load_when\`,
+   \`purpose\`, and \`topics\` from the table, heading, or nearby prose.
+   Do not invent new reference files during import.
+
+5. **IDs must be kebab-case slugs unique across behaviors AND
    must_nots.** If you can't decide, omit the id and skillet will
    auto-slugify from the statement.
 
-5. **Don't tighten or improve the rules during import.** A bad
+6. **Don't tighten or improve the rules during import.** A bad
    instruction in SKILL.md should produce a bad behavior in the
    spec. The improve loop's job is to tighten — yours is to capture
    faithfully.

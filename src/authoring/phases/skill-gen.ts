@@ -49,6 +49,7 @@ export const runSkillGen = async (model: AnyModel, spec: SkillSpec): Promise<str
         rationale: m.rationale,
         leakage_risk: m.leakage_risk,
       })),
+      references: spec.references ?? [],
     },
     null,
     2,

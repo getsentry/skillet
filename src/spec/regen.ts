@@ -2,6 +2,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AnyModel } from "../agent/provider.js";
 import { runEvalGen } from "../authoring/phases/eval-gen.js";
+import { runReferenceGen } from "../authoring/phases/reference-gen.js";
 import { runSkillGen } from "../authoring/phases/skill-gen.js";
 import { event } from "../log.js";
 import { readSpec, validateSpecObject } from "./index.js";
@@ -30,6 +31,10 @@ export interface RegenerateResult {
   evalFilesSkipped: string[];
   /** Behavior IDs whose generation failed after retries. */
   evalFilesFailed: Array<{ id: string; error: string }>;
+  /** Reference files written this run (new only). */
+  referenceFilesWritten: string[];
+  /** Reference files already present and preserved. */
+  referenceFilesSkipped: string[];
 }
 
 /**
@@ -76,6 +81,11 @@ export const regenerate = async (
   writeFileSync(skillMdPath, skillMd, "utf-8");
   log(`wrote ${skillMdPath}`);
 
+  log("rendering reference files from spec");
+  const referenceGen = await runReferenceGen(model, spec, skillRoot, {
+    logProgress: log,
+  });
+
   log("rendering eval cases from spec");
   const evalGenModel = opts.evalGenModel ?? model;
   const { written, skipped, failed } = await runEvalGen(evalGenModel, spec, skillRoot, {
@@ -101,5 +111,7 @@ export const regenerate = async (
     evalFilesWritten: written,
     evalFilesSkipped: skipped,
     evalFilesFailed: failed,
+    referenceFilesWritten: referenceGen.written,
+    referenceFilesSkipped: referenceGen.skipped,
   };
 };

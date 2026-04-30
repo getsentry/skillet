@@ -6,7 +6,27 @@ import {
   type SkillSpec,
 } from "../../spec/index.js";
 import { buildSpecInitPrompt } from "../prompts/spec-init.js";
-import { runJsonPhaseWithRetries } from "./_retry.js";
+import { isRecord } from "./_text.js";
+import { PhaseInterruptedForHumanInput, runJsonPhaseWithRetries } from "./_retry.js";
+
+const interruptIfHumanInputNeeded = (raw: string): void => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return;
+  }
+  if (!isRecord(parsed) || parsed.needs_human !== true) return;
+  const question =
+    typeof parsed.question === "string" && parsed.question.trim() !== ""
+      ? parsed.question.trim()
+      : "The spec planning phase needs a human decision before continuing.";
+  const why =
+    typeof parsed.why === "string" && parsed.why.trim() !== ""
+      ? parsed.why.trim()
+      : "The requested skill has high-impact ambiguity that would affect generated behaviors and evals.";
+  throw new PhaseInterruptedForHumanInput(question, why);
+};
 
 /**
  * Run the spec-init phase: description → SkillSpec.
@@ -23,6 +43,7 @@ export const runSpecInit = async (model: AnyModel, description: string): Promise
     userMessage: `Create a spec for the following skill:\n\n${description}`,
     phaseName: "spec-init",
     parseAndValidate: (raw) => {
+      interruptIfHumanInputNeeded(raw);
       const spec = parseSpecJson(raw, "spec-init output");
       const normalized = normalizeSpec(spec);
       const validation = validateSpecObject(normalized, "spec-init output");

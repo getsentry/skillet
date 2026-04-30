@@ -69,6 +69,15 @@ You receive a JSON spec object with this shape:
   "must_not": [
     { "id": "...", "statement": "<rule>", "rationale": "<why>" },
     ...
+  ],
+  "references": [
+    {
+      "path": "references/<slug>.md",
+      "title": "<short title>",
+      "load_when": "<when the agent should read it>",
+      "purpose": "<why it exists>",
+      "topics": ["<topic>", "..."]
+    }
   ]
 }
 \`\`\`
@@ -93,14 +102,19 @@ Produce a complete SKILL.md with this structure:
    what + why (drawing on the rationale). Do not invent rules the
    spec doesn't have.
 
-3. **Don't section** for must_nots: a single H2 (e.g. "## Don't") with
+3. **Reference Loading section** when \`references\` is non-empty: one
+   H2 that tells the agent which \`references/*.md\` files to read and
+   when. Use a compact table with path, load condition, and purpose.
+   Do not inline the full reference content into SKILL.md.
+
+4. **Don't section** for must_nots: a single H2 (e.g. "## Don't") with
    a tight bulleted list of negative rules. Each must_not.statement
    becomes one bullet, with its rationale folded in if non-trivial.
 
-4. **No "About this skill", "Examples", or other padding sections** —
-   sections must correspond 1:1 to spec entries. SKILL.md is derived
-   from the spec; if a section isn't justified by a spec entry, it
-   shouldn't exist.
+5. **No "About this skill", "Examples", or other padding sections** —
+   sections must correspond to spec entries or to \`references[]\`.
+   SKILL.md is derived from the spec; if a section isn't justified by
+   a spec entry, it shouldn't exist.
 
 ## Strict rules
 
@@ -126,11 +140,16 @@ Produce a complete SKILL.md with this structure:
    stand alone — never write "use the X skill", "run sentry-skills:Y",
    or "load skills/other-skill/references/foo.md".
 
-6. **Under 500 lines total.** If a behavior's section is long enough
+6. **Reference paths are runtime instructions.** When \`references[]\`
+   exists, mention the listed relative paths verbatim and only those
+   paths. Write "Read \`references/foo.md\` when ..." rather than
+   embedding the reference file's content.
+
+7. **Under 500 lines total.** If a behavior's section is long enough
    to push you over, that's a sign the behavior should be split into
    multiple behaviors at the spec level.
 
-7. **No emoji unless the user explicitly asked for them in the
+8. **No emoji unless the user explicitly asked for them in the
    description.** Default to text + ASCII markers.
 
 Output ONLY the SKILL.md content. No explanations, no markdown fences

@@ -13,9 +13,21 @@ export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue
 
 // ── Session / Messages ────────────────────────────────────
 
+export interface ToolCallRecord {
+  id?: string;
+  name: string;
+  arguments?: Record<string, JsonValue>;
+  result?: JsonValue;
+  error?: { message: string; type?: string };
+  startedAt?: string;
+  finishedAt?: string;
+  durationMs?: number;
+}
+
 export interface NormalizedMessage {
   role: "system" | "user" | "assistant" | "tool";
   content?: JsonValue;
+  toolCalls?: ToolCallRecord[];
   metadata?: Record<string, JsonValue>;
 }
 

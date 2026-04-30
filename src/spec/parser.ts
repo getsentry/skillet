@@ -1,5 +1,5 @@
 import { parse as parseYaml } from "yaml";
-import type { Behavior, MustNot, SkillSpec, Triggers } from "./types.js";
+import type { Behavior, MustNot, ReferenceDoc, SkillSpec, Triggers } from "./types.js";
 
 // ── Type guards ────────────────────────────────────────────
 
@@ -88,6 +88,36 @@ const parseTriggers = (raw: Record<string, unknown> | undefined): Triggers => {
   };
 };
 
+const parseReference = (
+  entry: Record<string, unknown>,
+  index: number,
+  source: string,
+): ReferenceDoc => {
+  const path = getString(entry, "path");
+  if (path == null || path === "") {
+    throw new Error(`spec ${source}: reference at index ${index} missing 'path'`);
+  }
+  const title = getString(entry, "title");
+  if (title == null || title === "") {
+    throw new Error(`spec ${source}: reference '${path}' missing 'title'`);
+  }
+  const loadWhen = getString(entry, "load_when");
+  if (loadWhen == null || loadWhen === "") {
+    throw new Error(`spec ${source}: reference '${path}' missing 'load_when'`);
+  }
+  const purpose = getString(entry, "purpose");
+  if (purpose == null || purpose === "") {
+    throw new Error(`spec ${source}: reference '${path}' missing 'purpose'`);
+  }
+  return {
+    path,
+    title,
+    load_when: loadWhen,
+    purpose,
+    topics: getStringArray(entry, "topics"),
+  };
+};
+
 // ── Public API ─────────────────────────────────────────────
 
 /**
@@ -166,6 +196,14 @@ const parseSpecValue = (parsed: unknown, source: string): SkillSpec => {
     return parseMustNot(entry, i, source);
   });
 
+  const referencesRaw = getArray(parsed, "references") ?? [];
+  const references: ReferenceDoc[] = referencesRaw.map((entry, i) => {
+    if (!isRecord(entry)) {
+      throw new Error(`spec ${source}: references[${i}] is not an object`);
+    }
+    return parseReference(entry, i, source);
+  });
+
   const result: SkillSpec = {
     managed_by: managedBy === "skillet" ? "skillet" : ("skillet" as const),
     spec_version: specVersion === 1 ? 1 : (1 as const),
@@ -175,6 +213,10 @@ const parseSpecValue = (parsed: unknown, source: string): SkillSpec => {
     behaviors,
     must_not: mustNot,
   };
+
+  if (references.length > 0) {
+    result.references = references;
+  }
 
   // Capture unknown frontmatter passthrough opaquely. Values are
   // not type-checked — they're rendered back to SKILL.md on regen
