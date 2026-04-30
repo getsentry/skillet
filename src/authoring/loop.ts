@@ -11,6 +11,7 @@ import { verifyCoverage, verifyResults } from "../verify/index.js";
 import type { CoverageReport, ResultsReport } from "../verify/index.js";
 import { runSpecAuthor } from "./phases/spec-author.js";
 import { runSkillImprove } from "./phases/skill-improve.js";
+import { buildAuthoringScope, defaultToolBase } from "./scope.js";
 import { seedFromDescription, seedFromSkill } from "./seed/index.js";
 
 // ── Types ─────────────────────────────────────────────────
@@ -112,11 +113,19 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
     }
     console.log("Entering spec-author loop. Answer any questions to refine the spec.");
     const session = createInteractiveSession();
+    const scopeInput = {
+      skillRoot: skillPath,
+      ...(opts.inputPaths != null ? { inputPaths: opts.inputPaths } : {}),
+    };
+    const scope = buildAuthoringScope(scopeInput);
+    const toolBase = defaultToolBase(scopeInput);
     let spec: SkillSpec;
     try {
       const authorResult = await runSpecAuthor({
         model: models.agent,
         baseline,
+        scope,
+        toolBase,
         transport: session.transport,
       });
       if (!authorResult.accepted) {
@@ -141,11 +150,19 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
     const baseline = await seedFromSkill(models.agent, skillMd);
     console.log("Entering spec-author loop on imported draft.");
     const session = createInteractiveSession();
+    const scopeInput = {
+      skillRoot: skillPath,
+      ...(opts.inputPaths != null ? { inputPaths: opts.inputPaths } : {}),
+    };
+    const scope = buildAuthoringScope(scopeInput);
+    const toolBase = defaultToolBase(scopeInput);
     let spec: SkillSpec;
     try {
       const authorResult = await runSpecAuthor({
         model: models.agent,
         baseline,
+        scope,
+        toolBase,
         transport: session.transport,
       });
       if (!authorResult.accepted) {

@@ -1,6 +1,8 @@
 import type { Context, Message } from "@mariozechner/pi-ai";
-import { completeWithBackoff } from "../../agent/complete-with-backoff.js";
 import type { AnyModel } from "../../agent/provider.js";
+import { wrapExecutorForScope, type ResearchScope } from "../../agent/scope.js";
+import { runToolLoop } from "../../agent/tool-loop.js";
+import { createReadOnlyToolDefs, executeTool } from "../../agent/tools.js";
 import { PausedForAnswers } from "../../cli/transport.js";
 import {
   applyPatches,
@@ -12,7 +14,7 @@ import {
   type SpecPatch,
 } from "../../spec/index.js";
 import { buildSpecAuthorPrompt } from "../prompts/spec-author.js";
-import { extractText, isRecord, stripFences } from "./_text.js";
+import { isRecord, stripFences } from "./_text.js";
 
 /**
  * Raised when the spec-author loop reaches a question in non-TTY
@@ -65,6 +67,8 @@ export interface TurnPresentation {
   gateOk: boolean;
   missingDimensions: string[];
   missingReferenceTopics: string[];
+  /** One-line summary of tools the agent called this turn. */
+  toolSummary?: string;
 }
 
 // ── Turn output ───────────────────────────────────────────
@@ -107,19 +111,39 @@ const parseTurnOutput = (raw: string): TurnOutput => {
 // ── Loop ──────────────────────────────────────────────────
 
 const DEFAULT_MAX_TURNS = 6;
+const DEFAULT_MAX_TOOL_CALLS_PER_TURN = 30;
+/**
+ * Generous wall-clock budget for one author-turn including all tool
+ * calls. Authoring is interactive, not eval-time-bounded; the value
+ * exists only to surface a stuck loop, not to enforce throughput.
+ */
+const PER_TURN_DEADLINE_MS = 10 * 60_000;
 
 export interface SpecAuthorOptions {
   model: AnyModel;
   /** Baseline spec from one of the seed strategies. */
   baseline: SkillSpec;
   /**
+   * Research scope the agent's read-only tools may operate in. Built
+   * by `buildAuthoringScope` from bundled references + skill root +
+   * --input paths (or CWD fallback).
+   */
+  scope: ResearchScope;
+  /**
+   * Default base directory used when the agent calls a tool with a
+   * relative `path` argument. Usually the first scope root.
+   */
+  toolBase: string;
+  /**
    * Optional human-readable context surfaced to the LLM on turn 1
    * (e.g. eval failure digest from improve seed).
    */
   initialContext?: string;
   transport: InteractiveTransport;
-  /** Max LLM turns before the loop bails. Defaults to 6. */
+  /** Max LLM author-turns before the loop bails. Defaults to 6. */
   maxTurns?: number;
+  /** Per-turn cap on tool invocations. Defaults to 30. */
+  maxToolCallsPerTurn?: number;
   /**
    * Resume payload from a persisted session. When provided, the loop
    * starts from `messages` instead of building a fresh history, and
@@ -144,14 +168,16 @@ export interface SpecAuthorResult {
 }
 
 /**
- * Run the interactive spec-author loop. Each turn the LLM proposes
- * patches, optionally asks the user questions, and signals whether
- * the spec is ready to commit. The loop terminates when the user
- * explicitly accepts a gate-passing spec, or when the transport
- * refuses to answer a question (non-TTY mode).
+ * Run the agentic spec-author loop. Each turn the LLM may call
+ * read-only filesystem tools (read_file, list_files, grep) inside
+ * the research scope before emitting a structured turn output
+ * `{ patches, questions, commit_request }`. The loop terminates when
+ * the user accepts a gate-passing spec, or when the transport
+ * refuses to answer a question (non-TTY mode → SpecAuthorPaused).
  */
 export const runSpecAuthor = async (opts: SpecAuthorOptions): Promise<SpecAuthorResult> => {
   const maxTurns = opts.maxTurns ?? DEFAULT_MAX_TURNS;
+  const maxToolCallsPerTurn = opts.maxToolCallsPerTurn ?? DEFAULT_MAX_TOOL_CALLS_PER_TURN;
   let current = opts.baseline;
   const messages: Message[] = opts.resume != null ? [...opts.resume.messages] : [];
 
@@ -172,24 +198,77 @@ export const runSpecAuthor = async (opts: SpecAuthorOptions): Promise<SpecAuthor
     });
   }
 
+  // Build the scoped tool executor once per session — the scope is
+  // fixed at session start (resume preserves it).
+  const tools = createReadOnlyToolDefs();
+  const scopedExecutor = wrapExecutorForScope(
+    (name, args) => executeTool(opts.toolBase, name, args),
+    opts.scope,
+    opts.toolBase,
+  );
+
   for (let iteration = 1; iteration <= maxTurns; iteration++) {
     const gates = validateClassGates(current);
-    const turnUserMessage = buildTurnUserMessage(current, gates);
+    const turnUserMessage = buildTurnUserMessage(current, gates, opts.scope, opts.toolBase);
     messages.push({ role: "user", content: turnUserMessage, timestamp: Date.now() });
 
     const context: Context = {
       systemPrompt: buildSpecAuthorPrompt(),
       messages,
+      tools,
     };
-    const response = await completeWithBackoff(opts.model, context);
-    if (response.stopReason === "error") {
-      const errMsg = response.errorMessage ?? "unknown error";
-      throw new Error(`spec-author: LLM returned error: ${errMsg}`);
-    }
-    messages.push(response);
 
-    const raw = stripFences(extractText(response), "json");
-    const turn = parseTurnOutput(raw);
+    const toolCounts = new Map<string, number>();
+    const turnLoop = await runToolLoop({
+      model: opts.model,
+      context,
+      executeTool: scopedExecutor,
+      deadline: Date.now() + PER_TURN_DEADLINE_MS,
+      maxToolCalls: maxToolCallsPerTurn,
+      onToolCall: (name) => {
+        toolCounts.set(name, (toolCounts.get(name) ?? 0) + 1);
+      },
+    });
+
+    let terminalText = turnLoop.finalText;
+
+    if (turnLoop.endReason === "max-tool-calls") {
+      // Nudge the model toward terminal output with no more tool calls.
+      messages.push({
+        role: "user",
+        content:
+          "Tool budget reached for this turn. Emit your final patches/questions/commit_request now without further tool calls.",
+        timestamp: Date.now(),
+      });
+      const nudge = await runToolLoop({
+        model: opts.model,
+        context,
+        executeTool: scopedExecutor,
+        deadline: Date.now() + PER_TURN_DEADLINE_MS,
+        maxToolCalls: 0,
+      });
+      if (nudge.endReason === "max-tool-calls") {
+        throw new Error(
+          "spec-author: agent kept requesting tool calls after budget exhaustion notice",
+        );
+      }
+      terminalText = nudge.finalText;
+    } else if (turnLoop.endReason === "error") {
+      throw new Error(`spec-author: LLM returned error: ${turnLoop.errorMessage ?? "unknown"}`);
+    }
+
+    let turn: TurnOutput;
+    try {
+      turn = parseTurnOutput(stripFences(terminalText, "json"));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      messages.push({
+        role: "user",
+        content: `Your terminal output failed to parse:\n${msg}\n\nRe-emit ONLY the JSON object with patches/questions/commit_request.`,
+        timestamp: Date.now(),
+      });
+      continue;
+    }
 
     if (turn.patches.length > 0) {
       const candidate = applyPatches(current, turn.patches);
@@ -207,14 +286,17 @@ export const runSpecAuthor = async (opts: SpecAuthorOptions): Promise<SpecAuthor
     }
 
     const postPatchGates = validateClassGates(current);
-    opts.transport.presentTurn({
+    const presentation: TurnPresentation = {
       iteration,
       spec: current,
       patchCount: turn.patches.length,
       gateOk: postPatchGates.valid,
       missingDimensions: postPatchGates.missingDimensions,
       missingReferenceTopics: postPatchGates.missingReferenceTopics,
-    });
+    };
+    const summary = formatToolSummary(toolCounts);
+    if (summary != null) presentation.toolSummary = summary;
+    opts.transport.presentTurn(presentation);
 
     // Ask any LLM-raised questions first; user answers feed into next
     // turn so the LLM can respond to them. The transport receives the
@@ -288,14 +370,28 @@ export const runSpecAuthor = async (opts: SpecAuthorOptions): Promise<SpecAuthor
 const buildTurnUserMessage = (
   spec: SkillSpec,
   gates: ReturnType<typeof validateClassGates>,
+  scope: ResearchScope,
+  toolBase: string,
 ): string => {
   const yaml = renderSpec(spec);
   const gateLines = gates.valid
     ? "All class gates currently pass."
     : `Class gates failing:\n- missing dimensions: ${formatList(gates.missingDimensions)}\n- missing reference topics: ${formatList(gates.missingReferenceTopics)}`;
-  return `## Current spec.yaml\n\n${yaml}\n\n## Gate status\n\n${gateLines}`;
+  const scopeLines = [
+    `Default base for relative paths: ${toolBase}`,
+    `Research scope (allowed read roots):`,
+    ...scope.roots.map((r) => `- ${r}`),
+  ].join("\n");
+  return `## Current spec.yaml\n\n${yaml}\n\n## Gate status\n\n${gateLines}\n\n## Research scope\n\n${scopeLines}`;
 };
 
 const formatList = (items: string[]): string => {
   return items.length === 0 ? "(none)" : items.join(", ");
+};
+
+const formatToolSummary = (counts: Map<string, number>): string | undefined => {
+  if (counts.size === 0) return undefined;
+  const parts: string[] = [];
+  for (const [name, n] of counts) parts.push(`${n}× ${name}`);
+  return `tools: ${parts.join(", ")}`;
 };

@@ -47,6 +47,9 @@ const presentTurn = (turn: TurnPresentation): void => {
     `\n── Spec-author turn ${turn.iteration} (${turn.patchCount} patch${turn.patchCount === 1 ? "" : "es"}) ──`,
   );
   console.log(summarizeSpec(turn.spec));
+  if (turn.toolSummary != null) {
+    console.log(`  ${turn.toolSummary}`);
+  }
   if (!turn.gateOk) {
     if (turn.missingDimensions.length > 0) {
       console.log(`  ! missing dimensions: ${turn.missingDimensions.join(", ")}`);

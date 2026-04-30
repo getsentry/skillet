@@ -41,6 +41,14 @@ const resolveReferencesDir = (): string => {
 
 const referencesDir = resolveReferencesDir();
 
+/**
+ * Absolute path to skillet's bundled references directory. Exposed so
+ * the spec-author scope builder can include it as a research-scope
+ * root (the agent reads class guidance and other shipped material
+ * via the same read_file tool it uses for user-supplied inputs).
+ */
+export const bundledReferencesDir = (): string => referencesDir;
+
 const loadReference = (filename: string): string => {
   return readFileSync(join(referencesDir, filename), "utf-8");
 };

@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import { resolveModels } from "../agent/provider.js";
 import { SpecAuthorPaused, runSpecAuthor } from "../authoring/phases/spec-author.js";
 import { runSpecRefine } from "../authoring/phases/spec-refine.js";
+import { buildAuthoringScope, defaultToolBase } from "../authoring/scope.js";
 import { seedFromDescription, seedFromSkill } from "../authoring/seed/index.js";
 import { sessionExists } from "../authoring/session.js";
 import { handleSpecAuthorPause } from "../cli/pause.js";
@@ -139,6 +140,10 @@ const specInit = async (args: string[]): Promise<number> => {
   console.log(`Seeding draft spec from description (${skillRoot})...`);
 
   let spec;
+  const initScopeInput = {
+    skillRoot,
+    ...(inputs.absolute.length > 0 ? { inputPaths: inputs.absolute } : {}),
+  };
   try {
     const baseline = await seedFromDescription(models.agent, description);
     const session = createInteractiveSession();
@@ -146,6 +151,8 @@ const specInit = async (args: string[]): Promise<number> => {
       const authorResult = await runSpecAuthor({
         model: models.agent,
         baseline,
+        scope: buildAuthoringScope(initScopeInput),
+        toolBase: defaultToolBase(initScopeInput),
         transport: session.transport,
       });
       if (!authorResult.accepted) {
@@ -342,6 +349,10 @@ const specImport = async (args: string[]): Promise<number> => {
   const models = resolveModels();
   console.log(`Seeding spec from ${skillMdPath}...`);
   let spec;
+  const importScopeInput = {
+    skillRoot,
+    ...(importInputs.absolute.length > 0 ? { inputPaths: importInputs.absolute } : {}),
+  };
   try {
     const baseline = await seedFromSkill(models.agent, skillMd);
     const session = createInteractiveSession();
@@ -349,6 +360,8 @@ const specImport = async (args: string[]): Promise<number> => {
       const authorResult = await runSpecAuthor({
         model: models.agent,
         baseline,
+        scope: buildAuthoringScope(importScopeInput),
+        toolBase: defaultToolBase(importScopeInput),
         transport: session.transport,
       });
       if (!authorResult.accepted) {

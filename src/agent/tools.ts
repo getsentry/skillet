@@ -29,6 +29,19 @@ const stringArg = (args: Record<string, unknown>, key: string, fallback = ""): s
   return typeof v === "string" ? v : fallback;
 };
 
+/** Read-only tool names safe for spec-author research. Excludes
+ *  bash, write_file, edit_file. */
+const READ_ONLY_TOOL_NAMES: ReadonlySet<string> = new Set(["read_file", "list_files", "grep"]);
+
+/**
+ * Subset of `createToolDefs()` filtered to read-only tools. Used by
+ * the spec-author agentic loop, which has no business writing files
+ * (the spec is its only output channel).
+ */
+export const createReadOnlyToolDefs = (): Tool[] => {
+  return createToolDefs().filter((t) => READ_ONLY_TOOL_NAMES.has(t.name));
+};
+
 /**
  * Tool definitions (schema only) for the eval agent, scoped to a workspace.
  */

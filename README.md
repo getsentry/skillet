@@ -98,7 +98,7 @@ regenerate — that happens automatically on spec mutations.
 
 | Command | Purpose |
 |---------|---------|
-| `create "<description>"` | New skill: interactive spec-author loop + regen + improve loop |
+| `create "<description>" [--input <dir>]...` | New skill: agentic spec-author loop (read-only tools over `--input` paths + bundled refs) + regen + improve loop |
 | `improve [path]` | Iterate until per-behavior evals pass; auto-imports legacy |
 | `spec init "<description>"` | Run interactive spec-author loop without the improve loop |
 | `spec show [path]` | Pretty-print the spec (banner stripped) |

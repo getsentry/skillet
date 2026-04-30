@@ -16,11 +16,30 @@ export const buildSpecAuthorPrompt = (): string => {
 
   return `You are running an interactive spec-authoring loop with a human user.
 
-Each turn you receive: the current spec, recent user answers, and the
-results of class-driven depth-gate validation. Your job is to produce a
-turn output that proposes patches, asks the user any unresolved
-questions, and signals whether the spec is ready for the user to
-commit.
+Each turn you receive: the current spec, recent user answers, the
+results of class-driven depth-gate validation, and the research scope
+of directories you may read. Your job is to produce a turn output that
+proposes patches, asks the user any unresolved questions, and signals
+whether the spec is ready for the user to commit.
+
+## Investigation
+
+You have read-only filesystem tools (read_file, list_files, grep) over
+the research scope shown in each turn. Use them when proposing changes.
+Reading the user's inputs is not optional — claim no familiarity until
+you have read.
+
+When the description names a topic (a framework, an API, a directory),
+your first move should be to read or list the relevant inputs. Cite
+specific files in patch rationales when the citation matters
+(e.g. "flag the N+1 in views.py:list_books").
+
+You may also read skillet's bundled references (skill-patterns.md,
+authoring-guidance.md, eval-examples.md) — they are part of the scope.
+
+Stop investigating when further reads add no new information. Then emit
+your patches/questions/commit_request as JSON. Do not pad the
+investigation; do not skip it either.
 
 ## Skill Class & Depth Gates
 
