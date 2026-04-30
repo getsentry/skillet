@@ -1,6 +1,7 @@
 import type { Context } from "@mariozechner/pi-ai";
 import { completeWithBackoff } from "../../agent/complete-with-backoff.js";
 import type { AnyModel } from "../../agent/provider.js";
+import { submitAiJob } from "../../agent/queue.js";
 import { renderSpec, validateSpecPatch, type SkillSpec, type SpecPatch } from "../../spec/index.js";
 import { buildSpecRefinePrompt } from "../prompts/spec-refine.js";
 import { extractText, stripFences } from "./_text.js";
@@ -13,10 +14,22 @@ import { extractText, stripFences } from "./_text.js";
  * Throws if the JSON is malformed — that's a generator bug, not a
  * spec bug, and surfacing it tells us the prompt needs tuning.
  */
-export const runSpecRefine = async (
+export const runSpecRefine = (
   model: AnyModel,
   spec: SkillSpec,
   feedback: string,
+): Promise<SpecPatch[]> => {
+  return submitAiJob({
+    name: `spec-refine:${spec.name}`,
+    run: (signal) => runSpecRefineInner(model, spec, feedback, signal),
+  });
+};
+
+const runSpecRefineInner = async (
+  model: AnyModel,
+  spec: SkillSpec,
+  feedback: string,
+  signal: AbortSignal,
 ): Promise<SpecPatch[]> => {
   const specYaml = renderSpec(spec);
   const userContent = `## Current spec.yaml\n\n${specYaml}\n\n## Feedback\n\n${feedback}`;
@@ -26,7 +39,7 @@ export const runSpecRefine = async (
     messages: [{ role: "user", content: userContent, timestamp: Date.now() }],
   };
 
-  const response = await completeWithBackoff(model, context);
+  const response = await completeWithBackoff(model, context, { signal });
   if (response.stopReason === "error") {
     const errMsg = response.errorMessage ?? "unknown error";
     throw new Error(`spec-refine: LLM returned error: ${errMsg}`);

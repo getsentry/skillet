@@ -1,10 +1,24 @@
 /**
  * Process-wide AI job queue.
  *
- * Every LLM-bound call in skillet submits a job here. The queue
- * bounds concurrency, retries transient failures, enforces a
- * per-job wall-clock timeout via AbortSignal, and emits lifecycle
- * events for end-of-command telemetry.
+ * Operates at the **phase / job** granularity, not per-LLM-call. A
+ * "job" is one logical operation that may make multiple `complete()`
+ * calls internally — e.g. one eval-gen for a behavior (with parse
+ * retry), one eval case (with multi-turn agent + tool calls), one
+ * author turn. The queue:
+ *
+ *  - Bounds concurrency to a configurable max (slot per job).
+ *  - Enforces a per-job wall-clock deadline via `AbortSignal`. The
+ *    job's `run` callback receives the signal and is expected to
+ *    forward it into every pi-ai `complete()` call so a stuck HTTP
+ *    request actually cancels.
+ *  - Emits lifecycle events for end-of-command telemetry.
+ *
+ * Per-LLM-call transient retry lives in `complete-with-backoff.ts` —
+ * not here. The queue does NOT retry jobs on its own; a job that
+ * throws bubbles up to the caller. This avoids the compounding bug
+ * where a phase's parse-retry loop and a queue-level transient retry
+ * multiplied each other.
  */
 
 export interface AiJob<T> {
@@ -12,41 +26,31 @@ export interface AiJob<T> {
    *  e.g. "eval-case:flag-n-plus-one__loop", "eval-gen:flag-n-plus-one",
    *  "spec-author:turn-3", "judge:case-id". */
   name: string;
-  /** The actual work. Receives an AbortSignal from the queue's
-   *  timeout / cancellation logic — pass it into pi-ai's `complete`. */
+  /** The actual work. Receives an AbortSignal that fires when the
+   *  per-job deadline expires. Forward the signal into every pi-ai
+   *  `complete()` call inside. */
   run: (signal: AbortSignal) => Promise<T>;
   /** Per-job timeout override (ms). Defaults to queue config's
-   *  `timeoutMs`. Use a tighter cap for short JSON-output phases so
-   *  a stuck call retries quickly instead of burning the global 4-min
-   *  budget; use a looser cap for tool-using agent runs. */
+   *  `timeoutMs`. */
   timeoutMs?: number;
-  /** Per-job retry override. Defaults to queue config's `maxRetries`.
-   *  Set to 0 when the caller is doing its own retry on parse/validate
-   *  failures and doesn't want the queue to compound retries. */
-  maxRetries?: number;
 }
 
 export interface QueueConfig {
   concurrency: number;
-  maxRetries: number;
+  /** Default wall-clock deadline per job (ms). Phases that want a
+   *  tighter or looser cap pass `timeoutMs` on the job. */
   timeoutMs: number;
-  baseBackoffMs: number;
-  maxBackoffMs: number;
 }
 
 export type JobEvent =
   | { kind: "queued"; name: string; depth: number }
-  | { kind: "started"; name: string; attempt: number }
-  | { kind: "retrying"; name: string; attempt: number; reason: string; delayMs: number }
-  | { kind: "succeeded"; name: string; attempt: number; durationMs: number }
-  | { kind: "failed"; name: string; attempts: number; reason: string };
+  | { kind: "started"; name: string }
+  | { kind: "succeeded"; name: string; durationMs: number }
+  | { kind: "failed"; name: string; reason: string };
 
 const DEFAULT_CONFIG: QueueConfig = {
   concurrency: 4,
-  maxRetries: 3,
-  timeoutMs: 4 * 60_000,
-  baseBackoffMs: 2_000,
-  maxBackoffMs: 60_000,
+  timeoutMs: 10 * 60_000,
 };
 
 let config: QueueConfig = { ...DEFAULT_CONFIG };
@@ -100,153 +104,42 @@ const release = (): void => {
   if (next != null) next();
 };
 
-// ── Transient-error classifier ─────────────────────────────
-
-const isTransientMessage = (message: string | undefined): boolean => {
-  if (message == null) return false;
-  const m = message.toLowerCase();
-  return (
-    m.includes("overloaded") ||
-    m.includes("rate_limit") ||
-    m.includes("rate limit") ||
-    m.includes("too many requests") ||
-    m.includes("429") ||
-    m.includes("503") ||
-    m.includes("504") ||
-    m.includes("529") ||
-    m.includes("timeout") ||
-    m.includes("temporarily unavailable") ||
-    // mid-stream / connection-failure markers — see commit history
-    // for a real-world incident where these slipped past retry
-    m.includes("terminated") ||
-    m.includes("premature close") ||
-    m.includes("socket hang up") ||
-    m.includes("connection closed") ||
-    m.includes("connection reset") ||
-    m.includes("network error") ||
-    m.includes("stream interrupted") ||
-    m.includes("incomplete response") ||
-    m.includes("aborted") ||
-    m.includes("econnreset")
-  );
-};
-
-const isTransientException = (err: unknown): boolean => {
-  if (err == null || typeof err !== "object") return false;
-  const e = err as { code?: string; message?: string; name?: string };
-  if (e.name === "AbortError") return true; // timeout — retryable
-  if (e.code != null) {
-    const transientCodes = new Set([
-      "ETIMEDOUT",
-      "ECONNRESET",
-      "ECONNREFUSED",
-      "ENETUNREACH",
-      "EAI_AGAIN",
-      "EPIPE",
-    ]);
-    if (transientCodes.has(e.code)) return true;
-  }
-  return isTransientMessage(e.message);
-};
-
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
 
-const jitter = (ms: number): number => Math.round(ms * (0.75 + Math.random() * 0.5));
-
-const backoffMs = (attempt: number): number => {
-  const raw = Math.min(config.baseBackoffMs * 2 ** attempt, config.maxBackoffMs);
-  return jitter(raw);
-};
-
-// ── Submission ─────────────────────────────────────────────
-
-interface ResponseLike {
-  stopReason?: unknown;
-  errorMessage?: unknown;
-}
-
-const isTransientResult = (result: unknown): { transient: true; reason: string } | null => {
-  if (result == null || typeof result !== "object") return null;
-  const r = result as ResponseLike;
-  if (r.stopReason !== "error") return null;
-  const msg = typeof r.errorMessage === "string" ? r.errorMessage : "provider error";
-  if (isTransientMessage(msg)) return { transient: true, reason: msg };
-  return null;
-};
-
 /**
- * Submit a job. Resolves with the run() result, or rejects after
- * `maxRetries + 1` attempts (or immediately on a non-transient
- * error). The job's `run` receives an AbortSignal that fires after
- * `timeoutMs`.
+ * Submit a job. Acquires a slot, sets up a per-job deadline (signal
+ * fires at `timeoutMs`), runs the job, releases the slot, and emits
+ * telemetry. Errors propagate to the caller — the queue never
+ * retries.
  */
 export const submitAiJob = async <T>(job: AiJob<T>): Promise<T> => {
   emit({ kind: "queued", name: job.name, depth: waiting });
   await acquire();
 
-  const effectiveTimeoutMs = job.timeoutMs ?? config.timeoutMs;
-  const effectiveMaxRetries = job.maxRetries ?? config.maxRetries;
+  const timeoutMs = job.timeoutMs ?? config.timeoutMs;
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
 
-  let lastError: string = "unknown error";
-  let attempt = 0;
+  emit({ kind: "started", name: job.name });
+  const startedAt = Date.now();
+
   try {
-    while (true) {
-      attempt++;
-      emit({ kind: "started", name: job.name, attempt });
-
-      const controller = new AbortController();
-      const timeoutHandle = setTimeout(() => {
-        controller.abort();
-      }, effectiveTimeoutMs);
-
-      const startedAt = Date.now();
-      try {
-        const result = await job.run(controller.signal);
-        clearTimeout(timeoutHandle);
-        const transientResult = isTransientResult(result);
-        if (transientResult != null && attempt <= effectiveMaxRetries) {
-          const delayMs = backoffMs(attempt - 1);
-          emit({
-            kind: "retrying",
-            name: job.name,
-            attempt,
-            reason: transientResult.reason,
-            delayMs,
-          });
-          lastError = transientResult.reason;
-          await sleep(delayMs);
-          continue;
-        }
-        emit({
-          kind: "succeeded",
-          name: job.name,
-          attempt,
-          durationMs: Date.now() - startedAt,
-        });
-        return result;
-      } catch (err: unknown) {
-        clearTimeout(timeoutHandle);
-        const reason = err instanceof Error ? err.message : String(err);
-        if (isTransientException(err) && attempt <= effectiveMaxRetries) {
-          const delayMs = backoffMs(attempt - 1);
-          emit({ kind: "retrying", name: job.name, attempt, reason, delayMs });
-          lastError = reason;
-          await sleep(delayMs);
-          continue;
-        }
-        emit({ kind: "failed", name: job.name, attempts: attempt, reason });
-        throw err;
-      }
-    }
+    const result = await job.run(controller.signal);
+    emit({ kind: "succeeded", name: job.name, durationMs: Date.now() - startedAt });
+    return result;
+  } catch (err: unknown) {
+    const reason = err instanceof Error ? err.message : String(err);
+    emit({ kind: "failed", name: job.name, reason });
+    throw err;
   } finally {
+    clearTimeout(timeoutHandle);
     release();
   }
-
-  // Unreachable — the loop either returns or throws.
-  throw new Error(`AI job '${job.name}' exhausted retries: ${lastError}`);
 };
 
 /**
@@ -254,10 +147,7 @@ export const submitAiJob = async <T>(job: AiJob<T>): Promise<T> => {
  * printing an end-of-command summary so late events aren't dropped.
  */
 export const drainQueue = async (): Promise<void> => {
-  // The counters are mutated only by other async code (acquire/release).
-  // ESLint's no-unmodified-loop-condition can't see that, so we poll
-  // explicitly. 50ms is short enough for snappy CLI exit, long enough
-  // not to spin.
+  // Counters mutate via other async paths; ESLint can't see it.
   // oxlint-disable-next-line eslint/no-unmodified-loop-condition
   while (inFlight > 0 || waiting > 0) {
     await sleep(50);

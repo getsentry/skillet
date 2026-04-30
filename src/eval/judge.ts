@@ -1,6 +1,7 @@
 import type { Context } from "@mariozechner/pi-ai";
 import type { AnyModel } from "../agent/provider.js";
 import { completeWithBackoff } from "../agent/complete-with-backoff.js";
+import { submitAiJob } from "../agent/queue.js";
 
 export interface JudgeResult {
   grade: string;
@@ -89,8 +90,9 @@ export const judge = async (
     ],
   };
 
-  const response = await completeWithBackoff(model, context, {
-    maxTokens: 500,
+  const response = await submitAiJob({
+    name: "judge",
+    run: (signal) => completeWithBackoff(model, context, { maxTokens: 500, signal }),
   });
 
   // Extract text from content blocks using type guard narrowing

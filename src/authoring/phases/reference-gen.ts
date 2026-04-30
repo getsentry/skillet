@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import type { Context } from "@mariozechner/pi-ai";
 import { completeWithBackoff } from "../../agent/complete-with-backoff.js";
 import type { AnyModel } from "../../agent/provider.js";
+import { submitAiJob } from "../../agent/queue.js";
 import type { ReferenceDoc, SkillSpec } from "../../spec/index.js";
 import { buildReferenceGenPrompt } from "../prompts/reference-gen.js";
 import { extractText, stripFences } from "./_text.js";
@@ -19,10 +20,22 @@ export interface RunReferenceGenResult {
   skipped: string[];
 }
 
-const renderReference = async (
+const renderReference = (
   model: AnyModel,
   spec: SkillSpec,
   reference: ReferenceDoc,
+): Promise<string> => {
+  return submitAiJob({
+    name: `reference-gen:${reference.path}`,
+    run: (signal) => renderReferenceInner(model, spec, reference, signal),
+  });
+};
+
+const renderReferenceInner = async (
+  model: AnyModel,
+  spec: SkillSpec,
+  reference: ReferenceDoc,
+  signal: AbortSignal,
 ): Promise<string> => {
   const context: Context = {
     systemPrompt: buildReferenceGenPrompt(),
@@ -49,7 +62,7 @@ const renderReference = async (
     ],
   };
 
-  const response = await completeWithBackoff(model, context, { maxTokens: 5000 });
+  const response = await completeWithBackoff(model, context, { maxTokens: 5000, signal });
   if (response.stopReason === "error") {
     throw new Error(`reference-gen: LLM returned error: ${response.errorMessage ?? "unknown"}`);
   }

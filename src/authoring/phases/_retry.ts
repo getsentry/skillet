@@ -1,6 +1,7 @@
 import type { Context, Message } from "@mariozechner/pi-ai";
 import { completeWithBackoff } from "../../agent/complete-with-backoff.js";
 import type { AnyModel } from "../../agent/provider.js";
+import { submitAiJob } from "../../agent/queue.js";
 import { event } from "../../log.js";
 import { saveFailedOutput } from "./_diagnostics.js";
 import { extractText, stripFences } from "./_text.js";
@@ -37,7 +38,17 @@ export interface JsonPhaseOptions<T> {
  * Output fences (```json ... ```) are stripped automatically before
  * `parseAndValidate` sees the text.
  */
-export const runJsonPhaseWithRetries = async <T>(opts: JsonPhaseOptions<T>): Promise<T> => {
+export const runJsonPhaseWithRetries = <T>(opts: JsonPhaseOptions<T>): Promise<T> => {
+  return submitAiJob({
+    name: opts.phaseName,
+    run: (signal) => runJsonPhaseWithRetriesInner(opts, signal),
+  });
+};
+
+const runJsonPhaseWithRetriesInner = async <T>(
+  opts: JsonPhaseOptions<T>,
+  signal: AbortSignal,
+): Promise<T> => {
   const maxRetries = opts.maxRetries ?? DEFAULT_MAX_RETRIES;
   const messages: Message[] = [{ role: "user", content: opts.userMessage, timestamp: Date.now() }];
 
@@ -46,16 +57,7 @@ export const runJsonPhaseWithRetries = async <T>(opts: JsonPhaseOptions<T>): Pro
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const context: Context = { systemPrompt: opts.systemPrompt, messages };
-    // 120s per attempt is enough for any structured-output JSON phase;
-    // beyond that, retry-with-error-feedback is more useful than
-    // waiting. maxRetries: 0 because this loop already retries on
-    // parse failure and letting the queue retry too compounds the
-    // wall-clock budget.
-    const response = await completeWithBackoff(opts.model, context, undefined, {
-      jobName: opts.phaseName,
-      timeoutMs: 120_000,
-      maxRetries: 0,
-    });
+    const response = await completeWithBackoff(opts.model, context, { signal });
     if (response.stopReason === "error") {
       const errMsg = response.errorMessage ?? "unknown error";
       throw new Error(`${opts.phaseName}: LLM returned error: ${errMsg}`);

@@ -1,5 +1,6 @@
 import type { Context, Message } from "@mariozechner/pi-ai";
 import type { AnyModel } from "../../agent/provider.js";
+import { submitAiJob } from "../../agent/queue.js";
 import { wrapExecutorForScope, type ResearchScope } from "../../agent/scope.js";
 import { runToolLoop } from "../../agent/tool-loop.js";
 import { createReadOnlyToolDefs, executeTool } from "../../agent/tools.js";
@@ -246,15 +247,21 @@ export const runSpecAuthor = async (opts: SpecAuthorOptions): Promise<SpecAuthor
     };
 
     const toolCounts = new Map<string, number>();
-    const turnLoop = await runToolLoop({
-      model: opts.model,
-      context,
-      executeTool: scopedExecutor,
-      deadline: turnDeadline(),
-      maxToolCalls: maxToolCallsPerTurn,
-      onToolCall: (name) => {
-        toolCounts.set(name, (toolCounts.get(name) ?? 0) + 1);
-      },
+    const turnLoop = await submitAiJob({
+      name: `spec-author:turn-${iteration}`,
+      timeoutMs: PER_TURN_DEADLINE_MS,
+      run: (signal) =>
+        runToolLoop({
+          model: opts.model,
+          context,
+          executeTool: scopedExecutor,
+          deadline: turnDeadline(),
+          maxToolCalls: maxToolCallsPerTurn,
+          signal,
+          onToolCall: (name) => {
+            toolCounts.set(name, (toolCounts.get(name) ?? 0) + 1);
+          },
+        }),
     });
 
     let terminalText = turnLoop.finalText;
@@ -267,12 +274,18 @@ export const runSpecAuthor = async (opts: SpecAuthorOptions): Promise<SpecAuthor
           "Tool budget reached for this turn. Emit your final patches/questions/commit_request now without further tool calls.",
         timestamp: Date.now(),
       });
-      const nudge = await runToolLoop({
-        model: opts.model,
-        context,
-        executeTool: scopedExecutor,
-        deadline: turnDeadline(),
-        maxToolCalls: 0,
+      const nudge = await submitAiJob({
+        name: `spec-author:turn-${iteration}-nudge`,
+        timeoutMs: PER_TURN_DEADLINE_MS,
+        run: (signal) =>
+          runToolLoop({
+            model: opts.model,
+            context,
+            executeTool: scopedExecutor,
+            deadline: turnDeadline(),
+            maxToolCalls: 0,
+            signal,
+          }),
       });
       if (nudge.endReason === "max-tool-calls") {
         throw new Error(

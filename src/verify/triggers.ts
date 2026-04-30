@@ -1,5 +1,6 @@
 import type { Context } from "@mariozechner/pi-ai";
 import { completeWithBackoff } from "../agent/complete-with-backoff.js";
+import { submitAiJob } from "../agent/queue.js";
 import type { AnyModel } from "../agent/provider.js";
 import { extractText, isRecord, stripFences } from "../authoring/phases/_text.js";
 import type { SkillSpec } from "../spec/index.js";
@@ -80,7 +81,10 @@ export const verifyTriggers = async (
     messages: [{ role: "user", content: userContent, timestamp: Date.now() }],
   };
 
-  const response = await completeWithBackoff(judgeModel, context, { maxTokens: 2000 });
+  const response = await submitAiJob({
+    name: "verify-triggers",
+    run: (signal) => completeWithBackoff(judgeModel, context, { maxTokens: 2000, signal }),
+  });
   const text = extractText(response);
 
   let parsed: unknown;

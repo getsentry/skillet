@@ -1,5 +1,6 @@
 import type { Context } from "@mariozechner/pi-ai";
 import { completeWithBackoff } from "../agent/complete-with-backoff.js";
+import { submitAiJob } from "../agent/queue.js";
 import type { AnyModel } from "../agent/provider.js";
 import { extractText, isRecord, stripFences } from "../authoring/phases/_text.js";
 import type { Behavior, MustNot, SkillSpec } from "../spec/index.js";
@@ -137,7 +138,9 @@ export const verifySemantic = async (
 ): Promise<SemanticReport> => {
   const out: SemanticBehaviorVerdict[] = [];
 
+  let batchIndex = 0;
   for (const batch of chunks(toRules(spec.behaviors, spec.must_not), SEMANTIC_BATCH_SIZE)) {
+    batchIndex++;
     const rules = formatRules(batch);
     const userContent = `## Rules to check in this batch\n\n${rules}\n\n## SKILL.md\n\n${skillMd}\n\nReturn one JSON array of verdicts for this batch only, in the same order as the rules above.`;
 
@@ -146,7 +149,10 @@ export const verifySemantic = async (
       messages: [{ role: "user", content: userContent, timestamp: Date.now() }],
     };
 
-    const response = await completeWithBackoff(judgeModel, context, { maxTokens: 3000 });
+    const response = await submitAiJob({
+      name: `verify-semantic:batch-${batchIndex}`,
+      run: (signal) => completeWithBackoff(judgeModel, context, { maxTokens: 3000, signal }),
+    });
     const text = extractText(response);
 
     let parsed: unknown[];

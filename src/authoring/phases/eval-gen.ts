@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { Context } from "@mariozechner/pi-ai";
 import { completeWithBackoff } from "../../agent/complete-with-backoff.js";
 import type { AnyModel } from "../../agent/provider.js";
+import { submitAiJob } from "../../agent/queue.js";
 import { createWorkspace } from "../../eval/workspace.js";
 import { event } from "../../log.js";
 import type { Behavior, MustNot, SkillSpec } from "../../spec/index.js";
@@ -35,8 +36,6 @@ export interface RunEvalGenResult {
   failed: Array<{ id: string; error: string }>;
 }
 
-/** Maximum concurrent per-behavior LLM calls. */
-const DEFAULT_GEN_CONCURRENCY = 6;
 /** Maximum retries per behavior on parse/validation failure. */
 const MAX_ATTEMPTS_PER_ENTRY = 3;
 
@@ -160,9 +159,15 @@ interface SingleEntryInput {
 
 /**
  * Issue ONE LLM call for a single spec entry, retrying on
- * parse/validation failure. Returns the parsed cases.
+ * parse/validation failure. Returns the parsed cases. The signal
+ * comes from the AI queue's per-job deadline and is forwarded into
+ * every pi-ai call inside the parse-retry loop.
  */
-const generateForEntry = async (model: AnyModel, input: SingleEntryInput): Promise<RawCase[]> => {
+const generateForEntry = async (
+  model: AnyModel,
+  input: SingleEntryInput,
+  signal: AbortSignal,
+): Promise<RawCase[]> => {
   const userContent = `Generate eval case(s) for this single spec entry:\n\n\`\`\`json\n${JSON.stringify(
     {
       kind: input.kind,
@@ -190,17 +195,7 @@ const generateForEntry = async (model: AnyModel, input: SingleEntryInput): Promi
     event("debug", `eval-gen request behavior=${input.entry.id} attempt=${attempt}`, {
       prompt: userContent,
     });
-    // 90s per-attempt cap — JSON outputs of this size shouldn't take
-    // longer; retry-with-error-feedback beats waiting. maxRetries: 0
-    // because the parse-retry loop above already does its own retry;
-    // letting the queue retry too compounds (e.g. 3 outer × 3 queue =
-    // 9 attempts and 30+ minutes wall-clock per behavior).
-    const response = await completeWithBackoff(
-      model,
-      context,
-      { maxTokens: 4000 },
-      { jobName: `eval-gen:${input.entry.id}`, timeoutMs: 90_000, maxRetries: 0 },
-    );
+    const response = await completeWithBackoff(model, context, { maxTokens: 4000, signal });
     context.messages.push(response);
     const text = extractText(response);
     event("debug", `eval-gen response behavior=${input.entry.id} attempt=${attempt}`, {
@@ -280,42 +275,14 @@ const generateForEntry = async (model: AnyModel, input: SingleEntryInput): Promi
 };
 
 /**
- * Run a list of async functions with a max concurrency cap. Lighter
- * weight than pulling in p-limit; we have one caller and a known shape.
- */
-const runWithConcurrency = async <T>(
-  tasks: Array<() => Promise<T>>,
-  concurrency: number,
-): Promise<T[]> => {
-  const results: T[] = Array.from({ length: tasks.length });
-  let nextIndex = 0;
-  const worker = async (): Promise<void> => {
-    while (true) {
-      const i = nextIndex;
-      nextIndex += 1;
-      if (i >= tasks.length) break;
-      const task = tasks[i];
-      if (task == null) break;
-      results[i] = await task();
-    }
-  };
-  const workers: Array<Promise<void>> = [];
-  for (let i = 0; i < Math.min(concurrency, tasks.length); i++) {
-    workers.push(worker());
-  }
-  await Promise.all(workers);
-  return results;
-};
-
-/**
  * Run the eval-gen phase: spec entries → one `.eval.ts` file per
  * behavior/must_not.
  *
- * Each missing entry gets its own LLM call, run in parallel up to
- * `DEFAULT_GEN_CONCURRENCY`. Calls are retried independently. A
- * failure on entry X does not abort entries Y and Z; the result
- * surfaces { written, skipped, failed } so the caller can decide
- * whether partial success is acceptable.
+ * Each missing entry submits one job to the AI queue. Parallelism is
+ * the queue's concurrency cap (`--ai-concurrency`). Failures are
+ * isolated per-entry — a failure on entry X does not abort Y and Z;
+ * the result surfaces { written, skipped, failed } so the caller can
+ * decide whether partial success is acceptable.
  *
  * Existing eval files are PRESERVED. Edit them directly to refine
  * prompts/setup/assertions; regen leaves them alone.
@@ -350,7 +317,6 @@ export const runEvalGen = async (
   event("info", `eval-gen plan`, {
     missing: missing.map((m) => m.entry.id),
     skipped,
-    concurrency: DEFAULT_GEN_CONCURRENCY,
   });
 
   if (missing.length === 0) {
@@ -361,29 +327,38 @@ export const runEvalGen = async (
   const written: string[] = [];
   const failed: Array<{ id: string; error: string }> = [];
 
-  // One task per missing entry — independent LLM call, retries
-  // isolated to that entry. Successful files are written immediately
-  // so a downstream failure leaves N-k files persisted with k pending.
-  const tasks = missing.map(({ entry, kind }) => async (): Promise<void> => {
-    const start = Date.now();
-    try {
-      const cases = await generateForEntry(model, { entry, kind, mustNotRules });
-      const filePath = join(evalsDir, `${entry.id}.eval.ts`);
-      writeFileSync(filePath, renderEvalFile(entry.id, cases), "utf-8");
-      const elapsed = Date.now() - start;
-      written.push(filePath);
-      event("info", `eval-gen behavior=${entry.id} ok=true cases=${cases.length} (${elapsed}ms)`);
-      log?.(`  wrote ${filePath}`);
-    } catch (err: unknown) {
-      const elapsed = Date.now() - start;
-      const msg = err instanceof Error ? err.message : String(err);
-      failed.push({ id: entry.id, error: msg });
-      event("error", `eval-gen behavior=${entry.id} ok=false (${elapsed}ms): ${msg}`);
-      log?.(`  failed ${entry.id}: ${msg}`);
-    }
-  });
+  // One job per missing entry. The AI queue throttles parallelism
+  // globally (`--ai-concurrency`); no local concurrency cap. Each
+  // job's parse-retry loop runs inside one slot, so a network blip
+  // costs one CWB-retry, not N × queue-retries.
+  const tasks = missing.map(({ entry, kind }) =>
+    submitAiJob({
+      name: `eval-gen:${entry.id}`,
+      run: async (signal) => {
+        const start = Date.now();
+        try {
+          const cases = await generateForEntry(model, { entry, kind, mustNotRules }, signal);
+          const filePath = join(evalsDir, `${entry.id}.eval.ts`);
+          writeFileSync(filePath, renderEvalFile(entry.id, cases), "utf-8");
+          const elapsed = Date.now() - start;
+          written.push(filePath);
+          event(
+            "info",
+            `eval-gen behavior=${entry.id} ok=true cases=${cases.length} (${elapsed}ms)`,
+          );
+          log?.(`  wrote ${filePath}`);
+        } catch (err: unknown) {
+          const elapsed = Date.now() - start;
+          const msg = err instanceof Error ? err.message : String(err);
+          failed.push({ id: entry.id, error: msg });
+          event("error", `eval-gen behavior=${entry.id} ok=false (${elapsed}ms): ${msg}`);
+          log?.(`  failed ${entry.id}: ${msg}`);
+        }
+      },
+    }),
+  );
 
-  await runWithConcurrency(tasks, DEFAULT_GEN_CONCURRENCY);
+  await Promise.all(tasks);
 
   return { written, skipped, failed };
 };

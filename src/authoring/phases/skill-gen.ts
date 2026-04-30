@@ -2,6 +2,7 @@ import type { Context } from "@mariozechner/pi-ai";
 import { stringify as stringifyYaml } from "yaml";
 import { completeWithBackoff } from "../../agent/complete-with-backoff.js";
 import type { AnyModel } from "../../agent/provider.js";
+import { submitAiJob } from "../../agent/queue.js";
 import { parseFrontmatter } from "../../skill/loader.js";
 import type { SkillSpec } from "../../spec/index.js";
 import { buildSkillGenPrompt } from "../prompts/skill-gen.js";
@@ -32,7 +33,18 @@ export const SKILL_MD_BANNER = `<!--
  * The output includes the derived-file banner immediately after the
  * frontmatter. The caller writes the result to disk.
  */
-export const runSkillGen = async (model: AnyModel, spec: SkillSpec): Promise<string> => {
+export const runSkillGen = (model: AnyModel, spec: SkillSpec): Promise<string> => {
+  return submitAiJob({
+    name: `skill-gen:${spec.name}`,
+    run: (signal) => runSkillGenInner(model, spec, signal),
+  });
+};
+
+const runSkillGenInner = async (
+  model: AnyModel,
+  spec: SkillSpec,
+  signal: AbortSignal,
+): Promise<string> => {
   const specJson = JSON.stringify(
     {
       name: spec.name,
@@ -66,7 +78,7 @@ export const runSkillGen = async (model: AnyModel, spec: SkillSpec): Promise<str
     ],
   };
 
-  const response = await completeWithBackoff(model, context);
+  const response = await completeWithBackoff(model, context, { signal });
   if (response.stopReason === "error") {
     const errMsg = response.errorMessage ?? "unknown error";
     throw new Error(`skill-gen: LLM returned error: ${errMsg}`);

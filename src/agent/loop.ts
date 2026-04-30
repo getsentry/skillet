@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { NormalizedMessage } from "../eval/index.js";
 import type { Skill } from "../skill/loader.js";
 import type { AnyModel } from "./provider.js";
+import { submitAiJob } from "./queue.js";
 import { runToolLoop } from "./tool-loop.js";
 import { createToolDefs, executeTool } from "./tools.js";
 
@@ -58,7 +59,9 @@ export const runAgent = async (opts: AgentRunOptions): Promise<AgentRunResult> =
     tools,
   };
 
+  let turnIndex = 0;
   for (const turn of turns) {
+    turnIndex++;
     context.messages.push({
       role: "user",
       content: turn,
@@ -66,13 +69,20 @@ export const runAgent = async (opts: AgentRunOptions): Promise<AgentRunResult> =
     });
     transcript.push({ role: "user", content: turn });
 
-    const result = await runToolLoop({
-      model,
-      context,
-      executeTool: (name, args) => executeTool(workDir, name, args, skill.root),
-      deadline,
-      maxToolCalls: MAX_TOOL_CALLS_PER_TURN,
-      ...(onToolCall != null ? { onToolCall } : {}),
+    const remaining = Math.max(deadline - Date.now(), 1_000);
+    const result = await submitAiJob({
+      name: `eval-case:${skill.meta.name}#turn-${turnIndex}`,
+      timeoutMs: remaining,
+      run: (signal) =>
+        runToolLoop({
+          model,
+          context,
+          executeTool: (name, args) => executeTool(workDir, name, args, skill.root),
+          deadline,
+          maxToolCalls: MAX_TOOL_CALLS_PER_TURN,
+          signal,
+          ...(onToolCall != null ? { onToolCall } : {}),
+        }),
     });
 
     if (result.allText !== "") outputs.push(result.allText);

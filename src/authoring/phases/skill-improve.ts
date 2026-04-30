@@ -1,6 +1,7 @@
 import type { Context } from "@mariozechner/pi-ai";
 import { completeWithBackoff } from "../../agent/complete-with-backoff.js";
 import type { AnyModel } from "../../agent/provider.js";
+import { submitAiJob } from "../../agent/queue.js";
 import type { EvalRunResult } from "../../eval/index.js";
 import type { SkillSpec } from "../../spec/index.js";
 import { buildSkillImprovePrompt } from "../prompts/skill-improve.js";
@@ -38,11 +39,24 @@ const formatFailures = (runResult: EvalRunResult): string => {
  *
  * Spec is read-only here. The improver only tunes prose.
  */
-export const runSkillImprove = async (
+export const runSkillImprove = (
   model: AnyModel,
   spec: SkillSpec,
   currentSkillMd: string,
   evalRun: EvalRunResult,
+): Promise<string> => {
+  return submitAiJob({
+    name: `skill-improve:${spec.name}`,
+    run: (signal) => runSkillImproveInner(model, spec, currentSkillMd, evalRun, signal),
+  });
+};
+
+const runSkillImproveInner = async (
+  model: AnyModel,
+  spec: SkillSpec,
+  currentSkillMd: string,
+  evalRun: EvalRunResult,
+  signal: AbortSignal,
 ): Promise<string> => {
   const specJson = JSON.stringify(
     {
@@ -74,7 +88,7 @@ export const runSkillImprove = async (
     messages: [{ role: "user", content: userContent, timestamp: Date.now() }],
   };
 
-  const response = await completeWithBackoff(model, context);
+  const response = await completeWithBackoff(model, context, { signal });
   if (response.stopReason === "error") {
     const errMsg = response.errorMessage ?? "unknown error";
     throw new Error(`skill-improve: LLM returned error: ${errMsg}`);

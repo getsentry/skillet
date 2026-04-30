@@ -49,6 +49,12 @@ export interface ToolLoopOptions {
   perStepCapMs?: number;
   /** Called on each tool execution for visibility. */
   onToolCall?: (name: string, step: number) => void;
+  /**
+   * Outer abort signal from the AI queue's per-job deadline.
+   * Forwarded into every pi-ai `complete()` call so a stuck HTTP
+   * request cancels cleanly when the job's wall-clock deadline fires.
+   */
+  signal?: AbortSignal;
 }
 
 export interface ToolLoopResult {
@@ -133,7 +139,7 @@ const timeoutPromise = (ms: number): Promise<never> => {
 };
 
 export const runToolLoop = async (opts: ToolLoopOptions): Promise<ToolLoopResult> => {
-  const { model, context, executeTool, deadline, maxToolCalls, onToolCall } = opts;
+  const { model, context, executeTool, deadline, maxToolCalls, onToolCall, signal } = opts;
   const perStepCapMs = opts.perStepCapMs ?? DEFAULT_PER_STEP_CAP_MS;
   const tools = context.tools ?? [];
 
@@ -154,7 +160,7 @@ export const runToolLoop = async (opts: ToolLoopOptions): Promise<ToolLoopResult
     const perStepCap = Math.min(remaining, perStepCapMs);
 
     const response = await Promise.race([
-      completeWithBackoff(model, context),
+      completeWithBackoff(model, context, signal != null ? { signal } : undefined),
       timeoutPromise(perStepCap),
     ]);
 

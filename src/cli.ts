@@ -43,7 +43,6 @@ const parseEnvInt = (name: string): number | undefined => {
 };
 
 const aiConcurrency = parseIntFlag(args, "ai-concurrency") ?? parseEnvInt("SKILLET_AI_CONCURRENCY");
-const aiRetries = parseEnvInt("SKILLET_AI_RETRIES");
 const aiTimeoutMs = parseEnvInt("SKILLET_AI_TIMEOUT");
 // Deprecated: --concurrency on eval/compare. Still routes to the
 // AI queue but emits a deprecation note.
@@ -52,7 +51,6 @@ const deprecatedConcurrency = parseIntFlag(args, "concurrency");
 const queueOverrides: Parameters<typeof setQueueConfig>[0] = {};
 if (aiConcurrency != null) queueOverrides.concurrency = aiConcurrency;
 else if (deprecatedConcurrency != null) queueOverrides.concurrency = deprecatedConcurrency;
-if (aiRetries != null) queueOverrides.maxRetries = aiRetries;
 if (aiTimeoutMs != null) queueOverrides.timeoutMs = aiTimeoutMs;
 if (Object.keys(queueOverrides).length > 0) setQueueConfig(queueOverrides);
 
@@ -66,31 +64,22 @@ if (deprecatedConcurrency != null && aiConcurrency == null) {
 
 interface JobStats {
   succeeded: number;
-  retried: number;
   failed: number;
   failuresByPrefix: Map<string, string[]>;
 }
 
 const stats: JobStats = {
   succeeded: 0,
-  retried: 0,
   failed: 0,
   failuresByPrefix: new Map(),
 };
-const seenRetried = new Set<string>();
 
 const recordEvent = (e: JobEvent): void => {
-  if (e.kind === "retrying") seenRetried.add(e.name);
   if (e.kind === "succeeded") {
     stats.succeeded++;
-    if (seenRetried.has(e.name)) {
-      stats.retried++;
-      seenRetried.delete(e.name);
-    }
   }
   if (e.kind === "failed") {
     stats.failed++;
-    seenRetried.delete(e.name);
     const prefix = e.name.split(":")[0] ?? "ai";
     const list = stats.failuresByPrefix.get(prefix) ?? [];
     list.push(e.name);
@@ -101,9 +90,9 @@ const recordEvent = (e: JobEvent): void => {
 onJobEvent(recordEvent);
 
 const printJobSummary = (): void => {
-  if (stats.succeeded + stats.retried + stats.failed === 0) return;
+  if (stats.succeeded + stats.failed === 0) return;
   process.stderr.write(
-    `\x1b[2mAI jobs: ${stats.succeeded} succeeded, ${stats.retried} retried, ${stats.failed} failed\x1b[0m\n`,
+    `\x1b[2mAI jobs: ${stats.succeeded} succeeded, ${stats.failed} failed\x1b[0m\n`,
   );
   if (stats.failed > 0) {
     process.stderr.write("\x1b[2mFailures clustered by name prefix:\x1b[0m\n");
@@ -240,9 +229,8 @@ Environment:
   SKILLET_MODEL              Override agent model (e.g. anthropic/claude-sonnet-4-20250514)
   SKILLET_JUDGE_MODEL        Override judge model separately
   SKILLET_EVAL_GEN_MODEL     Override the model used for per-behavior eval generation
-  SKILLET_AI_CONCURRENCY=N   Max concurrent LLM calls (same as --ai-concurrency)
-  SKILLET_AI_RETRIES=N       Max retry attempts per LLM call (default 3)
-  SKILLET_AI_TIMEOUT=ms      Per-call wall-clock timeout (default 240000)
+  SKILLET_AI_CONCURRENCY=N   Max concurrent AI jobs in flight (same as --ai-concurrency, default 4)
+  SKILLET_AI_TIMEOUT=ms      Per-job wall-clock deadline (default 600000 = 10 min)
   SKILLET_VERBOSE=1          Enable verbose logging (same as --verbose on any command)
 `);
 };
