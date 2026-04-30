@@ -2,20 +2,7 @@
 
 ## 0.25.0
 
-### New Features ✨
-
-- (authoring) Add domain-depth guidance and a human clarification escape hatch for underdetermined spec planning
-- (authoring) Add spec-driven `references/*.md` generation for deep domain guidance
-
-### Bug Fixes 🐛
-
-- (verify) Chunk semantic verification so large specs no longer fail as one malformed JSON response
-- (verify) Report declared reference files that are missing or not mentioned by SKILL.md
-- (evals) Preflight generated setup scripts and preserve tool-call records in eval transcripts
-- (evals) Include full normalized transcripts and tool calls in criterion judge input
-- (harness) Let eval agents read skill reference files via `read_file`, `list_files`, and `grep`
-- (evals) Add timeout headroom for judge/artifact work after long agent runs
-- (authoring) Copy files into staging instead of hard-linking so failed regen cannot mutate live files before commit
+- No documented changes.
 
 ## 0.24.1
 

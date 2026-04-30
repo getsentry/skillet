@@ -3,12 +3,13 @@ import { join, resolve } from "node:path";
 import { resolveModels } from "../agent/provider.js";
 import { SpecAuthorPaused, runSpecAuthor } from "../authoring/phases/spec-author.js";
 import { runSpecRefine } from "../authoring/phases/spec-refine.js";
-import { buildAuthoringScope, defaultToolBase } from "../authoring/scope.js";
+import { buildAuthoringScope } from "../authoring/scope.js";
 import { seedFromDescription, seedFromSkill } from "../authoring/seed/index.js";
 import { sessionExists } from "../authoring/session.js";
 import { handleSpecAuthorPause } from "../cli/pause.js";
 import { createInteractiveSession } from "../cli/transport.js";
 import { withStaging } from "../staging/index.js";
+import { collectInputs } from "./_inputs.js";
 import {
   applyPatches,
   readSpec,
@@ -32,35 +33,6 @@ const findFlag = (args: string[], prefix: string): string | undefined => {
 
 const findPositional = (args: string[]): string[] => {
   return args.filter((a) => !a.startsWith("--"));
-};
-
-/**
- * Collect repeatable `--input <path>` (or `--input=<path>`) flags.
- * Returns absolute paths, or null when any of them is missing on disk.
- */
-const collectInputs = (args: string[]): { absolute: string[] } | { error: string } => {
-  const inputs: string[] = [];
-  for (let i = 0; i < args.length; i++) {
-    const a = args[i] ?? "";
-    if (a === "--input") {
-      const next = args[i + 1];
-      if (next != null) {
-        inputs.push(next);
-        i += 1;
-      }
-      continue;
-    }
-    if (a.startsWith("--input=")) {
-      inputs.push(a.slice("--input=".length));
-    }
-  }
-  const absolute: string[] = [];
-  for (const raw of inputs) {
-    const abs = resolve(raw);
-    if (!existsSync(abs)) return { error: `--input path does not exist: ${raw}` };
-    absolute.push(abs);
-  }
-  return { absolute };
 };
 
 /**
@@ -140,10 +112,10 @@ const specInit = async (args: string[]): Promise<number> => {
   console.log(`Seeding draft spec from description (${skillRoot})...`);
 
   let spec;
-  const initScopeInput = {
+  const scope = buildAuthoringScope({
     skillRoot,
     ...(inputs.absolute.length > 0 ? { inputPaths: inputs.absolute } : {}),
-  };
+  });
   try {
     const baseline = await seedFromDescription(models.agent, description);
     const session = createInteractiveSession();
@@ -151,8 +123,7 @@ const specInit = async (args: string[]): Promise<number> => {
       const authorResult = await runSpecAuthor({
         model: models.agent,
         baseline,
-        scope: buildAuthoringScope(initScopeInput),
-        toolBase: defaultToolBase(initScopeInput),
+        scope,
         transport: session.transport,
       });
       if (!authorResult.accepted) {
@@ -349,10 +320,10 @@ const specImport = async (args: string[]): Promise<number> => {
   const models = resolveModels();
   console.log(`Seeding spec from ${skillMdPath}...`);
   let spec;
-  const importScopeInput = {
+  const scope = buildAuthoringScope({
     skillRoot,
     ...(importInputs.absolute.length > 0 ? { inputPaths: importInputs.absolute } : {}),
-  };
+  });
   try {
     const baseline = await seedFromSkill(models.agent, skillMd);
     const session = createInteractiveSession();
@@ -360,8 +331,7 @@ const specImport = async (args: string[]): Promise<number> => {
       const authorResult = await runSpecAuthor({
         model: models.agent,
         baseline,
-        scope: buildAuthoringScope(importScopeInput),
-        toolBase: defaultToolBase(importScopeInput),
+        scope,
         transport: session.transport,
       });
       if (!authorResult.accepted) {
@@ -389,10 +359,8 @@ const specImport = async (args: string[]): Promise<number> => {
     return 1;
   }
 
-  // Stage all writes (spec.yaml + SKILL.md + eval files) so a
-  // failure during regen leaves the original skill untouched.
-  // Pre-fix: writeSpec ran first, then regen — a regen failure
-  // left the user with a clobbered SKILL.md and no spec.yaml.
+  // Stage all writes (spec.yaml + SKILL.md + eval files) so a regen
+  // failure leaves the original skill untouched.
   try {
     await withStaging(skillRoot, async (stagingDir) => {
       writeSpec(join(stagingDir, specFileName()), spec);

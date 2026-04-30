@@ -11,7 +11,7 @@ import { verifyCoverage, verifyResults } from "../verify/index.js";
 import type { CoverageReport, ResultsReport } from "../verify/index.js";
 import { runSpecAuthor } from "./phases/spec-author.js";
 import { runSkillImprove } from "./phases/skill-improve.js";
-import { buildAuthoringScope, defaultToolBase } from "./scope.js";
+import { buildAuthoringScope } from "./scope.js";
 import { seedFromDescription, seedFromSkill } from "./seed/index.js";
 
 // ── Types ─────────────────────────────────────────────────
@@ -90,11 +90,9 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
   // ── Phase 1: Establish spec ─────────────────────────────
   const existingSpec = existsSync(specPath) ? readSpec(specPath) : null;
 
-  // Phase 1+2 are transactional as a unit: spec write + initial
-  // regen all hit a staging dir; commit only if everything succeeds.
-  // Pre-fix: spec wrote first, then regen — a regen failure left a
-  // half-mutated skill (clobbered SKILL.md, dangling spec.yaml, no
-  // eval files) with no path back to the user's original.
+  // Phase 1+2 are transactional as a unit: spec write + initial regen
+  // hit a staging dir; commit only if everything succeeds, so a regen
+  // failure can't leave a half-mutated skill behind.
   let preparedSpec: { spec: SkillSpec; reason: "create" | "import" | "existing" } | null = null;
   if (mode === "create") {
     if (description == null || description === "") {
@@ -113,19 +111,16 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
     }
     console.log("Entering spec-author loop. Answer any questions to refine the spec.");
     const session = createInteractiveSession();
-    const scopeInput = {
+    const scope = buildAuthoringScope({
       skillRoot: skillPath,
       ...(opts.inputPaths != null ? { inputPaths: opts.inputPaths } : {}),
-    };
-    const scope = buildAuthoringScope(scopeInput);
-    const toolBase = defaultToolBase(scopeInput);
+    });
     let spec: SkillSpec;
     try {
       const authorResult = await runSpecAuthor({
         model: models.agent,
         baseline,
         scope,
-        toolBase,
         transport: session.transport,
       });
       if (!authorResult.accepted) {
@@ -150,19 +145,16 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
     const baseline = await seedFromSkill(models.agent, skillMd);
     console.log("Entering spec-author loop on imported draft.");
     const session = createInteractiveSession();
-    const scopeInput = {
+    const scope = buildAuthoringScope({
       skillRoot: skillPath,
       ...(opts.inputPaths != null ? { inputPaths: opts.inputPaths } : {}),
-    };
-    const scope = buildAuthoringScope(scopeInput);
-    const toolBase = defaultToolBase(scopeInput);
+    });
     let spec: SkillSpec;
     try {
       const authorResult = await runSpecAuthor({
         model: models.agent,
         baseline,
         scope,
-        toolBase,
         transport: session.transport,
       });
       if (!authorResult.accepted) {

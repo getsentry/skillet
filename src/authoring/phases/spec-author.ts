@@ -112,12 +112,11 @@ const parseTurnOutput = (raw: string): TurnOutput => {
 
 const DEFAULT_MAX_TURNS = 6;
 const DEFAULT_MAX_TOOL_CALLS_PER_TURN = 30;
-/**
- * Generous wall-clock budget for one author-turn including all tool
- * calls. Authoring is interactive, not eval-time-bounded; the value
- * exists only to surface a stuck loop, not to enforce throughput.
- */
+/** Per-turn wall-clock budget for one LLM↔tool exchange. */
 const PER_TURN_DEADLINE_MS = 10 * 60_000;
+/** Hard ceiling across all turns in a single invocation. Resume
+ *  resets this clock; persistent counting is out of scope. */
+const SESSION_DEADLINE_MS = 30 * 60_000;
 
 export interface SpecAuthorOptions {
   model: AnyModel;
@@ -126,14 +125,10 @@ export interface SpecAuthorOptions {
   /**
    * Research scope the agent's read-only tools may operate in. Built
    * by `buildAuthoringScope` from bundled references + skill root +
-   * --input paths (or CWD fallback).
+   * --input paths (or CWD fallback). `scope.defaultBase` is the base
+   * for relative tool path arguments.
    */
   scope: ResearchScope;
-  /**
-   * Default base directory used when the agent calls a tool with a
-   * relative `path` argument. Usually the first scope root.
-   */
-  toolBase: string;
   /**
    * Optional human-readable context surfaced to the LLM on turn 1
    * (e.g. eval failure digest from improve seed).
@@ -202,14 +197,15 @@ export const runSpecAuthor = async (opts: SpecAuthorOptions): Promise<SpecAuthor
   // fixed at session start (resume preserves it).
   const tools = createReadOnlyToolDefs();
   const scopedExecutor = wrapExecutorForScope(
-    (name, args) => executeTool(opts.toolBase, name, args),
+    (name, args) => executeTool(opts.scope.defaultBase, name, args),
     opts.scope,
-    opts.toolBase,
   );
+  const sessionDeadline = Date.now() + SESSION_DEADLINE_MS;
+  const turnDeadline = (): number => Math.min(sessionDeadline, Date.now() + PER_TURN_DEADLINE_MS);
 
   for (let iteration = 1; iteration <= maxTurns; iteration++) {
     const gates = validateClassGates(current);
-    const turnUserMessage = buildTurnUserMessage(current, gates, opts.scope, opts.toolBase);
+    const turnUserMessage = buildTurnUserMessage(current, gates, opts.scope);
     messages.push({ role: "user", content: turnUserMessage, timestamp: Date.now() });
 
     const context: Context = {
@@ -223,7 +219,7 @@ export const runSpecAuthor = async (opts: SpecAuthorOptions): Promise<SpecAuthor
       model: opts.model,
       context,
       executeTool: scopedExecutor,
-      deadline: Date.now() + PER_TURN_DEADLINE_MS,
+      deadline: turnDeadline(),
       maxToolCalls: maxToolCallsPerTurn,
       onToolCall: (name) => {
         toolCounts.set(name, (toolCounts.get(name) ?? 0) + 1);
@@ -244,7 +240,7 @@ export const runSpecAuthor = async (opts: SpecAuthorOptions): Promise<SpecAuthor
         model: opts.model,
         context,
         executeTool: scopedExecutor,
-        deadline: Date.now() + PER_TURN_DEADLINE_MS,
+        deadline: turnDeadline(),
         maxToolCalls: 0,
       });
       if (nudge.endReason === "max-tool-calls") {
@@ -371,14 +367,13 @@ const buildTurnUserMessage = (
   spec: SkillSpec,
   gates: ReturnType<typeof validateClassGates>,
   scope: ResearchScope,
-  toolBase: string,
 ): string => {
   const yaml = renderSpec(spec);
   const gateLines = gates.valid
     ? "All class gates currently pass."
     : `Class gates failing:\n- missing dimensions: ${formatList(gates.missingDimensions)}\n- missing reference topics: ${formatList(gates.missingReferenceTopics)}`;
   const scopeLines = [
-    `Default base for relative paths: ${toolBase}`,
+    `Default base for relative paths: ${scope.defaultBase}`,
     `Research scope (allowed read roots):`,
     ...scope.roots.map((r) => `- ${r}`),
   ].join("\n");

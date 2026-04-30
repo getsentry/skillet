@@ -5,6 +5,7 @@ import { SpecAuthorPaused } from "../authoring/phases/spec-author.js";
 import { sessionExists } from "../authoring/session.js";
 import { handleSpecAuthorPause } from "../cli/pause.js";
 import { specFileName } from "../spec/index.js";
+import { collectInputs } from "./_inputs.js";
 
 /** Default `allowed-tools` for fresh skills. Permissive enough that
  *  authoring workflows aren't blocked by permission prompts on the
@@ -22,12 +23,6 @@ export interface CreateOptions {
    */
   allowedTools?: string;
   noDefaultTools?: boolean;
-  /**
-   * Repeatable `--input <path>` directories the spec-author agent may
-   * read from. When omitted, the spec-author falls back to CWD as the
-   * default research scope.
-   */
-  inputs?: string[];
 }
 
 const parseCreateArgs = (args: string[]): CreateOptions | null => {
@@ -35,7 +30,6 @@ const parseCreateArgs = (args: string[]): CreateOptions | null => {
   // free-form description words. `--tools "Read Grep"` is two tokens
   // in argv: `--tools` and `Read Grep`.
   const desc: string[] = [];
-  const inputs: string[] = [];
   let i = 0;
   let path: string | undefined;
   let maxIterations: number | undefined;
@@ -67,15 +61,11 @@ const parseCreateArgs = (args: string[]): CreateOptions | null => {
       continue;
     }
     if (a === "--input") {
-      const next = args[i + 1];
-      if (next != null) {
-        inputs.push(next);
-        i += 2;
-        continue;
-      }
+      // Skip flag + value; collectInputs() parses the flag separately.
+      i += 2;
+      continue;
     }
     if (a.startsWith("--input=")) {
-      inputs.push(a.slice("--input=".length));
       i += 1;
       continue;
     }
@@ -103,7 +93,6 @@ const parseCreateArgs = (args: string[]): CreateOptions | null => {
   if (maxIterations != null) opts.maxIterations = maxIterations;
   if (allowedTools != null) opts.allowedTools = allowedTools;
   if (noDefaultTools) opts.noDefaultTools = true;
-  if (inputs.length > 0) opts.inputs = inputs;
   return opts;
 };
 
@@ -116,18 +105,12 @@ export const createCommand = async (args: string[]): Promise<number> => {
     return 1;
   }
 
-  // Validate --input paths up front so the LLM never starts when the
-  // research scope can't be built. Paths don't have to be subdirs of
-  // the target skill; they just have to exist as directories.
-  const inputAbsolutes: string[] = [];
-  for (const raw of opts.inputs ?? []) {
-    const absolute = resolve(raw);
-    if (!existsSync(absolute)) {
-      console.error(`Error: --input path does not exist: ${raw}`);
-      return 1;
-    }
-    inputAbsolutes.push(absolute);
+  const inputs = collectInputs(args);
+  if ("error" in inputs) {
+    console.error(`Error: ${inputs.error}`);
+    return 1;
   }
+  const inputAbsolutes = inputs.absolute;
 
   // Resolve the allowed-tools value for the new skill's frontmatter.
   // Default: a permissive Claude Code subset. --tools overrides;

@@ -1,33 +1,31 @@
 /**
- * Research scope: a set of absolute root directories that bound where
- * spec-author tools may read. The scope is composed at session start
- * (bundled references + target skill root + user `--input` paths,
- * with CWD as fallback when no `--input` was given) and threaded
- * through every tool call.
- *
- * Scope enforcement happens by wrapping the executor: the wrapper
- * resolves the path argument to an absolute path and rejects any
- * call whose target falls outside the union of scope roots. The
- * underlying executor (in `tools.ts`) stays scope-agnostic.
+ * Research scope: a bounded set of absolute root directories the
+ * spec-author agent may read under, plus the default base used to
+ * resolve relative tool paths. Scope enforcement wraps the executor
+ * — the wrapper canonicalizes the path argument and rejects calls
+ * outside the roots. Symlink resolution closes the obvious escape.
  */
 
 import { realpathSync } from "node:fs";
 import { resolve } from "node:path";
 
 export interface ResearchScope {
-  /** Absolute, normalized root paths the agent may read under. */
+  /** Absolute, canonical root paths the agent may read under. */
   roots: string[];
+  /** Base directory for resolving relative tool path arguments. */
+  defaultBase: string;
 }
 
 /**
- * Build a scope from a list of (possibly relative) input paths plus
- * any always-included roots. Each path is resolved and, when it
- * exists on disk, canonicalized with realpath so symlink games
- * cannot escape the scope.
+ * Build a scope from a list of (possibly relative) input paths. Each
+ * is resolved and, when it exists, canonicalized via realpath so
+ * symlink games cannot escape the scope. The first non-empty input
+ * becomes the `defaultBase`.
  */
 export const buildScope = (paths: string[]): ResearchScope => {
   const seen = new Set<string>();
   const roots: string[] = [];
+  let defaultBase: string | undefined;
   for (const raw of paths) {
     if (raw === "") continue;
     const absolute = resolve(raw);
@@ -35,18 +33,17 @@ export const buildScope = (paths: string[]): ResearchScope => {
     try {
       canonical = realpathSync(absolute);
     } catch {
-      // Path doesn't exist (or permission denied) — keep the resolved
-      // form anyway so out-of-scope checks still work for missing
-      // user-supplied inputs. The tool itself will report "file not
-      // found" if the agent reads under it.
+      // Missing/inaccessible — keep the resolved form; tool reads will
+      // surface "not found" naturally.
       canonical = absolute;
     }
     if (!seen.has(canonical)) {
       seen.add(canonical);
       roots.push(canonical);
     }
+    defaultBase ??= canonical;
   }
-  return { roots };
+  return { roots, defaultBase: defaultBase ?? process.cwd() };
 };
 
 /**
@@ -70,21 +67,20 @@ export const isInScope = (scope: ResearchScope, target: string): boolean => {
 };
 
 /**
- * Wrap an executor so it rejects out-of-scope path arguments before
- * the underlying tool runs. The wrapper inspects the `path` argument
- * (which all read-only tools in skillet's set accept) and resolves
- * it against `defaultBase` when the value is relative. Tools without
- * a path argument pass through unchanged.
+ * Wrap an executor so it rejects out-of-scope path arguments. The
+ * wrapper inspects the `path` argument (which read-only tools all
+ * accept), resolves it against `scope.defaultBase` when relative, and
+ * checks against the canonical roots. Tools without a path argument
+ * pass through unchanged.
  */
 export const wrapExecutorForScope = (
   executor: (name: string, args: Record<string, unknown>) => string,
   scope: ResearchScope,
-  defaultBase: string,
 ): ((name: string, args: Record<string, unknown>) => string) => {
   return (name, args) => {
     const rawPath = args.path;
     if (typeof rawPath === "string" && rawPath !== "") {
-      const absolute = resolve(defaultBase, rawPath);
+      const absolute = resolve(scope.defaultBase, rawPath);
       if (!isInScope(scope, absolute)) {
         return `Error: path '${rawPath}' is outside the research scope. Allowed roots:\n${scope.roots
           .map((r) => `  - ${r}`)

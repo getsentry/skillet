@@ -26,12 +26,8 @@ export interface AgentRunResult {
   messages: NormalizedMessage[];
 }
 
-/**
- * Per-turn cap on tool calls. Matches the prior `MAX_STEPS` value
- * (50). When the kernel hits this cap, the eval-runtime loop exits
- * the inner cycle and moves to the next user turn — same as the
- * pre-refactor silent exit.
- */
+/** Per-turn cap on tool calls. When hit, the eval-runtime loop
+ *  exits the inner cycle silently and proceeds to the next turn. */
 const MAX_TOOL_CALLS_PER_TURN = 50;
 
 /**
@@ -83,9 +79,8 @@ export const runAgent = async (opts: AgentRunOptions): Promise<AgentRunResult> =
     transcript.push(...result.transcriptAdditions);
     totalToolCalls += result.toolCallCount;
 
-    // `max-tool-calls` and `error` are absorbed silently to preserve
-    // pre-refactor behavior (the eval loop never threw on these). A
-    // subsequent turn can still proceed against the existing context.
+    // `max-tool-calls` and `error` are absorbed silently — eval cases
+    // continue against the existing context rather than aborting the run.
   }
 
   return {

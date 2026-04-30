@@ -2,7 +2,7 @@ import { existsSync, mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { resolveModels } from "../agent/provider.js";
 import { SpecAuthorPaused, runSpecAuthor } from "../authoring/phases/spec-author.js";
-import { buildAuthoringScope, defaultToolBase } from "../authoring/scope.js";
+import { buildAuthoringScope } from "../authoring/scope.js";
 import { deleteSession, readSession, sessionExists } from "../authoring/session.js";
 import { handleSpecAuthorPause } from "../cli/pause.js";
 import { createInteractiveSession } from "../cli/transport.js";
@@ -93,20 +93,19 @@ export const resumeCommand = async (args: string[]): Promise<number> => {
 
   const models = resolveModels();
   const interactive = createInteractiveSession();
-  const scopeInput = {
+  const scope = buildAuthoringScope({
     skillRoot,
     ...(session.inputPaths != null && session.inputPaths.length > 0
       ? { inputPaths: session.inputPaths }
       : {}),
-  };
+  });
 
   let finalSpec;
   try {
     const result = await runSpecAuthor({
       model: models.agent,
       baseline: session.spec,
-      scope: buildAuthoringScope(scopeInput),
-      toolBase: defaultToolBase(scopeInput),
+      scope,
       transport: interactive.transport,
       resume: {
         messages: session.messages,

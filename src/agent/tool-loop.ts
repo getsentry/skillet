@@ -1,16 +1,8 @@
 /**
- * Reusable LLM ↔ tool inner loop.
- *
- * Pulled out of `src/agent/loop.ts` so spec-author and eval-runtime can
- * share the same dance: send → respond → execute tool calls → repeat
- * until the model emits a non-toolUse stopReason. Eval-runtime keeps
- * its outer iteration over user "turns" and its skill-specific system
- * prompt; spec-author runs this kernel once per author-turn and then
- * parses the terminal text as structured turn output.
- *
- * The kernel mutates `context.messages` in-place (appending assistant
- * and tool-result messages). Callers that track a separate normalized
- * transcript receive the additions via the result.
+ * Reusable LLM ↔ tool inner loop. Mutates `context.messages` in-place
+ * with assistant + tool-result messages and returns the final text,
+ * tool-call count, and a normalized transcript additions list for
+ * callers that maintain their own transcript.
  */
 
 import type { Context, Message } from "@mariozechner/pi-ai";
