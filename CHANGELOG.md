@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.27.0
+
+### New Features ✨
+
+- (agent) Centralize LLM calls behind a single AI job queue by @gricha in [7138e8eb](https://github.com/getsentry/skillet/commit/7138e8eb10308b8d280bfe135bcc662e4deb7a85)
+
 ## 0.26.1
 
 ### Bug Fixes 🐛
