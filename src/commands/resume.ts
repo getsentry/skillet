@@ -56,6 +56,12 @@ const parseResumeArgs = (args: string[]): ResumeOptions | null => {
  * SKILL.md / evals are regenerated; if the loop pauses again, the
  * session file is rewritten with the new pending questions.
  */
+export const RESUME_USAGE = `Usage: skillet resume <path> --answer "..." [--answer "..."]
+
+Resume a paused spec-author session. Provide one --answer per pending
+question (in order). Used by non-TTY agent harnesses; in a TTY, the
+spec-author loop reads answers inline and never writes a session.`;
+
 export const resumeCommand = async (args: string[]): Promise<number> => {
   const opts = parseResumeArgs(args);
   if (opts == null) {

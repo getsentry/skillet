@@ -105,6 +105,11 @@ interface CompareOptions {
   json?: boolean;
 }
 
+export const COMPARE_USAGE = `Usage: skillet compare <eval-source-skill> <comparison-skill> [--json]
+
+Run skill A's evals against both A and B; print side-by-side. Concurrency
+is governed by the global AI job queue (--ai-concurrency).`;
+
 export const compareCommand = async (
   evalSourceArg: string,
   comparisonArg: string,

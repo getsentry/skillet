@@ -27,6 +27,11 @@ const errorMessage = (err: unknown): string => {
  * `add_must_not` for negative rules), the spec is updated, and
  * derived files are regenerated. Auto-imports legacy skills.
  */
+export const ADD_EVAL_USAGE = `Usage: skillet add-eval [path] "<behavior>" ["<another>"] ...
+
+Append behaviors to spec.yaml as new \`add_behavior\` patches; auto-regens
+SKILL.md and eval files. Auto-imports legacy SKILL.md-only skills.`;
+
 export const addEvalCommand = async (args: string[]): Promise<number> => {
   const nonFlags = args.filter((a) => !a.startsWith("--"));
 

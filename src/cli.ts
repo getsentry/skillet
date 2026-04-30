@@ -1,12 +1,13 @@
-import { addEvalCommand } from "./commands/add-eval.js";
-import { compareCommand } from "./commands/compare.js";
-import { createCommand } from "./commands/create.js";
-import { evalCommand } from "./commands/eval.js";
-import { improveCommand } from "./commands/improve.js";
-import { installCommand } from "./commands/install.js";
-import { resumeCommand } from "./commands/resume.js";
+import { ADD_EVAL_USAGE, addEvalCommand } from "./commands/add-eval.js";
+import { COMPARE_USAGE, compareCommand } from "./commands/compare.js";
+import { CREATE_USAGE, createCommand } from "./commands/create.js";
+import { EVAL_USAGE, evalCommand } from "./commands/eval.js";
+import { isHelpRequest } from "./commands/_help.js";
+import { IMPROVE_USAGE, improveCommand } from "./commands/improve.js";
+import { INSTALL_USAGE, installCommand } from "./commands/install.js";
+import { RESUME_USAGE, resumeCommand } from "./commands/resume.js";
 import { specCommand } from "./commands/spec.js";
-import { verifyCommand } from "./commands/verify.js";
+import { VERIFY_USAGE, verifyCommand } from "./commands/verify.js";
 import { drainQueue, onJobEvent, setQueueConfig, type JobEvent } from "./agent/queue.js";
 import { setVerbose } from "./log.js";
 
@@ -124,8 +125,18 @@ const main = async (): Promise<number> => {
     return 0;
   }
 
+  // Per-command --help short-circuit. Must run before any command body
+  // touches the filesystem, sessions, or the LLM. (Spec subcommands
+  // handle their own --help inside specCommand.)
+  const subArgs = args.slice(1);
+  const helpRequested = isHelpRequest(subArgs);
+
   switch (command) {
     case "eval": {
+      if (helpRequested) {
+        console.log(EVAL_USAGE);
+        return 0;
+      }
       const jsonFlag = args.includes("--json");
       const positional = args.filter((a, i) => i > 0 && !a.startsWith("--"));
       const evalPath = positional[0];
@@ -133,36 +144,65 @@ const main = async (): Promise<number> => {
     }
 
     case "compare": {
+      if (helpRequested) {
+        console.log(COMPARE_USAGE);
+        return 0;
+      }
       const jsonFlag = args.includes("--json");
       const positional = args.filter((a, i) => i > 0 && !a.startsWith("--"));
       const [first, second] = positional;
       if (first == null || second == null) {
-        console.error("Usage: skillet compare <eval-source-skill> <comparison-skill> [--json]");
+        console.error(COMPARE_USAGE);
         return 1;
       }
       return compareCommand(first, second, { json: jsonFlag });
     }
 
     case "verify":
-      return verifyCommand(args.slice(1));
+      if (helpRequested) {
+        console.log(VERIFY_USAGE);
+        return 0;
+      }
+      return verifyCommand(subArgs);
 
     case "create":
-      return createCommand(args.slice(1));
+      if (helpRequested) {
+        console.log(CREATE_USAGE);
+        return 0;
+      }
+      return createCommand(subArgs);
 
     case "improve":
-      return improveCommand(args.slice(1));
+      if (helpRequested) {
+        console.log(IMPROVE_USAGE);
+        return 0;
+      }
+      return improveCommand(subArgs);
 
     case "add-eval":
-      return addEvalCommand(args.slice(1));
+      if (helpRequested) {
+        console.log(ADD_EVAL_USAGE);
+        return 0;
+      }
+      return addEvalCommand(subArgs);
 
     case "install":
-      return installCommand(args.slice(1));
+      if (helpRequested) {
+        console.log(INSTALL_USAGE);
+        return 0;
+      }
+      return installCommand(subArgs);
 
     case "spec":
-      return specCommand(args.slice(1));
+      // specCommand handles its own subcommand --help routing internally.
+      return specCommand(subArgs);
 
     case "resume":
-      return resumeCommand(args.slice(1));
+      if (helpRequested) {
+        console.log(RESUME_USAGE);
+        return 0;
+      }
+      return resumeCommand(subArgs);
 
     default:
       console.error(`Unknown command: ${command}`);

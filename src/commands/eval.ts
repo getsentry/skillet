@@ -9,6 +9,11 @@ const errorMessage = (err: unknown): string => {
   return err instanceof Error ? err.message : String(err);
 };
 
+export const EVAL_USAGE = `Usage: skillet eval [path] [--json]
+
+Run vitest-driven evals on a skill. Cases run via the centralized AI
+job queue (configurable with --ai-concurrency or SKILLET_AI_CONCURRENCY).`;
+
 export const evalCommand = async (pathArg?: string, jsonOutput = false): Promise<number> => {
   const startPath = resolve(pathArg ?? ".");
 

@@ -1,6 +1,8 @@
 import type { Context, Message } from "@mariozechner/pi-ai";
 import { completeWithBackoff } from "../../agent/complete-with-backoff.js";
 import type { AnyModel } from "../../agent/provider.js";
+import { event } from "../../log.js";
+import { saveFailedOutput } from "./_diagnostics.js";
 import { extractText, stripFences } from "./_text.js";
 
 const DEFAULT_MAX_RETRIES = 2;
@@ -44,7 +46,16 @@ export const runJsonPhaseWithRetries = async <T>(opts: JsonPhaseOptions<T>): Pro
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const context: Context = { systemPrompt: opts.systemPrompt, messages };
-    const response = await completeWithBackoff(opts.model, context);
+    // 120s per attempt is enough for any structured-output JSON phase;
+    // beyond that, retry-with-error-feedback is more useful than
+    // waiting. maxRetries: 0 because this loop already retries on
+    // parse failure and letting the queue retry too compounds the
+    // wall-clock budget.
+    const response = await completeWithBackoff(opts.model, context, undefined, {
+      jobName: opts.phaseName,
+      timeoutMs: 120_000,
+      maxRetries: 0,
+    });
     if (response.stopReason === "error") {
       const errMsg = response.errorMessage ?? "unknown error";
       throw new Error(`${opts.phaseName}: LLM returned error: ${errMsg}`);
@@ -55,6 +66,22 @@ export const runJsonPhaseWithRetries = async <T>(opts: JsonPhaseOptions<T>): Pro
       return opts.parseAndValidate(lastRaw);
     } catch (err: unknown) {
       lastError = err instanceof Error ? err : new Error(String(err));
+      const remaining = maxRetries - attempt;
+      const kind = lastError.message.toLowerCase().includes("json") ? "parse" : "schema";
+      const saved = saveFailedOutput({
+        phase: opts.phaseName,
+        key: "turn",
+        attempt: attempt + 1,
+        raw: lastRaw,
+        errorMessage: lastError.message,
+        kind,
+      });
+      event("warn", `${opts.phaseName} attempt=${attempt + 1} ${kind}-fail`, {
+        message: lastError.message,
+        retriesRemaining: remaining,
+        savedTo: saved.path,
+        responseHead: saved.excerpt,
+      });
       if (attempt >= maxRetries) break;
 
       messages.push(response);

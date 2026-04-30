@@ -15,6 +15,15 @@ export interface AiJob<T> {
   /** The actual work. Receives an AbortSignal from the queue's
    *  timeout / cancellation logic — pass it into pi-ai's `complete`. */
   run: (signal: AbortSignal) => Promise<T>;
+  /** Per-job timeout override (ms). Defaults to queue config's
+   *  `timeoutMs`. Use a tighter cap for short JSON-output phases so
+   *  a stuck call retries quickly instead of burning the global 4-min
+   *  budget; use a looser cap for tool-using agent runs. */
+  timeoutMs?: number;
+  /** Per-job retry override. Defaults to queue config's `maxRetries`.
+   *  Set to 0 when the caller is doing its own retry on parse/validate
+   *  failures and doesn't want the queue to compound retries. */
+  maxRetries?: number;
 }
 
 export interface QueueConfig {
@@ -178,6 +187,9 @@ export const submitAiJob = async <T>(job: AiJob<T>): Promise<T> => {
   emit({ kind: "queued", name: job.name, depth: waiting });
   await acquire();
 
+  const effectiveTimeoutMs = job.timeoutMs ?? config.timeoutMs;
+  const effectiveMaxRetries = job.maxRetries ?? config.maxRetries;
+
   let lastError: string = "unknown error";
   let attempt = 0;
   try {
@@ -188,14 +200,14 @@ export const submitAiJob = async <T>(job: AiJob<T>): Promise<T> => {
       const controller = new AbortController();
       const timeoutHandle = setTimeout(() => {
         controller.abort();
-      }, config.timeoutMs);
+      }, effectiveTimeoutMs);
 
       const startedAt = Date.now();
       try {
         const result = await job.run(controller.signal);
         clearTimeout(timeoutHandle);
         const transientResult = isTransientResult(result);
-        if (transientResult != null && attempt <= config.maxRetries) {
+        if (transientResult != null && attempt <= effectiveMaxRetries) {
           const delayMs = backoffMs(attempt - 1);
           emit({
             kind: "retrying",
@@ -218,7 +230,7 @@ export const submitAiJob = async <T>(job: AiJob<T>): Promise<T> => {
       } catch (err: unknown) {
         clearTimeout(timeoutHandle);
         const reason = err instanceof Error ? err.message : String(err);
-        if (isTransientException(err) && attempt <= config.maxRetries) {
+        if (isTransientException(err) && attempt <= effectiveMaxRetries) {
           const delayMs = backoffMs(attempt - 1);
           emit({ kind: "retrying", name: job.name, attempt, reason, delayMs });
           lastError = reason;

@@ -57,6 +57,11 @@ const detectAgentDir = (): { name: string; dir: string } | undefined => {
   return undefined;
 };
 
+export const INSTALL_USAGE = `Usage: skillet install [target-dir]
+
+Copy the skillet skill into your agent's skills directory. Auto-detects
+Claude Code, OpenCode, and Pi when called with no argument.`;
+
 export const installCommand = (args: string[]): number => {
   const explicitPath = args.find((a) => !a.startsWith("--"));
 

@@ -20,6 +20,11 @@ const parseImproveArgs = (args: string[]): ImproveOptions => {
   return opts;
 };
 
+export const IMPROVE_USAGE = `Usage: skillet improve [path] [--max-iterations N]
+
+Iterate on an existing skill until per-behavior evals pass. Auto-imports
+legacy skills (SKILL.md without spec.yaml).`;
+
 export const improveCommand = async (args: string[]): Promise<number> => {
   const opts = parseImproveArgs(args);
   const startPath = resolve(opts.path ?? ".");

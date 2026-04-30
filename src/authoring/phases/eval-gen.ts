@@ -7,6 +7,7 @@ import { createWorkspace } from "../../eval/workspace.js";
 import { event } from "../../log.js";
 import type { Behavior, MustNot, SkillSpec } from "../../spec/index.js";
 import { buildEvalGenPrompt } from "../prompts/eval-gen.js";
+import { saveFailedOutput } from "./_diagnostics.js";
 import { extractText, isRecord, stripFences } from "./_text.js";
 
 /**
@@ -189,35 +190,68 @@ const generateForEntry = async (model: AnyModel, input: SingleEntryInput): Promi
     event("debug", `eval-gen request behavior=${input.entry.id} attempt=${attempt}`, {
       prompt: userContent,
     });
-    const response = await completeWithBackoff(model, context, { maxTokens: 4000 });
+    // 90s per-attempt cap — JSON outputs of this size shouldn't take
+    // longer; retry-with-error-feedback beats waiting. maxRetries: 0
+    // because the parse-retry loop above already does its own retry;
+    // letting the queue retry too compounds (e.g. 3 outer × 3 queue =
+    // 9 attempts and 30+ minutes wall-clock per behavior).
+    const response = await completeWithBackoff(
+      model,
+      context,
+      { maxTokens: 4000 },
+      { jobName: `eval-gen:${input.entry.id}`, timeoutMs: 90_000, maxRetries: 0 },
+    );
     context.messages.push(response);
     const text = extractText(response);
     event("debug", `eval-gen response behavior=${input.entry.id} attempt=${attempt}`, {
       response: text,
     });
 
+    const remaining = MAX_ATTEMPTS_PER_ENTRY - attempt;
     let parsed: unknown;
     try {
       parsed = JSON.parse(stripFences(text, "json"));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       lastError = new Error(`response was not valid JSON: ${msg}`);
+      const saved = saveFailedOutput({
+        phase: "eval-gen",
+        key: input.entry.id,
+        attempt,
+        raw: text,
+        errorMessage: lastError.message,
+        kind: "parse",
+      });
       event("warn", `eval-gen behavior=${input.entry.id} attempt=${attempt} parse-fail`, {
         message: lastError.message,
-        responseHead: text.slice(0, 200),
+        retriesRemaining: remaining,
+        savedTo: saved.path,
+        responseHead: saved.excerpt,
       });
       continue;
     }
     if (!Array.isArray(parsed)) {
       lastError = new Error("response was JSON but not an array");
+      const saved = saveFailedOutput({
+        phase: "eval-gen",
+        key: input.entry.id,
+        attempt,
+        raw: text,
+        errorMessage: lastError.message,
+        kind: "schema",
+      });
       event("warn", `eval-gen behavior=${input.entry.id} attempt=${attempt} not-array`, {
-        responseHead: text.slice(0, 200),
+        retriesRemaining: remaining,
+        savedTo: saved.path,
+        responseHead: saved.excerpt,
       });
       continue;
     }
     if (parsed.length === 0) {
       lastError = new Error("response array was empty");
-      event("warn", `eval-gen behavior=${input.entry.id} attempt=${attempt} empty-array`);
+      event("warn", `eval-gen behavior=${input.entry.id} attempt=${attempt} empty-array`, {
+        retriesRemaining: remaining,
+      });
       continue;
     }
     try {
@@ -225,8 +259,18 @@ const generateForEntry = async (model: AnyModel, input: SingleEntryInput): Promi
       return validateGeneratedCases(cases);
     } catch (err: unknown) {
       lastError = err instanceof Error ? err : new Error(String(err));
+      const saved = saveFailedOutput({
+        phase: "eval-gen",
+        key: input.entry.id,
+        attempt,
+        raw: text,
+        errorMessage: lastError.message,
+        kind: "schema",
+      });
       event("warn", `eval-gen behavior=${input.entry.id} attempt=${attempt} validate-fail`, {
         message: lastError.message,
+        retriesRemaining: remaining,
+        savedTo: saved.path,
       });
       continue;
     }

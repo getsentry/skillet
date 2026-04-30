@@ -113,6 +113,12 @@ const parseCreateArgs = (args: string[]): CreateOptions | null => {
   return opts;
 };
 
+export const CREATE_USAGE = `Usage: skillet create <description> [--path <dir>] [--max-iterations N] [--tools "..."] [--no-default-tools] [--input <dir>]...
+
+Create a new skill from a description. Runs the interactive spec-author
+loop with optional research-scope inputs, then regenerates SKILL.md +
+evals and enters the improve loop.`;
+
 export const createCommand = async (args: string[]): Promise<number> => {
   const opts = parseCreateArgs(args);
   if (opts == null) {
