@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.26.1
+
+### Bug Fixes 🐛
+
+- (cli) --path space form, accept-mode resume, progress visibility by @gricha in [3412004d](https://github.com/getsentry/skillet/commit/3412004d758c424766aea18d57af68d50b42dabc)
+
+### Documentation 📚
+
+- Add head-to-head test plan vs skill-writer by @gricha in [75db8cd8](https://github.com/getsentry/skillet/commit/75db8cd8a236698f42e84dfeb9d7cb8f25be9c8a)
+
 ## 0.26.0
 
 ### New Features ✨
