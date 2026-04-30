@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.28.0
+
+### Bug Fixes 🐛
+
+- --help short-circuit, retry-timeout compounding, parse diagnostics by @gricha in [fb6ce126](https://github.com/getsentry/skillet/commit/fb6ce126c2fe17ec4679dd2df46168f30e7e2fa6)
+
+### Internal Changes 🔧
+
+- (agent) Queue operates on phases, not individual LLM calls by @gricha in [42451663](https://github.com/getsentry/skillet/commit/424516633d0ff1e3c83b10b82457ff7915834104)
+
 ## 0.27.0
 
 ### New Features ✨
