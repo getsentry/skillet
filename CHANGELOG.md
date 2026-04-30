@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.25.0
+
+- No documented changes.
+
 ## 0.24.1
 
 ### New Features ✨
