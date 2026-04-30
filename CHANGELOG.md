@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.26.0
+
+### New Features ✨
+
+#### Authoring
+
+- Wire spec-author to read-only agentic tool loop by @gricha in [7f07a506](https://github.com/getsentry/skillet/commit/7f07a506a5abe37fc593af714235192ac5c78a9d)
+- Plan-driven spec-author loop with resumable sessions by @gricha in [3575be15](https://github.com/getsentry/skillet/commit/3575be15c52a49a353b6abf6f00de4249d7389aa)
+
+#### Other
+
+- (agent) Add research scope with executor wrapper by @gricha in [a4632648](https://github.com/getsentry/skillet/commit/a4632648a21eb5d909fef3fbb0449ab61ba408e0)
+- (cli) Add --input flag and session inputPaths by @gricha in [768729ab](https://github.com/getsentry/skillet/commit/768729abc1b8df60c2d82aa346c0e85d351a35e2)
+- Improve skill depth and eval reliability by @gricha in [536f61ad](https://github.com/getsentry/skillet/commit/536f61adb86ff1d939eed392b05ddfe2c4337b54)
+
+### Internal Changes 🔧
+
+- (agent) Extract reusable tool-loop kernel from runAgent by @gricha in [4f6914cc](https://github.com/getsentry/skillet/commit/4f6914cc15c4d9051ddf457cc8ce4f81238f286d)
+- Simplify agentic spec-author scaffolding by @gricha in [eaa10288](https://github.com/getsentry/skillet/commit/eaa102885d5c95ad406c2a69da20b8a0f6157625)
+
 ## 0.25.0
 
 - No documented changes.
