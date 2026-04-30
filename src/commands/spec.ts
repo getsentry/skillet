@@ -7,6 +7,7 @@ import { buildAuthoringScope } from "../authoring/scope.js";
 import { seedFromDescription, seedFromSkill } from "../authoring/seed/index.js";
 import { sessionExists } from "../authoring/session.js";
 import { handleSpecAuthorPause } from "../cli/pause.js";
+import { withElapsed } from "../cli/progress.js";
 import { createInteractiveSession } from "../cli/transport.js";
 import { withStaging } from "../staging/index.js";
 import { collectInputs } from "./_inputs.js";
@@ -26,13 +27,44 @@ const errorMessage = (err: unknown): string => {
   return err instanceof Error ? err.message : String(err);
 };
 
-const findFlag = (args: string[], prefix: string): string | undefined => {
-  const flag = args.find((a) => a.startsWith(prefix));
-  return flag?.split("=")[1];
+/**
+ * Look up a single-value flag in argv. Accepts both `--name=value` and
+ * `--name value` forms. Pass the bare flag name (e.g. `"path"` for
+ * `--path` / `--path=...`).
+ */
+const findFlag = (args: string[], flagName: string): string | undefined => {
+  const equalsForm = `--${flagName}=`;
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i] ?? "";
+    if (a.startsWith(equalsForm)) return a.slice(equalsForm.length);
+    if (a === `--${flagName}`) {
+      const next = args[i + 1];
+      if (next != null && !next.startsWith("--")) return next;
+    }
+  }
+  return undefined;
 };
 
-const findPositional = (args: string[]): string[] => {
-  return args.filter((a) => !a.startsWith("--"));
+/** Positional args, excluding any value consumed by a known
+ *  space-form single-value flag. */
+const findPositional = (
+  args: string[],
+  spaceValueFlags: string[] = ["path", "input"],
+): string[] => {
+  const out: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i] ?? "";
+    if (a.startsWith("--")) {
+      const bareName = a.slice(2).split("=")[0] ?? "";
+      if (spaceValueFlags.includes(bareName) && !a.includes("=")) {
+        // Consume the next arg as this flag's value.
+        i += 1;
+      }
+      continue;
+    }
+    out.push(a);
+  }
+  return out;
 };
 
 /**
@@ -67,7 +99,7 @@ const printSpecUsage = (): void => {
 skillet spec — manage spec.yaml (the source of truth)
 
 Subcommands:
-  init "<description>" [--path=<dir>] [--input <dir>]...   Generate a new spec (interactive author loop)
+  init "<description>" [--path <dir>] [--input <dir>]...   Generate a new spec (interactive author loop)
   show [path]                                              Pretty-print the current spec
   refine "<feedback>" [path]                               Apply natural-language feedback as spec patches
   import [path] [--input <dir>]...                         Reverse-engineer spec from existing SKILL.md (+ evals)
@@ -83,7 +115,7 @@ const specInit = async (args: string[]): Promise<number> => {
   const positional = findPositional(args);
   const description = positional.join(" ").trim();
   if (description === "") {
-    console.error('Usage: skillet spec init "<description>" [--path=<dir>] [--input <dir>]...');
+    console.error('Usage: skillet spec init "<description>" [--path <dir>] [--input <dir>]...');
     return 1;
   }
 
@@ -93,7 +125,7 @@ const specInit = async (args: string[]): Promise<number> => {
     return 1;
   }
 
-  const pathArg = findFlag(args, "--path=");
+  const pathArg = findFlag(args, "path");
   const skillRoot = resolve(pathArg ?? description.toLowerCase().replace(/[^a-z0-9]+/g, "-"));
   const specPath = join(skillRoot, specFileName());
 
@@ -162,9 +194,9 @@ const specInit = async (args: string[]): Promise<number> => {
       await regenerate(stagingDir, {
         model: models.agent,
         evalGenModel: models.evalGen,
-        onProgress: (msg) => {
+        onProgress: withElapsed((msg) => {
           console.log(`  ${msg}`);
-        },
+        }),
       });
     });
   } catch (err: unknown) {
@@ -264,9 +296,9 @@ const specRefine = async (args: string[]): Promise<number> => {
       await regenerate(stagingDir, {
         model: models.agent,
         evalGenModel: models.evalGen,
-        onProgress: (msg) => {
+        onProgress: withElapsed((msg) => {
           console.log(`  ${msg}`);
-        },
+        }),
       });
     });
   } catch (err: unknown) {
@@ -369,9 +401,9 @@ const specImport = async (args: string[]): Promise<number> => {
       await regenerate(stagingDir, {
         model: models.agent,
         evalGenModel: models.evalGen,
-        onProgress: (msg) => {
+        onProgress: withElapsed((msg) => {
           console.log(`  ${msg}`);
-        },
+        }),
       });
     });
   } catch (err: unknown) {

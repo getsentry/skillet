@@ -55,6 +55,14 @@ const parseCreateArgs = (args: string[]): CreateOptions | null => {
       i += 1;
       continue;
     }
+    if (a === "--path") {
+      const next = args[i + 1];
+      if (next != null && !next.startsWith("--")) {
+        path = next;
+        i += 2;
+        continue;
+      }
+    }
     if (a.startsWith("--path=")) {
       path = a.slice("--path=".length);
       i += 1;
@@ -68,6 +76,15 @@ const parseCreateArgs = (args: string[]): CreateOptions | null => {
     if (a.startsWith("--input=")) {
       i += 1;
       continue;
+    }
+    if (a === "--max-iterations") {
+      const next = args[i + 1];
+      if (next != null && !next.startsWith("--")) {
+        const n = Number.parseInt(next, 10);
+        if (!Number.isNaN(n)) maxIterations = n;
+        i += 2;
+        continue;
+      }
     }
     if (a.startsWith("--max-iterations=")) {
       const n = Number.parseInt(a.slice("--max-iterations=".length), 10);
@@ -100,7 +117,7 @@ export const createCommand = async (args: string[]): Promise<number> => {
   const opts = parseCreateArgs(args);
   if (opts == null) {
     console.error(
-      'Usage: skillet create <description> [--path=./my-skill] [--max-iterations=3] [--tools "Read Grep ..."] [--no-default-tools] [--input <dir>]...',
+      'Usage: skillet create <description> [--path <dir>] [--max-iterations N] [--tools "Read Grep ..."] [--no-default-tools] [--input <dir>]...',
     );
     return 1;
   }

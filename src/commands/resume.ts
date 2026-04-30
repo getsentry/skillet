@@ -5,6 +5,7 @@ import { SpecAuthorPaused, runSpecAuthor } from "../authoring/phases/spec-author
 import { buildAuthoringScope } from "../authoring/scope.js";
 import { deleteSession, readSession, sessionExists } from "../authoring/session.js";
 import { handleSpecAuthorPause } from "../cli/pause.js";
+import { withElapsed } from "../cli/progress.js";
 import { createInteractiveSession } from "../cli/transport.js";
 import { regenerate, specFileName, writeSpec } from "../spec/index.js";
 import { withStaging } from "../staging/index.js";
@@ -110,6 +111,7 @@ export const resumeCommand = async (args: string[]): Promise<number> => {
       resume: {
         messages: session.messages,
         pendingAnswers,
+        pauseKind: session.pauseKind,
       },
     });
     if (!result.accepted) {
@@ -156,9 +158,9 @@ export const resumeCommand = async (args: string[]): Promise<number> => {
       await regenerate(stagingDir, {
         model: models.agent,
         evalGenModel: models.evalGen,
-        onProgress: (msg) => {
+        onProgress: withElapsed((msg) => {
           console.log(`  ${msg}`);
-        },
+        }),
       });
     });
   } catch (err: unknown) {

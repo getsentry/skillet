@@ -19,19 +19,28 @@ import { isRecord, stripFences } from "./_text.js";
 /**
  * Raised when the spec-author loop reaches a question in non-TTY
  * mode. Carries the spec + messages so the calling command can
- * persist a session and resume later. The CLI command catches this
- * and writes `<skillRoot>/.skillet-session.json`.
+ * persist a session and resume later. `pauseKind` distinguishes a
+ * mid-loop user-clarification pause (`"questions"`) from the final
+ * commit-confirmation pause (`"accept"`) so resume can interpret the
+ * answer correctly.
  */
 export class SpecAuthorPaused extends Error {
   questions: string[];
   spec: SkillSpec;
   messages: Message[];
-  constructor(questions: string[], spec: SkillSpec, messages: Message[]) {
+  pauseKind: "questions" | "accept";
+  constructor(
+    questions: string[],
+    spec: SkillSpec,
+    messages: Message[],
+    pauseKind: "questions" | "accept",
+  ) {
     super(`Spec-author paused awaiting ${questions.length} user answer(s).`);
     this.name = "SpecAuthorPaused";
     this.questions = questions;
     this.spec = spec;
     this.messages = messages;
+    this.pauseKind = pauseKind;
   }
 }
 
@@ -153,6 +162,12 @@ export interface SpecAuthorOptions {
      * verifies this before calling.
      */
     pendingAnswers: { question: string; answer: string }[];
+    /**
+     * What the loop was awaiting at pause time. `accept` means the
+     * answer is a yes/no commit decision and should NOT be fed back
+     * to the LLM. `questions` is the regular pre-feed path.
+     */
+    pauseKind: "questions" | "accept";
   };
 }
 
@@ -177,7 +192,23 @@ export const runSpecAuthor = async (opts: SpecAuthorOptions): Promise<SpecAuthor
   const messages: Message[] = opts.resume != null ? [...opts.resume.messages] : [];
 
   if (opts.resume != null) {
-    if (opts.resume.pendingAnswers.length > 0) {
+    // Accept-mode resume: the answer is a yes/no commit decision, not
+    // conversation. Short-circuit to avoid re-prompting the LLM.
+    if (opts.resume.pauseKind === "accept") {
+      const answer = opts.resume.pendingAnswers[0]?.answer ?? "";
+      const normalized = answer.trim().toLowerCase();
+      if (normalized === "yes" || normalized === "y" || normalized === "accept") {
+        return { spec: current, turns: 0, accepted: true };
+      }
+      // Treat anything else as "decline; keep refining" — push as a
+      // synthetic user message so the next LLM turn sees the rejection
+      // and can propose more changes.
+      messages.push({
+        role: "user",
+        content: `User declined to commit (answer: ${answer || "(empty)"}). Continue refining or ask what they want changed.`,
+        timestamp: Date.now(),
+      });
+    } else if (opts.resume.pendingAnswers.length > 0) {
       const pairs = opts.resume.pendingAnswers.map((p) => `Q: ${p.question}\nA: ${p.answer}`);
       messages.push({
         role: "user",
@@ -303,7 +334,7 @@ export const runSpecAuthor = async (opts: SpecAuthorOptions): Promise<SpecAuthor
         answers = await opts.transport.askQuestions(turn.questions);
       } catch (err: unknown) {
         if (err instanceof PausedForAnswers) {
-          throw new SpecAuthorPaused(err.questions, current, messages);
+          throw new SpecAuthorPaused(err.questions, current, messages, "questions");
         }
         throw err;
       }
@@ -334,7 +365,7 @@ export const runSpecAuthor = async (opts: SpecAuthorOptions): Promise<SpecAuthor
         decision = await opts.transport.askAccept(current);
       } catch (err: unknown) {
         if (err instanceof PausedForAnswers) {
-          throw new SpecAuthorPaused(err.questions, current, messages);
+          throw new SpecAuthorPaused(err.questions, current, messages, "accept");
         }
         throw err;
       }

@@ -27,6 +27,15 @@ const SCHEMA_VERSION = 1;
  */
 export type SeedKind = "from-description" | "from-skill" | "from-improve";
 
+/**
+ * What the loop was waiting on when it paused. `questions` is a
+ * normal mid-loop clarification pause; `accept` is the final
+ * commit-confirmation prompt after class gates pass. Resume
+ * interprets the answer differently in each case — accept treats it
+ * as a yes/no decision instead of feeding it to the LLM.
+ */
+export type PauseKind = "questions" | "accept";
+
 export interface SpecAuthorSession {
   version: 1;
   skillRoot: string;
@@ -38,6 +47,8 @@ export interface SpecAuthorSession {
   messages: Message[];
   /** Questions raised in the most recent turn that need user answers. */
   pendingQuestions: string[];
+  /** What the loop was awaiting when it paused. */
+  pauseKind: PauseKind;
   /** Optional allowed-tools value to thread into the final spec on accept. */
   allowedTools?: string;
   /**

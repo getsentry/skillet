@@ -26,6 +26,7 @@ export const handleSpecAuthorPause = (input: PauseHandlerInput): number => {
     spec: input.err.spec,
     messages: input.err.messages,
     pendingQuestions: input.err.questions,
+    pauseKind: input.err.pauseKind,
   };
   if (input.seedInput != null) session.seedInput = input.seedInput;
   if (input.allowedTools != null) session.allowedTools = input.allowedTools;

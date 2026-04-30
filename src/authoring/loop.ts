@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { resolveModels } from "../agent/provider.js";
+import { withElapsed } from "../cli/progress.js";
 import { createInteractiveSession } from "../cli/transport.js";
 import type { EvalRunResult } from "../eval/index.js";
 import { runVitestEvals } from "../eval/vitest-runner.js";
@@ -186,9 +187,9 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
     await regenerate(stagingDir, {
       model: models.agent,
       evalGenModel: models.evalGen,
-      onProgress: (msg) => {
+      onProgress: withElapsed((msg) => {
         console.log(`  ${msg}`);
-      },
+      }),
     });
   });
 
