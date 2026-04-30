@@ -1,5 +1,13 @@
 import { parse as parseYaml } from "yaml";
-import type { Behavior, MustNot, ReferenceDoc, SkillSpec, Triggers } from "./types.js";
+import {
+  SKILL_CLASSES,
+  type Behavior,
+  type MustNot,
+  type ReferenceDoc,
+  type SkillClass,
+  type SkillSpec,
+  type Triggers,
+} from "./types.js";
 
 // ── Type guards ────────────────────────────────────────────
 
@@ -59,6 +67,8 @@ const parseBehavior = (entry: Record<string, unknown>, index: number, source: st
   const result: Behavior = { id, statement };
   const rationale = getString(entry, "rationale");
   if (rationale != null) result.rationale = rationale;
+  const dimensions = getStringArray(entry, "dimensions");
+  if (dimensions.length > 0) result.dimensions = dimensions;
   return result;
 };
 
@@ -177,6 +187,13 @@ const parseSpecValue = (parsed: unknown, source: string): SkillSpec => {
 
   const name = getString(parsed, "name") ?? "";
   const intent = getString(parsed, "intent") ?? "";
+  // `class` is required; we tolerate missing/unknown values here and
+  // let structural validation report a clean error.
+  const klass = getString(parsed, "class");
+  const isKnownClass = (v: string | undefined): v is SkillClass => {
+    return v != null && (SKILL_CLASSES as readonly string[]).includes(v);
+  };
+  const skillClass: SkillClass = isKnownClass(klass) ? klass : "generic";
 
   const triggers = parseTriggers(getRecord(parsed, "triggers"));
 
@@ -208,6 +225,7 @@ const parseSpecValue = (parsed: unknown, source: string): SkillSpec => {
     managed_by: managedBy === "skillet" ? "skillet" : ("skillet" as const),
     spec_version: specVersion === 1 ? 1 : (1 as const),
     name,
+    class: skillClass,
     intent,
     triggers,
     behaviors,

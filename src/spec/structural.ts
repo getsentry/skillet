@@ -1,5 +1,11 @@
 import { parse as parseYaml } from "yaml";
-import type { SkillSpec, SpecValidationError, SpecValidationResult } from "./types.js";
+import { CLASSES } from "./classes.js";
+import {
+  SKILL_CLASSES,
+  type SkillSpec,
+  type SpecValidationError,
+  type SpecValidationResult,
+} from "./types.js";
 
 const isRecord = (v: unknown): v is Record<string, unknown> => {
   return v != null && typeof v === "object" && !Array.isArray(v);
@@ -64,6 +70,17 @@ export const validateSpecYaml = (
       message: "field 'name' is required and must be a non-empty string",
     });
   }
+  if (typeof parsed.class !== "string" || parsed.class.trim() === "") {
+    errors.push({
+      path: source,
+      message: `field 'class' is required and must be one of ${SKILL_CLASSES.join(", ")}`,
+    });
+  } else if (!(SKILL_CLASSES as readonly string[]).includes(parsed.class)) {
+    errors.push({
+      path: source,
+      message: `field 'class' must be one of ${SKILL_CLASSES.join(", ")} (got '${parsed.class}')`,
+    });
+  }
   if (typeof parsed.intent !== "string" || parsed.intent.trim() === "") {
     errors.push({
       path: source,
@@ -125,6 +142,17 @@ export const validateSpecYaml = (
     if (typeof entry.statement !== "string" || entry.statement.trim() === "") {
       const ref = typeof id === "string" ? id : `index ${index}`;
       errors.push({ path: source, message: `${kind} '${ref}' missing required 'statement'` });
+    }
+
+    if (kind === "behavior" && entry.dimensions != null) {
+      const dims = entry.dimensions;
+      const ref = typeof id === "string" ? id : `index ${index}`;
+      if (!Array.isArray(dims) || !dims.every((d) => typeof d === "string" && d.trim() !== "")) {
+        errors.push({
+          path: source,
+          message: `behavior '${ref}' dimensions[] must be an array of non-empty strings (or omitted)`,
+        });
+      }
     }
   };
 
@@ -232,6 +260,12 @@ export const validateSpecObject = (
   if (spec.name.trim() === "") {
     errors.push({ path: source, message: "name must be non-empty" });
   }
+  if (!(SKILL_CLASSES as readonly string[]).includes(spec.class)) {
+    errors.push({
+      path: source,
+      message: `class must be one of ${SKILL_CLASSES.join(", ")} (got '${spec.class}')`,
+    });
+  }
   if (spec.intent.trim() === "") {
     errors.push({ path: source, message: "intent must be non-empty" });
   }
@@ -302,4 +336,41 @@ export const validateSpecObject = (
   }
 
   return { valid: errors.length === 0, errors };
+};
+
+// ── Class-driven depth gates ──────────────────────────────
+
+export interface ClassGateResult {
+  valid: boolean;
+  missingDimensions: string[];
+  missingReferenceTopics: string[];
+}
+
+/**
+ * Check whether a spec satisfies its declared class's depth gates:
+ * each required dimension is satisfied by at least one behavior's
+ * `dimensions[]`, and each required reference topic appears on at
+ * least one `references[]` entry's `topics[]`.
+ *
+ * Returns a structured result rather than throwing — the author loop
+ * surfaces missing dimensions/topics back to the LLM as guidance.
+ */
+export const validateClassGates = (spec: SkillSpec): ClassGateResult => {
+  const def = CLASSES[spec.class];
+  const presentDimensions = new Set<string>();
+  for (const b of spec.behaviors) {
+    if (b.dimensions == null) continue;
+    for (const d of b.dimensions) presentDimensions.add(d);
+  }
+  const presentTopics = new Set<string>();
+  for (const r of spec.references ?? []) {
+    for (const t of r.topics) presentTopics.add(t);
+  }
+  const missingDimensions = def.requiredDimensions.filter((d) => !presentDimensions.has(d));
+  const missingReferenceTopics = def.requiredReferenceTopics.filter((t) => !presentTopics.has(t));
+  return {
+    valid: missingDimensions.length === 0 && missingReferenceTopics.length === 0,
+    missingDimensions,
+    missingReferenceTopics,
+  };
 };

@@ -107,6 +107,9 @@ export const applyPatch = (spec: SkillSpec, patch: SpecPatch): SkillSpec => {
     case "update_intent":
       return { ...spec, intent: patch.value };
 
+    case "update_class":
+      return { ...spec, class: patch.value };
+
     case "update_behavior": {
       const id = resolveEntryId(spec, patch.id);
       const idx = spec.behaviors.findIndex((b) => b.id === id);

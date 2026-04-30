@@ -5,25 +5,13 @@ import { extractText, stripFences } from "./_text.js";
 
 const DEFAULT_MAX_RETRIES = 2;
 
-export class PhaseInterruptedForHumanInput extends Error {
-  question: string;
-  why: string;
-
-  constructor(question: string, why: string) {
-    super(`THIS NEEDS TO BE ASKED OF YOUR FELLOW HUMAN: ${question}\n\nWhy: ${why}`);
-    this.name = "PhaseInterruptedForHumanInput";
-    this.question = question;
-    this.why = why;
-  }
-}
-
 export interface JsonPhaseOptions<T> {
   model: AnyModel;
   /** Phase framing/rules. */
   systemPrompt: string;
   /** First user-turn content — the actual input the phase operates on. */
   userMessage: string;
-  /** Used in error messages (`spec-init`, `spec-import`, ...). */
+  /** Used in error messages (`seed-from-description`, `seed-from-skill`, ...). */
   phaseName: string;
   /**
    * Parse the raw LLM text into the desired output, throwing an
@@ -67,9 +55,6 @@ export const runJsonPhaseWithRetries = async <T>(opts: JsonPhaseOptions<T>): Pro
       return opts.parseAndValidate(lastRaw);
     } catch (err: unknown) {
       lastError = err instanceof Error ? err : new Error(String(err));
-      if (lastError instanceof PhaseInterruptedForHumanInput) {
-        throw lastError;
-      }
       if (attempt >= maxRetries) break;
 
       messages.push(response);

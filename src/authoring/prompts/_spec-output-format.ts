@@ -1,10 +1,10 @@
 /**
- * Shared prompt fragments for spec-init and spec-import.
+ * Shared prompt fragments for seed strategies.
  *
- * Both phases output the same `SkillSpec` JSON shape and share the
- * same JSON-vs-YAML rationale. Centralising the constants here
- * keeps the two prompts in sync — framing-specific guidance still
- * lives in the per-phase prompts.
+ * Description and existing-skill seeds output the same `SkillSpec`
+ * JSON shape and share the same JSON-vs-YAML rationale. Centralising
+ * the constants here keeps the two prompts in sync — framing-specific
+ * guidance still lives in the per-seed prompts.
  */
 
 /**

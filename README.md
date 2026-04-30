@@ -98,12 +98,13 @@ regenerate — that happens automatically on spec mutations.
 
 | Command | Purpose |
 |---------|---------|
-| `create "<description>"` | New skill: spec init + regen + improve loop |
+| `create "<description>"` | New skill: interactive spec-author loop + regen + improve loop |
 | `improve [path]` | Iterate until per-behavior evals pass; auto-imports legacy |
-| `spec init "<description>"` | Generate spec without entering the improve loop |
+| `spec init "<description>"` | Run interactive spec-author loop without the improve loop |
 | `spec show [path]` | Pretty-print the spec (banner stripped) |
 | `spec refine "<feedback>" [path]` | Natural-language patch; auto-regens |
-| `spec import [path]` | Reverse-engineer spec from existing SKILL.md |
+| `spec import [path]` | Seed a spec from an existing SKILL.md, then run the spec-author loop |
+| `resume <path> --answer "..."` | Resume a paused spec-author session (one `--answer` per pending question) |
 | `add-eval [path] "<behavior>" ...` | Append behaviors to spec; auto-regens |
 | `verify [path] [--semantic] [--json]` | Layered consistency check (subsumes `validate`) |
 | `eval [path] [--json]` | Run evals once |

@@ -5,6 +5,7 @@ import { improveCommand } from "./commands/improve.js";
 import { installCommand } from "./commands/install.js";
 import { addEvalCommand } from "./commands/add-eval.js";
 import { compareCommand } from "./commands/compare.js";
+import { resumeCommand } from "./commands/resume.js";
 import { specCommand } from "./commands/spec.js";
 import { setVerbose } from "./log.js";
 
@@ -67,6 +68,9 @@ const main = async (): Promise<number> => {
     case "spec":
       return specCommand(args.slice(1));
 
+    case "resume":
+      return resumeCommand(args.slice(1));
+
     default:
       console.error(`Unknown command: ${command}`);
       printUsage();
@@ -109,6 +113,7 @@ Usage:
   skillet add-eval [path] "behavior"                      Add a behavior to spec.yaml and regenerate
   skillet install [path]                                  Install the skillet skill into your agent
   skillet spec <show|refine|import|init>                  Manage spec.yaml (the source of truth)
+  skillet resume <path> --answer "..." [--answer "..."]   Resume a paused spec-author session (non-TTY agents)
 
 Environment:
   Auto-detected (just works when running inside Claude Code, Codex, Copilot, etc.):

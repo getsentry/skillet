@@ -17,6 +17,31 @@
 
 // ── Core spec shape ───────────────────────────────────────
 
+/**
+ * Skill class. Drives depth gates: each class declares required
+ * behavior dimensions and required reference topics in
+ * `src/spec/classes.ts`. The author loop refuses to finalize a spec
+ * whose class requires dimensions or reference topics not present.
+ *
+ * Names match getsentry/skills' `skill-writer/references/mode-
+ * selection.md` so generated skills can reuse skill-writer references
+ * verbatim.
+ */
+export type SkillClass =
+  | "workflow-process"
+  | "integration-documentation"
+  | "security-review"
+  | "skill-authoring"
+  | "generic";
+
+export const SKILL_CLASSES = [
+  "workflow-process",
+  "integration-documentation",
+  "security-review",
+  "skill-authoring",
+  "generic",
+] as const satisfies ReadonlyArray<SkillClass>;
+
 export interface Behavior {
   /**
    * Stable kebab-case slug, unique within the combined `behaviors[] +
@@ -28,6 +53,13 @@ export interface Behavior {
   statement: string;
   /** Optional free-text rationale explaining why this rule exists. */
   rationale?: string;
+  /**
+   * Optional class-required dimensions this behavior satisfies. Used
+   * by the author-loop validator to check class-driven depth gates.
+   * Free-form strings; class definitions in `src/spec/classes.ts`
+   * declare the canonical dimension names per class.
+   */
+  dimensions?: string[];
 }
 
 export interface MustNot {
@@ -75,6 +107,13 @@ export interface SkillSpec {
   spec_version: 1;
   /** Skill name. Matches the directory name and SKILL.md frontmatter. */
   name: string;
+  /**
+   * Skill class — drives depth gates. The author loop chooses one
+   * during planning; class definitions in `src/spec/classes.ts`
+   * declare required behavior dimensions and required reference
+   * topics for each class.
+   */
+  class: SkillClass;
   /** One-paragraph statement of what the skill does and why. */
   intent: string;
   triggers: Triggers;
@@ -106,6 +145,7 @@ export interface SkillSpec {
  */
 export type SpecPatch =
   | { op: "update_intent"; value: string }
+  | { op: "update_class"; value: SkillClass }
   | {
       op: "update_behavior";
       id: string;
@@ -136,6 +176,7 @@ export type SpecPatch =
 /** All recognized op tags. Keep in sync with `SpecPatch` union. */
 export const SPEC_PATCH_OPS = [
   "update_intent",
+  "update_class",
   "update_behavior",
   "add_behavior",
   "remove_behavior",

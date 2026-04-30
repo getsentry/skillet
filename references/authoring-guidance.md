@@ -162,6 +162,21 @@ table in SKILL.md. Reference files should be introduced only when the
 authoring system supports writing them; until then, encode the
 reference routing as runtime guidance and behaviors.
 
+## Spec-Author Loop
+
+Skillet's `create` and `spec init` commands run an interactive
+spec-author loop: a baseline spec is seeded (from a description or an
+existing SKILL.md), then the LLM and user iterate on it until class
+gates pass and the user explicitly accepts. Class gates check that
+each class-required dimension is satisfied by at least one behavior's
+`dimensions[]` and that each class-required reference topic appears on
+some `references[]` entry. The loop will not let generation proceed on
+a spec that fails these gates.
+
+When the LLM has a high-impact decision it cannot resolve from the
+description, it asks the user a concise question instead of guessing.
+Cosmetic choices belong in patches, not questions.
+
 ## Frontmatter Template
 
 ```yaml

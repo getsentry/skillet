@@ -1,6 +1,9 @@
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { authorSkill } from "../authoring/loop.js";
+import { SpecAuthorPaused } from "../authoring/phases/spec-author.js";
+import { sessionExists } from "../authoring/session.js";
+import { handleSpecAuthorPause } from "../cli/pause.js";
 import { specFileName } from "../spec/index.js";
 
 /** Default `allowed-tools` for fresh skills. Permissive enough that
@@ -120,6 +123,11 @@ export const createCommand = async (args: string[]): Promise<number> => {
     );
     return 1;
   }
+  if (sessionExists(targetDir)) {
+    console.error(`Error: a paused spec-author session exists at ${targetDir}.`);
+    console.error("Resume it with `skillet resume` or delete `.skillet-session.json` first.");
+    return 1;
+  }
 
   try {
     const authorOpts: Parameters<typeof authorSkill>[0] = {
@@ -132,6 +140,16 @@ export const createCommand = async (args: string[]): Promise<number> => {
     const result = await authorSkill(authorOpts);
     return result.success ? 0 : 1;
   } catch (err: unknown) {
+    if (err instanceof SpecAuthorPaused) {
+      const pauseInput: Parameters<typeof handleSpecAuthorPause>[0] = {
+        err,
+        skillRoot: targetDir,
+        seedKind: "from-description",
+        seedInput: opts.description,
+      };
+      if (allowedTools != null) pauseInput.allowedTools = allowedTools;
+      return handleSpecAuthorPause(pauseInput);
+    }
     const message = err instanceof Error ? err.message : String(err);
     console.error(`Error: ${message}`);
     return 1;

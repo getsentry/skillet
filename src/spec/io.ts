@@ -94,6 +94,7 @@ export const renderSpec = (spec: SkillSpec): string => {
     managed_by: spec.managed_by,
     spec_version: spec.spec_version,
     name: spec.name,
+    class: spec.class,
     intent: spec.intent,
   };
   ordered.triggers = {
@@ -106,6 +107,7 @@ export const renderSpec = (spec: SkillSpec): string => {
       statement: b.statement,
     };
     if (b.rationale != null) out.rationale = b.rationale;
+    if (b.dimensions != null && b.dimensions.length > 0) out.dimensions = b.dimensions;
     return out;
   });
   ordered.must_not = spec.must_not.map((m) => {

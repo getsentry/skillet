@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { resolveModels } from "../agent/provider.js";
+import { createInteractiveSession } from "../cli/transport.js";
 import type { EvalRunResult } from "../eval/index.js";
 import { runVitestEvals } from "../eval/vitest-runner.js";
 import { readSpec, regenerate, specFileName, writeSpec } from "../spec/index.js";
@@ -8,9 +9,9 @@ import type { SkillSpec } from "../spec/index.js";
 import { withStaging } from "../staging/index.js";
 import { verifyCoverage, verifyResults } from "../verify/index.js";
 import type { CoverageReport, ResultsReport } from "../verify/index.js";
+import { runSpecAuthor } from "./phases/spec-author.js";
 import { runSkillImprove } from "./phases/skill-improve.js";
-import { runSpecImport } from "./phases/spec-import.js";
-import { runSpecInit } from "./phases/spec-init.js";
+import { seedFromDescription, seedFromSkill } from "./seed/index.js";
 
 // ── Types ─────────────────────────────────────────────────
 
@@ -95,13 +96,31 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
     if (existingSpec != null) {
       throw new Error(`spec.yaml already exists at ${specPath} — use 'skillet improve' instead`);
     }
-    console.log("Generating spec from description...");
-    const spec = await runSpecInit(models.agent, description);
+    console.log("Seeding draft spec from description...");
+    const baseline = await seedFromDescription(models.agent, description);
     if (opts.allowedTools != null) {
-      spec.frontmatter_extras = {
-        ...spec.frontmatter_extras,
+      baseline.frontmatter_extras = {
+        ...baseline.frontmatter_extras,
         "allowed-tools": opts.allowedTools,
       };
+    }
+    console.log("Entering spec-author loop. Answer any questions to refine the spec.");
+    const session = createInteractiveSession();
+    let spec: SkillSpec;
+    try {
+      const authorResult = await runSpecAuthor({
+        model: models.agent,
+        baseline,
+        transport: session.transport,
+      });
+      if (!authorResult.accepted) {
+        throw new Error(
+          `spec-author loop ended without user acceptance after ${authorResult.turns} turn(s). Re-run when ready.`,
+        );
+      }
+      spec = authorResult.spec;
+    } finally {
+      session.close();
     }
     preparedSpec = { spec, reason: "create" };
   } else if (existingSpec == null) {
@@ -111,9 +130,27 @@ export const authorSkill = async (opts: AuthorSkillOptions): Promise<AuthorSkill
         `No SKILL.md or spec.yaml at ${skillPath} — use 'skillet create' to start a new skill`,
       );
     }
-    console.log("No spec.yaml found — importing from existing SKILL.md...");
+    console.log("No spec.yaml found — seeding from existing SKILL.md...");
     const skillMd = readFileSync(skillMdPath, "utf-8");
-    const spec = await runSpecImport(models.agent, skillMd);
+    const baseline = await seedFromSkill(models.agent, skillMd);
+    console.log("Entering spec-author loop on imported draft.");
+    const session = createInteractiveSession();
+    let spec: SkillSpec;
+    try {
+      const authorResult = await runSpecAuthor({
+        model: models.agent,
+        baseline,
+        transport: session.transport,
+      });
+      if (!authorResult.accepted) {
+        throw new Error(
+          `spec-author loop ended without user acceptance after ${authorResult.turns} turn(s). Re-run when ready.`,
+        );
+      }
+      spec = authorResult.spec;
+    } finally {
+      session.close();
+    }
     preparedSpec = { spec, reason: "import" };
   }
 

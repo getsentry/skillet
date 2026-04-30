@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { resolveModels } from "../agent/provider.js";
-import { runSpecImport } from "../authoring/phases/spec-import.js";
 import { runSpecRefine } from "../authoring/phases/spec-refine.js";
+import { seedFromSkill } from "../authoring/seed/index.js";
 import { findSkillRoot } from "../skill/loader.js";
 import { withStaging } from "../staging/index.js";
 import {
@@ -68,13 +68,13 @@ export const addEvalCommand = async (args: string[]): Promise<number> => {
   const models = resolveModels();
 
   if (!existsSync(specPath)) {
-    console.log("No spec.yaml found — importing from existing SKILL.md...");
+    console.log("No spec.yaml found — seeding from existing SKILL.md...");
     const skillMd = readFileSync(join(skillRoot, "SKILL.md"), "utf-8");
     let spec;
     try {
-      spec = await runSpecImport(models.agent, skillMd);
+      spec = await seedFromSkill(models.agent, skillMd);
     } catch (err: unknown) {
-      console.error(`Error during import: ${errorMessage(err)}`);
+      console.error(`Error during seed: ${errorMessage(err)}`);
       return 1;
     }
     writeSpec(specPath, spec);

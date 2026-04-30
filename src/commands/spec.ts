@@ -1,9 +1,12 @@
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { resolveModels } from "../agent/provider.js";
-import { runSpecImport } from "../authoring/phases/spec-import.js";
-import { runSpecInit } from "../authoring/phases/spec-init.js";
+import { SpecAuthorPaused, runSpecAuthor } from "../authoring/phases/spec-author.js";
 import { runSpecRefine } from "../authoring/phases/spec-refine.js";
+import { seedFromDescription, seedFromSkill } from "../authoring/seed/index.js";
+import { sessionExists } from "../authoring/session.js";
+import { handleSpecAuthorPause } from "../cli/pause.js";
+import { createInteractiveSession } from "../cli/transport.js";
 import { withStaging } from "../staging/index.js";
 import {
   applyPatches,
@@ -91,14 +94,45 @@ const specInit = async (args: string[]): Promise<number> => {
     console.error("Use `skillet spec refine` to modify it, or delete it manually.");
     return 1;
   }
+  if (sessionExists(skillRoot)) {
+    console.error(`Error: a paused spec-author session exists at ${skillRoot}.`);
+    console.error("Resume with `skillet resume` or delete `.skillet-session.json` first.");
+    return 1;
+  }
 
   const models = resolveModels();
-  console.log(`Generating spec from description (${skillRoot})...`);
+  console.log(`Seeding draft spec from description (${skillRoot})...`);
 
   let spec;
   try {
-    spec = await runSpecInit(models.agent, description);
+    const baseline = await seedFromDescription(models.agent, description);
+    const session = createInteractiveSession();
+    try {
+      const authorResult = await runSpecAuthor({
+        model: models.agent,
+        baseline,
+        transport: session.transport,
+      });
+      if (!authorResult.accepted) {
+        console.error(
+          `spec-author loop ended without user acceptance after ${authorResult.turns} turn(s).`,
+        );
+        return 1;
+      }
+      spec = authorResult.spec;
+    } finally {
+      session.close();
+    }
   } catch (err: unknown) {
+    if (err instanceof SpecAuthorPaused) {
+      mkdirSync(skillRoot, { recursive: true });
+      return handleSpecAuthorPause({
+        err,
+        skillRoot,
+        seedKind: "from-description",
+        seedInput: description,
+      });
+    }
     console.error(`Error: ${errorMessage(err)}`);
     return 1;
   }
@@ -254,14 +288,45 @@ const specImport = async (args: string[]): Promise<number> => {
     return 1;
   }
 
+  if (sessionExists(skillRoot)) {
+    console.error(`Error: a paused spec-author session exists at ${skillRoot}.`);
+    console.error("Resume with `skillet resume` or delete `.skillet-session.json` first.");
+    return 1;
+  }
+
   const skillMd = readFileSync(skillMdPath, "utf-8");
 
   const models = resolveModels();
-  console.log(`Importing spec from ${skillMdPath}...`);
+  console.log(`Seeding spec from ${skillMdPath}...`);
   let spec;
   try {
-    spec = await runSpecImport(models.agent, skillMd);
+    const baseline = await seedFromSkill(models.agent, skillMd);
+    const session = createInteractiveSession();
+    try {
+      const authorResult = await runSpecAuthor({
+        model: models.agent,
+        baseline,
+        transport: session.transport,
+      });
+      if (!authorResult.accepted) {
+        console.error(
+          `spec-author loop ended without user acceptance after ${authorResult.turns} turn(s).`,
+        );
+        return 1;
+      }
+      spec = authorResult.spec;
+    } finally {
+      session.close();
+    }
   } catch (err: unknown) {
+    if (err instanceof SpecAuthorPaused) {
+      return handleSpecAuthorPause({
+        err,
+        skillRoot,
+        seedKind: "from-skill",
+        seedInput: skillMd,
+      });
+    }
     console.error(`Error: ${errorMessage(err)}`);
     return 1;
   }

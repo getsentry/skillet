@@ -9,6 +9,7 @@
 // Types
 export type {
   SkillSpec,
+  SkillClass,
   Behavior,
   MustNot,
   ReferenceDoc,
@@ -18,13 +19,21 @@ export type {
   SpecValidationResult,
 } from "./types.js";
 
-export { SPEC_PATCH_OPS } from "./types.js";
+export { SPEC_PATCH_OPS, SKILL_CLASSES } from "./types.js";
+
+// Class definitions and rendering
+export { CLASSES, renderClassTable, type ClassDefinition } from "./classes.js";
 
 // Parser
 export { parseSpecYaml, parseSpecJson } from "./parser.js";
 
-// Structural validation
-export { validateSpecYaml, validateSpecObject } from "./structural.js";
+// Structural validation + class gates
+export {
+  validateSpecYaml,
+  validateSpecObject,
+  validateClassGates,
+  type ClassGateResult,
+} from "./structural.js";
 
 // IO (read/write with banner preservation)
 export {
