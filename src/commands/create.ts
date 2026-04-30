@@ -22,6 +22,12 @@ export interface CreateOptions {
    */
   allowedTools?: string;
   noDefaultTools?: boolean;
+  /**
+   * Repeatable `--input <path>` directories the spec-author agent may
+   * read from. When omitted, the spec-author falls back to CWD as the
+   * default research scope.
+   */
+  inputs?: string[];
 }
 
 const parseCreateArgs = (args: string[]): CreateOptions | null => {
@@ -29,6 +35,7 @@ const parseCreateArgs = (args: string[]): CreateOptions | null => {
   // free-form description words. `--tools "Read Grep"` is two tokens
   // in argv: `--tools` and `Read Grep`.
   const desc: string[] = [];
+  const inputs: string[] = [];
   let i = 0;
   let path: string | undefined;
   let maxIterations: number | undefined;
@@ -59,6 +66,19 @@ const parseCreateArgs = (args: string[]): CreateOptions | null => {
       i += 1;
       continue;
     }
+    if (a === "--input") {
+      const next = args[i + 1];
+      if (next != null) {
+        inputs.push(next);
+        i += 2;
+        continue;
+      }
+    }
+    if (a.startsWith("--input=")) {
+      inputs.push(a.slice("--input=".length));
+      i += 1;
+      continue;
+    }
     if (a.startsWith("--max-iterations=")) {
       const n = Number.parseInt(a.slice("--max-iterations=".length), 10);
       if (!Number.isNaN(n)) maxIterations = n;
@@ -83,6 +103,7 @@ const parseCreateArgs = (args: string[]): CreateOptions | null => {
   if (maxIterations != null) opts.maxIterations = maxIterations;
   if (allowedTools != null) opts.allowedTools = allowedTools;
   if (noDefaultTools) opts.noDefaultTools = true;
+  if (inputs.length > 0) opts.inputs = inputs;
   return opts;
 };
 
@@ -90,9 +111,22 @@ export const createCommand = async (args: string[]): Promise<number> => {
   const opts = parseCreateArgs(args);
   if (opts == null) {
     console.error(
-      'Usage: skillet create <description> [--path=./my-skill] [--max-iterations=3] [--tools "Read Grep ..."] [--no-default-tools]',
+      'Usage: skillet create <description> [--path=./my-skill] [--max-iterations=3] [--tools "Read Grep ..."] [--no-default-tools] [--input <dir>]...',
     );
     return 1;
+  }
+
+  // Validate --input paths up front so the LLM never starts when the
+  // research scope can't be built. Paths don't have to be subdirs of
+  // the target skill; they just have to exist as directories.
+  const inputAbsolutes: string[] = [];
+  for (const raw of opts.inputs ?? []) {
+    const absolute = resolve(raw);
+    if (!existsSync(absolute)) {
+      console.error(`Error: --input path does not exist: ${raw}`);
+      return 1;
+    }
+    inputAbsolutes.push(absolute);
   }
 
   // Resolve the allowed-tools value for the new skill's frontmatter.
@@ -137,6 +171,7 @@ export const createCommand = async (args: string[]): Promise<number> => {
     };
     if (opts.maxIterations != null) authorOpts.maxIterations = opts.maxIterations;
     if (allowedTools != null) authorOpts.allowedTools = allowedTools;
+    if (inputAbsolutes.length > 0) authorOpts.inputPaths = inputAbsolutes;
     const result = await authorSkill(authorOpts);
     return result.success ? 0 : 1;
   } catch (err: unknown) {
@@ -148,6 +183,7 @@ export const createCommand = async (args: string[]): Promise<number> => {
         seedInput: opts.description,
       };
       if (allowedTools != null) pauseInput.allowedTools = allowedTools;
+      if (inputAbsolutes.length > 0) pauseInput.inputPaths = inputAbsolutes;
       return handleSpecAuthorPause(pauseInput);
     }
     const message = err instanceof Error ? err.message : String(err);

@@ -34,6 +34,35 @@ const findPositional = (args: string[]): string[] => {
 };
 
 /**
+ * Collect repeatable `--input <path>` (or `--input=<path>`) flags.
+ * Returns absolute paths, or null when any of them is missing on disk.
+ */
+const collectInputs = (args: string[]): { absolute: string[] } | { error: string } => {
+  const inputs: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i] ?? "";
+    if (a === "--input") {
+      const next = args[i + 1];
+      if (next != null) {
+        inputs.push(next);
+        i += 1;
+      }
+      continue;
+    }
+    if (a.startsWith("--input=")) {
+      inputs.push(a.slice("--input=".length));
+    }
+  }
+  const absolute: string[] = [];
+  for (const raw of inputs) {
+    const abs = resolve(raw);
+    if (!existsSync(abs)) return { error: `--input path does not exist: ${raw}` };
+    absolute.push(abs);
+  }
+  return { absolute };
+};
+
+/**
  * Top-level dispatcher for `skillet spec <subcommand>`.
  */
 export const specCommand = async (args: string[]): Promise<number> => {
@@ -65,10 +94,10 @@ const printSpecUsage = (): void => {
 skillet spec — manage spec.yaml (the source of truth)
 
 Subcommands:
-  init "<description>" [--path=<dir>]   Generate a new spec from a description (no improve loop)
-  show [path]                            Pretty-print the current spec
-  refine "<feedback>" [path]             Apply natural-language feedback as spec patches
-  import [path]                          Reverse-engineer spec from existing SKILL.md (+ evals)
+  init "<description>" [--path=<dir>] [--input <dir>]...   Generate a new spec (interactive author loop)
+  show [path]                                              Pretty-print the current spec
+  refine "<feedback>" [path]                               Apply natural-language feedback as spec patches
+  import [path] [--input <dir>]...                         Reverse-engineer spec from existing SKILL.md (+ evals)
 
 All mutating subcommands automatically regenerate SKILL.md and evals
 from the new spec.
@@ -81,7 +110,13 @@ const specInit = async (args: string[]): Promise<number> => {
   const positional = findPositional(args);
   const description = positional.join(" ").trim();
   if (description === "") {
-    console.error('Usage: skillet spec init "<description>" [--path=<dir>]');
+    console.error('Usage: skillet spec init "<description>" [--path=<dir>] [--input <dir>]...');
+    return 1;
+  }
+
+  const inputs = collectInputs(args);
+  if ("error" in inputs) {
+    console.error(`Error: ${inputs.error}`);
     return 1;
   }
 
@@ -126,12 +161,14 @@ const specInit = async (args: string[]): Promise<number> => {
   } catch (err: unknown) {
     if (err instanceof SpecAuthorPaused) {
       mkdirSync(skillRoot, { recursive: true });
-      return handleSpecAuthorPause({
+      const pauseInput: Parameters<typeof handleSpecAuthorPause>[0] = {
         err,
         skillRoot,
         seedKind: "from-description",
         seedInput: description,
-      });
+      };
+      if (inputs.absolute.length > 0) pauseInput.inputPaths = inputs.absolute;
+      return handleSpecAuthorPause(pauseInput);
     }
     console.error(`Error: ${errorMessage(err)}`);
     return 1;
@@ -294,6 +331,12 @@ const specImport = async (args: string[]): Promise<number> => {
     return 1;
   }
 
+  const importInputs = collectInputs(args);
+  if ("error" in importInputs) {
+    console.error(`Error: ${importInputs.error}`);
+    return 1;
+  }
+
   const skillMd = readFileSync(skillMdPath, "utf-8");
 
   const models = resolveModels();
@@ -320,12 +363,14 @@ const specImport = async (args: string[]): Promise<number> => {
     }
   } catch (err: unknown) {
     if (err instanceof SpecAuthorPaused) {
-      return handleSpecAuthorPause({
+      const pauseInput: Parameters<typeof handleSpecAuthorPause>[0] = {
         err,
         skillRoot,
         seedKind: "from-skill",
         seedInput: skillMd,
-      });
+      };
+      if (importInputs.absolute.length > 0) pauseInput.inputPaths = importInputs.absolute;
+      return handleSpecAuthorPause(pauseInput);
     }
     console.error(`Error: ${errorMessage(err)}`);
     return 1;

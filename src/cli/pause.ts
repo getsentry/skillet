@@ -7,6 +7,7 @@ export interface PauseHandlerInput {
   seedKind: SeedKind;
   seedInput?: string;
   allowedTools?: string;
+  inputPaths?: string[];
 }
 
 /**
@@ -28,6 +29,9 @@ export const handleSpecAuthorPause = (input: PauseHandlerInput): number => {
   };
   if (input.seedInput != null) session.seedInput = input.seedInput;
   if (input.allowedTools != null) session.allowedTools = input.allowedTools;
+  if (input.inputPaths != null && input.inputPaths.length > 0) {
+    session.inputPaths = input.inputPaths;
+  }
   writeSession(session);
 
   console.error("\nSpec-author paused — answers needed before continuing.");

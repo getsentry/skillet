@@ -33,6 +33,12 @@ export interface AuthorSkillOptions {
    * string sets `frontmatter_extras["allowed-tools"]` on the new spec.
    */
   allowedTools?: string;
+  /**
+   * Absolute paths the spec-author agent may read from. Threaded into
+   * the spec-author phase as additional research scope roots; persisted
+   * on the session so resume sees the same scope.
+   */
+  inputPaths?: string[];
 }
 
 export interface AuthorSkillResult {

@@ -40,6 +40,12 @@ export interface SpecAuthorSession {
   pendingQuestions: string[];
   /** Optional allowed-tools value to thread into the final spec on accept. */
   allowedTools?: string;
+  /**
+   * Absolute paths supplied via `--input` at session start. Resume
+   * recomposes the research scope from these (resume itself does not
+   * accept `--input` — scope is fixed at session start).
+   */
+  inputPaths?: string[];
 }
 
 /**
