@@ -10,22 +10,10 @@ import type { Behavior, MustNot, SkillSpec } from "../../spec/index.js";
 import { buildEvalGenPrompt } from "../prompts/eval-gen.js";
 import { saveFailedOutput } from "./_diagnostics.js";
 import { extractText, isRecord, stripFences } from "./_text.js";
+import type { AssertionPlan, CasePlan, JudgePlan } from "./eval-gen-types.js";
+import { renderEvalFile, RenderError } from "./eval-gen-render.js";
 
-/**
- * Banner placed at the top of generated eval files. Eval files are
- * generated initially but durable after that — regen leaves them
- * alone if they exist, so direct edits to refine prompts/setup/
- * assertions stick. Behavior set changes (add/remove rules) flow
- * through spec.yaml; new behaviors get freshly generated files,
- * removed behaviors leave orphan files (verify coverage flags them).
- */
-export const EVAL_TS_BANNER = `// ──────────────────────────────────────────────────────────
-// Generated initially from spec.yaml; durable after that. Edit
-// freely to refine prompts, setup, and assertions for this
-// behavior. Add or remove behaviors via spec.yaml — skillet only
-// regenerates eval files for behaviors that don't have one yet.
-// ──────────────────────────────────────────────────────────
-`;
+export { EVAL_TS_BANNER } from "./eval-gen-render.js";
 
 export interface RunEvalGenResult {
   /** Files written this run (new behavior IDs only). */
@@ -39,116 +27,89 @@ export interface RunEvalGenResult {
 /** Maximum retries per behavior on parse/validation failure. */
 const MAX_ATTEMPTS_PER_ENTRY = 3;
 
-interface RawCase {
-  name: string;
-  input: string;
-  tests_behavior: string;
-  expectedContains?: string;
-  criteria?: string;
-  setup?: string;
-  timeout?: number;
-}
-
 const isString = (v: unknown): v is string => typeof v === "string";
 const isNumber = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 
-const validateCase = (raw: unknown, index: number, expectedId: string): RawCase => {
+/**
+ * Validate the LLM-returned JSON conforms to the AssertionPlan
+ * shape. The renderer applies semantic guardrails on top
+ * (suspicious patterns, unknown judge references); this function
+ * is purely shape validation so we surface missing fields with
+ * specific error messages the LLM can act on.
+ */
+const validatePlanShape = (raw: unknown, expectedId: string): AssertionPlan => {
   if (!isRecord(raw)) {
-    throw new Error(`case ${index}: not a JSON object`);
+    throw new Error("response is not a JSON object");
   }
-  if (!isString(raw.name) || raw.name === "") {
-    throw new Error(`case ${index}: missing 'name'`);
+  if (!Array.isArray(raw.judges)) {
+    throw new Error("plan.judges must be an array (use [] when no judges are needed)");
   }
-  if (!isString(raw.input) || raw.input === "") {
-    throw new Error(`case ${index} (${raw.name}): missing 'input'`);
+  if (!Array.isArray(raw.cases) || raw.cases.length === 0) {
+    throw new Error("plan.cases must be a non-empty array");
   }
-  if (!isString(raw.tests_behavior) || raw.tests_behavior === "") {
-    throw new Error(`case ${index} (${raw.name}): missing 'tests_behavior'`);
-  }
-  if (raw.tests_behavior !== expectedId) {
-    throw new Error(
-      `case ${index} (${raw.name}): tests_behavior '${raw.tests_behavior}' does not match the requested entry '${expectedId}'`,
-    );
-  }
-  const out: RawCase = {
-    name: raw.name,
-    input: raw.input,
-    tests_behavior: raw.tests_behavior,
-  };
-  if (isString(raw.expectedContains) && raw.expectedContains !== "") {
-    out.expectedContains = raw.expectedContains;
-  }
-  if (isString(raw.criteria) && raw.criteria !== "") {
-    out.criteria = raw.criteria;
-  }
-  if (out.expectedContains == null && out.criteria == null) {
-    throw new Error(`case ${index} (${raw.name}): must have 'expectedContains' or 'criteria'`);
-  }
-  if (isString(raw.setup) && raw.setup !== "") out.setup = raw.setup;
-  if (isNumber(raw.timeout)) out.timeout = raw.timeout;
-  return out;
-};
 
-const validateCaseSetup = (c: RawCase): void => {
-  if (c.setup == null || c.setup === "") return;
-  const workspace = createWorkspace({ setup: c.setup });
-  workspace.cleanup();
-};
-
-const validateGeneratedCases = (cases: RawCase[]): RawCase[] => {
-  for (const c of cases) {
-    validateCaseSetup(c);
+  const judges: JudgePlan[] = [];
+  for (const [i, j] of raw.judges.entries()) {
+    if (!isRecord(j)) {
+      throw new Error(`plan.judges[${i}]: not an object`);
+    }
+    if (!isString(j.name) || j.name === "") {
+      throw new Error(`plan.judges[${i}]: missing 'name'`);
+    }
+    if (!isString(j.criterion) || j.criterion === "") {
+      throw new Error(`plan.judges[${i}] (${j.name}): missing 'criterion'`);
+    }
+    judges.push({ name: j.name, criterion: j.criterion });
   }
-  return cases;
+
+  const cases: CasePlan[] = [];
+  for (const [i, c] of raw.cases.entries()) {
+    if (!isRecord(c)) {
+      throw new Error(`plan.cases[${i}]: not an object`);
+    }
+    if (!isString(c.name) || c.name === "") {
+      throw new Error(`plan.cases[${i}]: missing 'name'`);
+    }
+    if (!isString(c.tests_behavior) || c.tests_behavior === "") {
+      throw new Error(`plan.cases[${i}] (${c.name}): missing 'tests_behavior'`);
+    }
+    if (c.tests_behavior !== expectedId) {
+      throw new Error(
+        `plan.cases[${i}] (${c.name}): tests_behavior '${c.tests_behavior}' does not match the requested entry '${expectedId}'`,
+      );
+    }
+    if (!isString(c.input) || c.input === "") {
+      throw new Error(`plan.cases[${i}] (${c.name}): missing 'input'`);
+    }
+    if (!Array.isArray(c.assertions) || c.assertions.length === 0) {
+      throw new Error(`plan.cases[${i}] (${c.name}): assertions must be a non-empty array`);
+    }
+    const casePlan: CasePlan = {
+      name: c.name,
+      tests_behavior: c.tests_behavior,
+      input: c.input,
+      // oxlint-disable-next-line no-unsafe-type-assertion
+      assertions: c.assertions as CasePlan["assertions"],
+    };
+    if (isString(c.setup) && c.setup !== "") casePlan.setup = c.setup;
+    if (isNumber(c.timeout)) casePlan.timeout = c.timeout;
+    cases.push(casePlan);
+  }
+
+  return { judges, cases };
 };
 
 /**
- * Render one behavior's eval file. The describeEval suite name is
- * the entry id so vitest's reporter groups output by behavior.
+ * Pre-flight any per-case `setup` shell scripts in a temp workspace
+ * to catch failed `git commit`, missing directories, or shell
+ * syntax errors before the eval file is written.
  */
-const renderEvalFile = (entryId: string, cases: RawCase[]): string => {
-  const dataLines: string[] = [];
+const validateCaseSetups = (cases: CasePlan[]): void => {
   for (const c of cases) {
-    const obj: string[] = [];
-    obj.push(`    name: ${JSON.stringify(c.name)}`);
-    obj.push(`    tests_behavior: ${JSON.stringify(c.tests_behavior)}`);
-    obj.push(`    input: ${JSON.stringify(c.input)}`);
-    if (c.expectedContains != null) {
-      obj.push(`    expectedContains: ${JSON.stringify(c.expectedContains)}`);
-    }
-    if (c.criteria != null) {
-      obj.push(`    criteria: ${JSON.stringify(c.criteria)}`);
-    }
-    if (c.setup != null) {
-      obj.push(`    setup: ${JSON.stringify(c.setup)}`);
-    }
-    if (c.timeout != null) {
-      obj.push(`    timeout: ${c.timeout}`);
-    }
-    dataLines.push(`  {\n${obj.join(",\n")},\n  },`);
+    if (c.setup == null || c.setup === "") continue;
+    const workspace = createWorkspace({ setup: c.setup });
+    workspace.cleanup();
   }
-
-  return `${EVAL_TS_BANNER}import { fileURLToPath } from "node:url";
-import { dirname } from "node:path";
-import {
-  describeEval,
-  CriterionJudge,
-  SubstringJudge,
-  skilletHarness,
-} from "@sentry/skillet/evals";
-
-const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\\/evals$/, "");
-
-describeEval(${JSON.stringify(entryId)}, {
-  data: [
-${dataLines.join("\n")}
-  ],
-  harness: skilletHarness({ skill: skillRoot }),
-  judges: [SubstringJudge(), CriterionJudge()],
-  threshold: 0.75,
-  timeout: 180_000,
-});
-`;
 };
 
 interface SingleEntryInput {
@@ -159,16 +120,16 @@ interface SingleEntryInput {
 
 /**
  * Issue ONE LLM call for a single spec entry, retrying on
- * parse/validation failure. Returns the parsed cases. The signal
- * comes from the AI queue's per-job deadline and is forwarded into
- * every pi-ai call inside the parse-retry loop.
+ * parse/validation/render failure. Returns the validated plan. The
+ * signal comes from the AI queue's per-job deadline and is forwarded
+ * into every pi-ai call inside the parse-retry loop.
  */
 const generateForEntry = async (
   model: AnyModel,
   input: SingleEntryInput,
   signal: AbortSignal,
-): Promise<RawCase[]> => {
-  const userContent = `Generate eval case(s) for this single spec entry:\n\n\`\`\`json\n${JSON.stringify(
+): Promise<{ plan: AssertionPlan; rendered: string }> => {
+  const userContent = `Generate the assertion plan for this single spec entry:\n\n\`\`\`json\n${JSON.stringify(
     {
       kind: input.kind,
       entry: input.entry,
@@ -188,7 +149,7 @@ const generateForEntry = async (
     if (attempt > 1) {
       context.messages.push({
         role: "user",
-        content: `Your previous output failed validation: ${lastError?.message}\n\nReturn a valid JSON array of cases — only the array, no prose, no fences.`,
+        content: `Your previous output failed validation: ${lastError?.message}\n\nReturn a valid JSON assertion plan — only the object, no prose, no fences.`,
         timestamp: Date.now(),
       });
     }
@@ -203,6 +164,7 @@ const generateForEntry = async (
     });
 
     const remaining = MAX_ATTEMPTS_PER_ENTRY - attempt;
+
     let parsed: unknown;
     try {
       parsed = JSON.parse(stripFences(text, "json"));
@@ -225,33 +187,11 @@ const generateForEntry = async (
       });
       continue;
     }
-    if (!Array.isArray(parsed)) {
-      lastError = new Error("response was JSON but not an array");
-      const saved = saveFailedOutput({
-        phase: "eval-gen",
-        key: input.entry.id,
-        attempt,
-        raw: text,
-        errorMessage: lastError.message,
-        kind: "schema",
-      });
-      event("warn", `eval-gen behavior=${input.entry.id} attempt=${attempt} not-array`, {
-        retriesRemaining: remaining,
-        savedTo: saved.path,
-        responseHead: saved.excerpt,
-      });
-      continue;
-    }
-    if (parsed.length === 0) {
-      lastError = new Error("response array was empty");
-      event("warn", `eval-gen behavior=${input.entry.id} attempt=${attempt} empty-array`, {
-        retriesRemaining: remaining,
-      });
-      continue;
-    }
+
+    let plan: AssertionPlan;
     try {
-      const cases = parsed.map((raw, i) => validateCase(raw, i, input.entry.id));
-      return validateGeneratedCases(cases);
+      plan = validatePlanShape(parsed, input.entry.id);
+      validateCaseSetups(plan.cases);
     } catch (err: unknown) {
       lastError = err instanceof Error ? err : new Error(String(err));
       const saved = saveFailedOutput({
@@ -269,6 +209,33 @@ const generateForEntry = async (
       });
       continue;
     }
+
+    let rendered: string;
+    try {
+      rendered = renderEvalFile(input.entry.id, plan);
+    } catch (err: unknown) {
+      // Renderer guardrails (bare `/HIGH/`-style regex, unknown judge
+      // refs, etc.) bubble up as RenderError. Treat them like a
+      // schema failure so the LLM gets a chance to fix the plan.
+      const rerr = err instanceof RenderError ? err : null;
+      lastError = rerr ?? (err instanceof Error ? err : new Error(String(err)));
+      const saved = saveFailedOutput({
+        phase: "eval-gen",
+        key: input.entry.id,
+        attempt,
+        raw: text,
+        errorMessage: lastError.message,
+        kind: "schema",
+      });
+      event("warn", `eval-gen behavior=${input.entry.id} attempt=${attempt} render-fail`, {
+        message: lastError.message,
+        retriesRemaining: remaining,
+        savedTo: saved.path,
+      });
+      continue;
+    }
+
+    return { plan, rendered };
   }
 
   throw lastError ?? new Error("eval-gen: unknown failure");
@@ -327,24 +294,24 @@ export const runEvalGen = async (
   const written: string[] = [];
   const failed: Array<{ id: string; error: string }> = [];
 
-  // One job per missing entry. The AI queue throttles parallelism
-  // globally (`--ai-concurrency`); no local concurrency cap. Each
-  // job's parse-retry loop runs inside one slot, so a network blip
-  // costs one CWB-retry, not N × queue-retries.
   const tasks = missing.map(({ entry, kind }) =>
     submitAiJob({
       name: `eval-gen:${entry.id}`,
       run: async (signal) => {
         const start = Date.now();
         try {
-          const cases = await generateForEntry(model, { entry, kind, mustNotRules }, signal);
+          const { plan, rendered } = await generateForEntry(
+            model,
+            { entry, kind, mustNotRules },
+            signal,
+          );
           const filePath = join(evalsDir, `${entry.id}.eval.ts`);
-          writeFileSync(filePath, renderEvalFile(entry.id, cases), "utf-8");
+          writeFileSync(filePath, rendered, "utf-8");
           const elapsed = Date.now() - start;
           written.push(filePath);
           event(
             "info",
-            `eval-gen behavior=${entry.id} ok=true cases=${cases.length} (${elapsed}ms)`,
+            `eval-gen behavior=${entry.id} ok=true cases=${plan.cases.length} judges=${plan.judges.length} (${elapsed}ms)`,
           );
           log?.(`  wrote ${filePath}`);
         } catch (err: unknown) {

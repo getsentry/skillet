@@ -65,12 +65,20 @@ const walk = (dir: string, out: string[]): void => {
 };
 
 /**
- * Extract case metadata from an eval file by regex scan. Looks for
- * each `name: "<value>"` paired with the nearest `tests_behavior:
- * "<value>"` in the same case object.
+ * Extract case metadata from an eval file by regex scan. Handles
+ * both supported file shapes:
  *
- * The scan walks character by character, identifying object braces
- * inside the `data` array, and captures the two fields per object.
+ * - **Harness-first callback form** (`describeEval(id, opts, (it) => { it("name", ...) })`):
+ *   the suite name is the `tests_behavior` for every case in the
+ *   file (skillet generates one suite per behavior). Case names
+ *   come from `it("...", ...)` calls.
+ *
+ * - **Data-array form (legacy)** (`describeEval(id, { data: [{ name, tests_behavior, ... }] })`):
+ *   case names and `tests_behavior` are paired inside each object
+ *   in the `data` array.
+ *
+ * If both shapes appear in the same file (rare; only if hand-edited),
+ * results from both scans are returned.
  */
 export const extractCasesFromEvalTs = (filePath: string): DiscoveredCase[] => {
   let content: string;
@@ -81,32 +89,66 @@ export const extractCasesFromEvalTs = (filePath: string): DiscoveredCase[] => {
   }
 
   const cases: DiscoveredCase[] = [];
-  // Match each case object: { ... } that contains a `name:` field.
-  // We scan for `name:` first, then look back to the opening `{` and
-  // forward to the matching `}` to find the bounded object.
+
+  // ── Callback form: describeEval("id", ...) + it("name", ...)
+  const suiteId = extractDescribeEvalName(content);
+  if (suiteId != null) {
+    const itRe = /\bit\s*\(\s*(?:"([^"]+)"|'([^']+)'|`([^`]+)`)/g;
+    let match: RegExpExecArray | null;
+    while ((match = itRe.exec(content)) !== null) {
+      const name = match[1] ?? match[2] ?? match[3];
+      if (name == null || name === "") continue;
+      cases.push({ name, testsBehavior: suiteId, filePath });
+    }
+  }
+
+  // ── Data-array form: { name: "...", tests_behavior: "..." }
+  // Match each case object: `{ ... }` that contains a `name:` field.
+  // Scan for `name:` first, then look back to the opening `{` and
+  // forward to the matching `}` to bound the object.
   const fieldRe = /\bname\s*:\s*(?:"([^"]+)"|'([^']+)'|`([^`]+)`)/g;
   let match: RegExpExecArray | null;
   while ((match = fieldRe.exec(content)) !== null) {
     const name = match[1] ?? match[2] ?? match[3];
     if (name == null || name === "") continue;
 
-    // Find the bounding object for this `name:` field.
     const objectBounds = findEnclosingObject(content, match.index);
     if (objectBounds == null) continue;
     const objectText = content.slice(objectBounds.start, objectBounds.end);
 
-    // Inside that object, look for tests_behavior.
     const tbMatch = /\btests_behavior\s*:\s*(?:"([^"]+)"|'([^']+)'|`([^`]+)`)/.exec(objectText);
     const testsBehavior = tbMatch?.[1] ?? tbMatch?.[2] ?? tbMatch?.[3];
 
-    const c: DiscoveredCase = { name, filePath };
-    if (testsBehavior != null && testsBehavior !== "") {
-      c.testsBehavior = testsBehavior;
-    }
-    cases.push(c);
+    // Skip cases whose object lacks `tests_behavior` — those are
+    // not data-array eval cases (e.g. a judge declaration's options
+    // bag, an unrelated config object).
+    if (testsBehavior == null || testsBehavior === "") continue;
+
+    cases.push({ name, testsBehavior, filePath });
   }
 
-  return cases;
+  // Dedupe by (name, testsBehavior, filePath); both scans may
+  // surface the same case if a file mixes shapes by accident.
+  const seen = new Set<string>();
+  return cases.filter((c) => {
+    const key = `${c.name}\0${c.testsBehavior ?? ""}\0${c.filePath}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+/**
+ * Extract the suite id from the first `describeEval("id", ...)` call
+ * in the file. Returns `null` if no call is found (meaning the file
+ * uses the data-array form or is hand-rolled).
+ */
+const extractDescribeEvalName = (content: string): string | null => {
+  const re = /\bdescribeEval\s*\(\s*(?:"([^"]+)"|'([^']+)'|`([^`]+)`)/;
+  const m = re.exec(content);
+  if (m == null) return null;
+  const name = m[1] ?? m[2] ?? m[3];
+  return name != null && name !== "" ? name : null;
 };
 
 /**

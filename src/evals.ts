@@ -12,22 +12,36 @@
  * delete `src/vitest-evals/`. Generated eval files don't change.
  */
 
-export { describeEval, toolCalls, CriterionJudge, SubstringJudge } from "./vitest-evals/index.js";
+export {
+  CriterionJudge,
+  describeEval,
+  judge,
+  SubstringJudge,
+  toolCalls,
+} from "./vitest-evals/index.js";
 
 export type {
+  BareDescribeEvalOptions,
   BaseJudgeOptions,
   DescribeEvalOptions,
+  EvalIt,
+  EvalSuiteBody,
+  EvalTestContext,
   Harness,
   HarnessCase,
   HarnessContext,
   HarnessEvalContext,
   HarnessRun,
   JsonValue,
+  JudgeBodyResult,
+  JudgeContext,
   JudgeFn,
   JudgeResult,
+  NamedJudgeFn,
   NormalizedMessage,
   NormalizedSession,
   ToolCallRecord,
+  ToSatisfyJudgeOptions,
 } from "./vitest-evals/index.js";
 
 export { skilletHarness, type SkilletHarnessOptions } from "./harness/index.js";

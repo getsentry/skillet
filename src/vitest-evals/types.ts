@@ -148,3 +148,74 @@ export type DescribeEvalOptions<TCase extends HarnessCase = HarnessCase> = {
   beforeEach?: () => void | Promise<void>;
   afterEach?: () => void | Promise<void>;
 };
+
+// ── Callback-form (harness-first) describeEval ──────────────────────────
+
+/**
+ * Bare options for the callback form. No `data`, no `judges`,
+ * no `threshold` — those move into per-test bodies. Cases are
+ * defined by the `it()` calls inside the body callback.
+ */
+export type BareDescribeEvalOptions<TInput = unknown> = {
+  harness: Harness<TInput>;
+  skipIf?: () => boolean;
+  /** Default per-test timeout in ms (overridable on each `it`). */
+  timeout?: number;
+  beforeEach?: () => void | Promise<void>;
+  afterEach?: () => void | Promise<void>;
+};
+
+/**
+ * Harness as exposed to a callback-form `it()` body. Adds a
+ * `setup(script)` helper on top of the base contract so tests can
+ * seed a workspace inline:
+ *
+ * ```ts
+ * await harness.setup("git init && echo hi > foo.txt");
+ * const result = await run("...");
+ * ```
+ *
+ * The setup script is stashed and forwarded into the next
+ * `run()` call's harness context as `caseData.setup`; the harness
+ * adapter (skilletHarness) reads it at workspace creation time.
+ */
+export type FixtureHarness<TInput = unknown> = Harness<TInput> & {
+  setup: (script: string) => Promise<void>;
+};
+
+/** Per-test fixture passed to each `it()` callback. */
+export type EvalTestContext<TInput = unknown> = {
+  /**
+   * Run the harness for this test. Resolves to a HarnessRun. Each
+   * `it()` should call `run` exactly once; the fixture also writes
+   * `task.meta.harness.run` so the reporter sees the trace.
+   */
+  run: (input: TInput, opts?: { metadata?: Record<string, JsonValue> }) => Promise<HarnessRun>;
+  /**
+   * Mark the test as covering the given spec entry id. Writes
+   * `task.meta.tests_behavior` so the runner can map results back
+   * to the spec.
+   */
+  behavior: (id: string) => void;
+  /**
+   * Harness handle augmented with `setup(script)`. Use `setup` to
+   * seed a workspace before calling `run`.
+   */
+  harness: FixtureHarness<TInput>;
+};
+
+/**
+ * The `it`-style function exposed to the body callback. Accepts a
+ * test name, an optional `{ timeout }` options bag, and an async
+ * function that receives the test fixture.
+ */
+export type EvalIt<TInput = unknown> = {
+  (name: string, fn: (ctx: EvalTestContext<TInput>) => void | Promise<void>): void;
+  (
+    name: string,
+    options: { timeout?: number },
+    fn: (ctx: EvalTestContext<TInput>) => void | Promise<void>,
+  ): void;
+};
+
+export type EvalSuiteBody<TInput = unknown> = (it: EvalIt<TInput>) => void;
