@@ -60,21 +60,9 @@ interface VitestAssertionMeta {
     };
   };
   /**
-   * Legacy data-array `describeEval` channel — populated by the
-   * runDataArrayForm path's anonymous `CriterionJudge` /
-   * `SubstringJudge` invocations. Kept for files generated before
-   * the harness-first migration.
-   */
-  eval?: {
-    scores?: Array<{ name?: string; score?: number | null; metadata?: Record<string, unknown> }>;
-    avgScore?: number;
-    output?: unknown;
-    thresholdFailed?: boolean;
-  };
-  /**
-   * Harness-first channel populated by the `toSatisfyJudge` matcher:
-   * one entry per named judge invocation in the test body. Score is
-   * 0..1; rationale and grade come from the LLM judge's response.
+   * Channel populated by the `toSatisfyJudge` matcher: one entry
+   * per named judge invocation in the test body. Score is 0..1;
+   * rationale and grade come from the LLM judge's response.
    */
   judges?: Array<{
     name?: string;
@@ -348,33 +336,18 @@ const assertionToCaseResult = (
     errors.push({ type: "AssertionError", message: m });
   }
 
-  // Convert judge scores to skillet's JudgeResultNormalized shape.
-  // Prefer the harness-first `meta.judges` channel populated by
-  // `toSatisfyJudge`. Fall back to the legacy `meta.eval.scores`
-  // channel for data-array files generated before the migration.
-  // We pick the first named judge with a non-null score so
+  // Pick the first named judge with a non-null score so
   // verify-results gets a meaningful number.
   const judges = meta.judges ?? [];
-  const primaryHarnessJudge = judges.find((j) => j.score != null);
-  const legacyScores = meta.eval?.scores ?? [];
-  const primaryLegacyScore =
-    legacyScores.find((s) => s.name === "CriterionJudge") ?? legacyScores[0];
-
-  let judge: { grade: string; score: number; reasoning: string } | undefined;
-  if (primaryHarnessJudge != null && primaryHarnessJudge.score != null) {
-    judge = {
-      grade: primaryHarnessJudge.grade ?? scoreToGrade(primaryHarnessJudge.score),
-      score: primaryHarnessJudge.score,
-      reasoning: primaryHarnessJudge.rationale ?? "",
-    };
-  } else if (primaryLegacyScore != null && primaryLegacyScore.score != null) {
-    const md = isRecord(primaryLegacyScore.metadata) ? primaryLegacyScore.metadata : {};
-    judge = {
-      grade: typeof md.grade === "string" ? md.grade : scoreToGrade(primaryLegacyScore.score),
-      score: primaryLegacyScore.score,
-      reasoning: typeof md.rationale === "string" ? md.rationale : "",
-    };
-  }
+  const primaryJudge = judges.find((j) => j.score != null);
+  const judge: { grade: string; score: number; reasoning: string } | undefined =
+    primaryJudge != null && primaryJudge.score != null
+      ? {
+          grade: primaryJudge.grade ?? scoreToGrade(primaryJudge.score),
+          score: primaryJudge.score,
+          reasoning: primaryJudge.rationale ?? "",
+        }
+      : undefined;
 
   const result: EvalCaseResult = {
     name: assertion.title,

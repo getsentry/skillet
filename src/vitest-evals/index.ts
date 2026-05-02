@@ -11,7 +11,7 @@
  *
  * Module side-effect: registers the `toSatisfyJudge` custom matcher
  * via `expect.extend`. Importing from `@sentry/skillet/evals` is
- * sufficient to make `expect(result).toSatisfyJudge(JudgeFn)` work.
+ * sufficient to make `expect(result).toSatisfyJudge(NameJudge)` work.
  */
 
 import { registerJudgeMatchers } from "./judges.js";
@@ -19,22 +19,16 @@ import type { NamedJudgeFn, ToSatisfyJudgeOptions } from "./judges.js";
 
 export type {
   BareDescribeEvalOptions,
-  BaseJudgeOptions,
-  DescribeEvalOptions,
   EvalIt,
   EvalSuiteBody,
   EvalTestContext,
   FixtureHarness,
   Harness,
   HarnessCase,
-  HarnessCaseSource,
   HarnessContext,
-  HarnessEvalContext,
   HarnessRun,
   JsonPrimitive,
   JsonValue,
-  JudgeFn,
-  JudgeResult,
   NormalizedMessage,
   NormalizedSession,
   ToolCallRecord,
@@ -43,9 +37,7 @@ export type {
 
 export { describeEval, toolCalls } from "./describe-eval.js";
 export {
-  CriterionJudge,
   judge,
-  SubstringJudge,
   type JudgeBodyResult,
   type JudgeContext,
   type NamedJudgeFn,

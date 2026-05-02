@@ -1,29 +1,16 @@
 /**
  * Judges for the harness-first eval API.
  *
- * Two flavors:
- *
- * 1. **Named judges** declared via `judge("Name", async (ctx) => ...)`
- *    and consumed via `await expect(result).toSatisfyJudge(NameJudge)`
- *    inside an `it()` body. The judge body receives a `criterion(text)`
- *    helper that calls the LLM judge so most named judges look like
- *    `return ctx.criterion("the response …")`.
- *
- * 2. **Legacy `CriterionJudge()` / `SubstringJudge()`** factories used
- *    by the data-array `describeEval(name, { data, judges })` form.
- *    Kept for one release so files generated before the harness-first
- *    migration keep loading. Marked `@deprecated`.
+ * Named judges are declared via `judge("Name", async (ctx) => ...)`
+ * and consumed via `await expect(result).toSatisfyJudge(NameJudge)`
+ * inside an `it()` body. The judge body receives a `criterion(text)`
+ * helper that calls skillet's LLM judge — so most named judges
+ * look like `return ctx.criterion("the response …")`.
  */
 
 import { resolveModels } from "../agent/provider.js";
 import { judge as runJudgeLLM, type JudgeArtifact } from "../eval/judge.js";
-import type {
-  BaseJudgeOptions,
-  HarnessRun,
-  JudgeFn,
-  JudgeResult,
-  NormalizedMessage,
-} from "./types.js";
+import type { HarnessRun, NormalizedMessage } from "./types.js";
 
 // ── Internal: judge identity tag ───────────────────────────────────────────
 
@@ -67,10 +54,10 @@ export type JudgeContext = {
   /** The full HarnessRun, including session and artifacts. */
   run: HarnessRun;
   /**
-   * Convenience helper that calls the LLM judge with the given
-   * criterion text and returns `{ score, metadata: { rationale, grade } }`.
-   * Routes through `src/eval/judge.ts:judge()` so the model + prompt
-   * are unchanged from the legacy CriterionJudge path.
+   * Convenience helper that calls skillet's LLM judge with the
+   * given criterion text and returns
+   * `{ score, metadata: { rationale, grade } }`. Routes through
+   * `src/eval/judge.ts:judge()`.
    */
   criterion: (text: string) => Promise<JudgeBodyResult>;
 };
@@ -293,70 +280,4 @@ const formatTranscriptForJudge = (run: HarnessRun | undefined, fallbackOutput: s
       return `### ${i + 1}. ${message.role}\n\n${content}${tools}`;
     })
     .join("\n\n");
-};
-
-// ── Legacy judges (data-array describeEval form, deprecated) ───────────────
-
-interface CriterionJudgeOptions extends BaseJudgeOptions {
-  /** The judge criterion (sourced from case data). */
-  criteria?: string;
-}
-
-const named = <T extends BaseJudgeOptions>(
-  judgeName: string,
-  fn: (opts: T) => JudgeResult | Promise<JudgeResult>,
-): JudgeFn<T> => {
-  Object.defineProperty(fn, "name", { value: judgeName, configurable: true });
-  return fn as JudgeFn<T>;
-};
-
-/**
- * @deprecated Use `judge("Name", async ({ criterion }) => criterion("…"))`
- *   plus `await expect(result).toSatisfyJudge(NameJudge)` in the
- *   harness-first callback form. This factory only works inside the
- *   data-array `describeEval(name, { data, judges })` shape and will
- *   be removed in the next minor.
- */
-export const CriterionJudge = (): JudgeFn => {
-  return named("CriterionJudge", async (opts: CriterionJudgeOptions) => {
-    const criteria = opts.criteria;
-    if (typeof criteria !== "string" || criteria.trim() === "") {
-      return { score: 1, metadata: { rationale: "no criteria — skipped" } };
-    }
-    const model = resolveModels().judge;
-    const artifacts = collectArtifactsForJudge(opts.run);
-    const transcript = formatTranscriptForJudge(opts.run, opts.output);
-    const result = await runJudgeLLM(model, transcript, criteria, artifacts);
-    return {
-      score: result.score,
-      metadata: { rationale: result.reasoning, grade: result.grade },
-    };
-  });
-};
-
-interface SubstringJudgeOptions extends BaseJudgeOptions {
-  /** Literal substring required in the agent's output. */
-  expectedContains?: string;
-}
-
-/**
- * @deprecated Use `expect(result.session.outputText).toContain("…")`
- *   in the harness-first callback form. This factory only works
- *   inside the data-array `describeEval(name, { data, judges })`
- *   shape and will be removed in the next minor.
- */
-export const SubstringJudge = (): JudgeFn => {
-  return named("SubstringJudge", (opts: SubstringJudgeOptions) => {
-    const expected = opts.expectedContains;
-    if (typeof expected !== "string" || expected === "") {
-      return { score: 1, metadata: { rationale: "no expectedContains — skipped" } };
-    }
-    if (opts.output.includes(expected)) {
-      return { score: 1, metadata: { rationale: `output contains "${expected}"` } };
-    }
-    return {
-      score: 0,
-      metadata: { rationale: `output does NOT contain "${expected}"` },
-    };
-  });
 };

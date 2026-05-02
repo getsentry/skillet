@@ -2,16 +2,15 @@
  * Discover `.eval.ts` files and extract the case metadata that
  * `verifyCoverage` needs (case names + `tests_behavior` IDs).
  *
- * Skillet generates eval files in a known shape. The current
- * generator emits the harness-first callback form
+ * Skillet's eval-gen emits the harness-first callback form
  * (`describeEval(id, opts, (it) => { it("name", ...) })`) where the
- * suite id doubles as `tests_behavior`. The legacy data-array
- * form is also recognized for files generated before the
- * harness-first migration. A regex scan over both shapes is
- * sufficient — adding a TypeScript AST parser is heavyweight for
- * what is, in practice, extracting two string literals per case.
+ * suite id doubles as `tests_behavior` — one suite per behavior. A
+ * regex scan extracts both: the `describeEval` name pins
+ * `tests_behavior`, each `it("...")` provides a case name. Adding
+ * a TypeScript AST parser is heavyweight for what amounts to two
+ * string literals per case.
  *
- * Hand-edited eval files that deviate from the template may not
+ * Hand-edited eval files that deviate from this shape may not
  * extract correctly. That's acceptable — coverage verification is
  * a tooling-driven check; users editing eval files directly take
  * responsibility for keeping `tests_behavior` discoverable.
@@ -21,9 +20,9 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 export interface DiscoveredCase {
-  /** The `name` field on the case object. */
+  /** The `it("...")` name. */
   name: string;
-  /** The `tests_behavior` field, if present. */
+  /** The suite id from `describeEval("...", ...)` — same for every case in the file. */
   testsBehavior?: string;
   /** Path of the eval file the case was discovered in. */
   filePath: string;
@@ -69,20 +68,9 @@ const walk = (dir: string, out: string[]): void => {
 };
 
 /**
- * Extract case metadata from an eval file by regex scan. Handles
- * both supported file shapes:
- *
- * - **Harness-first callback form** (`describeEval(id, opts, (it) => { it("name", ...) })`):
- *   the suite name is the `tests_behavior` for every case in the
- *   file (skillet generates one suite per behavior). Case names
- *   come from `it("...", ...)` calls.
- *
- * - **Data-array form (legacy)** (`describeEval(id, { data: [{ name, tests_behavior, ... }] })`):
- *   case names and `tests_behavior` are paired inside each object
- *   in the `data` array.
- *
- * If both shapes appear in the same file (rare; only if hand-edited),
- * results from both scans are returned.
+ * Extract case metadata from an eval file. Pulls the suite id from
+ * the file's `describeEval("...", ...)` call and one case per
+ * `it("...", ...)` call inside.
  */
 export const extractCasesFromEvalTs = (filePath: string): DiscoveredCase[] => {
   let content: string;
@@ -92,60 +80,24 @@ export const extractCasesFromEvalTs = (filePath: string): DiscoveredCase[] => {
     return [];
   }
 
-  const cases: DiscoveredCase[] = [];
-
-  // ── Callback form: describeEval("id", ...) + it("name", ...)
   const suiteId = extractDescribeEvalName(content);
-  if (suiteId != null) {
-    const itRe = /\bit\s*\(\s*(?:"([^"]+)"|'([^']+)'|`([^`]+)`)/g;
-    let match: RegExpExecArray | null;
-    while ((match = itRe.exec(content)) !== null) {
-      const name = match[1] ?? match[2] ?? match[3];
-      if (name == null || name === "") continue;
-      cases.push({ name, testsBehavior: suiteId, filePath });
-    }
-  }
+  if (suiteId == null) return [];
 
-  // ── Data-array form: { name: "...", tests_behavior: "..." }
-  // Match each case object: `{ ... }` that contains a `name:` field.
-  // Scan for `name:` first, then look back to the opening `{` and
-  // forward to the matching `}` to bound the object.
-  const fieldRe = /\bname\s*:\s*(?:"([^"]+)"|'([^']+)'|`([^`]+)`)/g;
+  const cases: DiscoveredCase[] = [];
+  const itRe = /\bit\s*\(\s*(?:"([^"]+)"|'([^']+)'|`([^`]+)`)/g;
   let match: RegExpExecArray | null;
-  while ((match = fieldRe.exec(content)) !== null) {
+  while ((match = itRe.exec(content)) !== null) {
     const name = match[1] ?? match[2] ?? match[3];
     if (name == null || name === "") continue;
-
-    const objectBounds = findEnclosingObject(content, match.index);
-    if (objectBounds == null) continue;
-    const objectText = content.slice(objectBounds.start, objectBounds.end);
-
-    const tbMatch = /\btests_behavior\s*:\s*(?:"([^"]+)"|'([^']+)'|`([^`]+)`)/.exec(objectText);
-    const testsBehavior = tbMatch?.[1] ?? tbMatch?.[2] ?? tbMatch?.[3];
-
-    // Skip cases whose object lacks `tests_behavior` — those are
-    // not data-array eval cases (e.g. a judge declaration's options
-    // bag, an unrelated config object).
-    if (testsBehavior == null || testsBehavior === "") continue;
-
-    cases.push({ name, testsBehavior, filePath });
+    cases.push({ name, testsBehavior: suiteId, filePath });
   }
-
-  // Dedupe by (name, testsBehavior, filePath); both scans may
-  // surface the same case if a file mixes shapes by accident.
-  const seen = new Set<string>();
-  return cases.filter((c) => {
-    const key = `${c.name}\0${c.testsBehavior ?? ""}\0${c.filePath}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  return cases;
 };
 
 /**
- * Extract the suite id from the first `describeEval("id", ...)` call
- * in the file. Returns `null` if no call is found (meaning the file
- * uses the data-array form or is hand-rolled).
+ * Extract the suite id from the first `describeEval("id", ...)`
+ * call in the file. Returns `null` if no call is found (meaning the
+ * file isn't a skillet-shaped eval).
  */
 const extractDescribeEvalName = (content: string): string | null => {
   const re = /\bdescribeEval\s*\(\s*(?:"([^"]+)"|'([^']+)'|`([^`]+)`)/;
@@ -153,45 +105,6 @@ const extractDescribeEvalName = (content: string): string | null => {
   if (m == null) return null;
   const name = m[1] ?? m[2] ?? m[3];
   return name != null && name !== "" ? name : null;
-};
-
-/**
- * Find the `{ ... }` object that encloses the given position.
- * Returns inclusive start (the `{`) and exclusive end (after `}`).
- *
- * Naive brace-balanced scan; doesn't handle every edge case (e.g.
- * unbalanced braces inside strings or template literals across
- * lines), but skillet's generated format is regular enough that
- * this works.
- */
-const findEnclosingObject = (text: string, pos: number): { start: number; end: number } | null => {
-  // Walk backwards to find the opening brace at depth 0.
-  let depth = 0;
-  let start = -1;
-  for (let i = pos - 1; i >= 0; i--) {
-    const ch = text[i];
-    if (ch === "}") depth++;
-    else if (ch === "{") {
-      if (depth === 0) {
-        start = i;
-        break;
-      }
-      depth--;
-    }
-  }
-  if (start === -1) return null;
-
-  // Walk forward from `start + 1` to the matching `}`.
-  depth = 1;
-  for (let i = start + 1; i < text.length; i++) {
-    const ch = text[i];
-    if (ch === "{") depth++;
-    else if (ch === "}") {
-      depth--;
-      if (depth === 0) return { start, end: i + 1 };
-    }
-  }
-  return null;
 };
 
 /**
