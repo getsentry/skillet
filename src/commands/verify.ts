@@ -24,7 +24,7 @@ const parseVerifyArgs = (args: string[]): VerifyOptions => {
 
 export const VERIFY_USAGE = `Usage: skillet verify [path] [--semantic] [--triggers] [--json]
 
-Layered consistency check (subsumes the old \`validate\`):
+Layered consistency check:
   1. Structural — files parse and have required fields
   2. Coverage   — every behavior has an eval case
   3. Results    — per-behavior pass/fail when run data exists

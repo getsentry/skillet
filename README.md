@@ -133,7 +133,7 @@ spec.yaml ──► generate ──► SKILL.md + evals/*.eval.ts
                        run evals (vitest)
                               │
                               ▼
-                       verify (5 layers)
+                       verify (4 layers)
                               │
                               ▼
                        tune SKILL.md prose

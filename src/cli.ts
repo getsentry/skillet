@@ -209,7 +209,7 @@ Usage:
   skillet improve [path]                                  Improve an existing skill (auto-imports legacy skills)
   skillet eval [path] [--json]                            Run evals
   skillet compare <a> <b> [--json]                        Run skill A's evals against both A and B; print side-by-side
-  skillet verify [path] [--semantic]                      Check spec/SKILL.md/evals agree (subsumes the old validate)
+  skillet verify [path] [--semantic]                      Check spec/SKILL.md/evals agree
   skillet add-eval [path] "behavior"                      Add a behavior to spec.yaml and regenerate
   skillet install [path]                                  Install the skillet skill into your agent
   skillet spec <show|refine|import|init>                  Manage spec.yaml (the source of truth)
@@ -226,7 +226,7 @@ Environment:
     COPILOT_GITHUB_TOKEN / GH_TOKEN / GITHUB_TOKEN
     GEMINI_API_KEY / OPENROUTER_API_KEY / GROQ_API_KEY / and more
 
-  SKILLET_MODEL              Override agent model (e.g. anthropic/claude-sonnet-4-20250514)
+  SKILLET_MODEL              Override agent model (e.g. anthropic/claude-opus-4-7)
   SKILLET_JUDGE_MODEL        Override judge model separately
   SKILLET_EVAL_GEN_MODEL     Override the model used for per-behavior eval generation
   SKILLET_AI_CONCURRENCY=N   Max concurrent AI jobs in flight (same as --ai-concurrency, default 4)

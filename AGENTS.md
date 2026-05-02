@@ -21,7 +21,7 @@ Co-Authored-By: (agent model name) <email>
 | Typecheck     | `npm run typecheck`                     |
 | Lint          | `npm run lint` (oxlint, type-aware)     |
 | Format check  | `npm run format` (oxfmt --check)        |
-| Format fix    | `npx oxfmt src/`                        |
+| Format fix    | `npm run format:fix`                    |
 | Build         | `npm run build`                         |
 | Skill evals   | `dist/cli.js eval <skill-path>`         |
 | One eval file | `npx vitest run path/to/file.eval.ts`   |
