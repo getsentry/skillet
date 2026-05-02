@@ -5,11 +5,10 @@ import { SpecAuthorPaused, runSpecAuthor } from "../authoring/phases/spec-author
 import { buildAuthoringScope } from "../authoring/scope.js";
 import { deleteSession, readSession, sessionExists } from "../authoring/session.js";
 import { handleSpecAuthorPause } from "../cli/pause.js";
-import { withElapsed } from "../cli/progress.js";
 import { createInteractiveSession } from "../cli/transport.js";
-import { regenerate, specFileName, writeSpec } from "../spec/index.js";
-import { withStaging } from "../staging/index.js";
+import { specFileName } from "../spec/index.js";
 import { printCoverageReport } from "./coverage-report.js";
+import { commitSpecAndRegenerate } from "./_regen.js";
 
 const errorMessage = (err: unknown): string => {
   return err instanceof Error ? err.message : String(err);
@@ -156,26 +155,13 @@ export const resumeCommand = async (args: string[]): Promise<number> => {
   mkdirSync(skillRoot, { recursive: true });
   const specPath = join(skillRoot, specFileName());
   const alreadyHadSpec = existsSync(specPath);
-  try {
-    await withStaging(skillRoot, async (stagingDir) => {
-      writeSpec(join(stagingDir, specFileName()), finalSpec);
-      console.log(`✓ Staged ${specFileName()}`);
-      console.log("Regenerating SKILL.md and evals...");
-      await regenerate(stagingDir, {
-        model: models.agent,
-        evalGenModel: models.evalGen,
-        onProgress: withElapsed((msg) => {
-          console.log(`  ${msg}`);
-        }),
-      });
-    });
-  } catch (err: unknown) {
-    console.error(`Error during regeneration: ${errorMessage(err)}`);
-    if (alreadyHadSpec) {
-      console.error("Original spec is unchanged.");
-    }
-    return 1;
-  }
+  const code = await commitSpecAndRegenerate({
+    skillRoot,
+    spec: finalSpec,
+    errorTrailer: alreadyHadSpec ? "Original spec is unchanged." : undefined,
+    skipCoverage: true,
+  });
+  if (code !== 0) return code;
 
   deleteSession(skillRoot);
   console.log(`\nSpec accepted; session cleared.`);

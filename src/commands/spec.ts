@@ -7,20 +7,17 @@ import { buildAuthoringScope } from "../authoring/scope.js";
 import { seedFromDescription, seedFromSkill } from "../authoring/seed/index.js";
 import { sessionExists } from "../authoring/session.js";
 import { handleSpecAuthorPause } from "../cli/pause.js";
-import { withElapsed } from "../cli/progress.js";
 import { createInteractiveSession } from "../cli/transport.js";
-import { withStaging } from "../staging/index.js";
 import { collectInputs, findFlag, findPositional } from "./_args.js";
 import {
   applyPatches,
   readSpec,
   readSpecText,
-  regenerate,
   specFileName,
   stripBanner,
   validateSpecObject,
-  writeSpec,
 } from "../spec/index.js";
+import { commitSpecAndRegenerate } from "./_regen.js";
 import { printCoverageReport } from "./coverage-report.js";
 
 const errorMessage = (err: unknown): string => {
@@ -146,24 +143,13 @@ const specInit = async (args: string[]): Promise<number> => {
 
   mkdirSync(skillRoot, { recursive: true });
 
-  try {
-    await withStaging(skillRoot, async (stagingDir) => {
-      writeSpec(join(stagingDir, specFileName()), spec);
-      console.log(`✓ Staged ${specFileName()}`);
-      console.log("Regenerating SKILL.md and evals...");
-      await regenerate(stagingDir, {
-        model: models.agent,
-        evalGenModel: models.evalGen,
-        onProgress: withElapsed((msg) => {
-          console.log(`  ${msg}`);
-        }),
-      });
-    });
-  } catch (err: unknown) {
-    console.error(`Error during init: ${errorMessage(err)}`);
-    console.error("No partial files written.");
-    return 1;
-  }
+  const code = await commitSpecAndRegenerate({
+    skillRoot,
+    spec,
+    errorTrailer: "No partial files written.",
+    skipCoverage: true,
+  });
+  if (code !== 0) return code;
 
   console.log(`\nSpec ready at ${skillRoot}.`);
   printCoverageReport(skillRoot);
@@ -248,27 +234,11 @@ const specRefine = async (args: string[]): Promise<number> => {
     return 1;
   }
 
-  try {
-    await withStaging(skillRoot, async (stagingDir) => {
-      writeSpec(join(stagingDir, specFileName()), updated);
-      console.log(`✓ Staged ${specFileName()}`);
-      console.log("Regenerating SKILL.md and evals...");
-      await regenerate(stagingDir, {
-        model: models.agent,
-        evalGenModel: models.evalGen,
-        onProgress: withElapsed((msg) => {
-          console.log(`  ${msg}`);
-        }),
-      });
-    });
-  } catch (err: unknown) {
-    console.error(`Error during refine: ${errorMessage(err)}`);
-    console.error("Original skill is unchanged.");
-    return 1;
-  }
-
-  printCoverageReport(skillRoot);
-  return 0;
+  return commitSpecAndRegenerate({
+    skillRoot,
+    spec: updated,
+    errorTrailer: "Original skill is unchanged.",
+  });
 };
 
 // ── import ────────────────────────────────────────────────
@@ -351,26 +321,14 @@ const specImport = async (args: string[]): Promise<number> => {
     return 1;
   }
 
-  // Stage all writes (spec.yaml + SKILL.md + eval files) so a regen
-  // failure leaves the original skill untouched.
-  try {
-    await withStaging(skillRoot, async (stagingDir) => {
-      writeSpec(join(stagingDir, specFileName()), spec);
-      console.log(`✓ Staged ${specFileName()}`);
-      console.log("Regenerating SKILL.md and evals from imported spec...");
-      await regenerate(stagingDir, {
-        model: models.agent,
-        evalGenModel: models.evalGen,
-        onProgress: withElapsed((msg) => {
-          console.log(`  ${msg}`);
-        }),
-      });
-    });
-  } catch (err: unknown) {
-    console.error(`Error during import: ${errorMessage(err)}`);
-    console.error("Original skill is unchanged.");
-    return 1;
-  }
+  const code = await commitSpecAndRegenerate({
+    skillRoot,
+    spec,
+    regenLabel: "Regenerating SKILL.md and evals from imported spec...",
+    errorTrailer: "Original skill is unchanged.",
+    skipCoverage: true,
+  });
+  if (code !== 0) return code;
 
   console.log("\nImported spec is a faithful capture of SKILL.md, not improved.");
   printCoverageReport(skillRoot);

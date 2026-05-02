@@ -141,48 +141,49 @@ export const compareCommand = async (
     console.log(`Comparing:   ${evalSource.skill.meta.name} ↔ ${comparison.skill.meta.name}\n`);
   }
 
-  // Run both sequentially. Each invocation spawns vitest; running
-  // them in parallel would double the LLM concurrency cap and risk
-  // tripping provider rate limits on bigger suites.
-  const runs: CompareEntry[] = [];
-  for (const target of [
-    {
-      label: evalSource.skill.meta.name,
-      root: evalSource.root,
-      compareWith: undefined as string | undefined,
-    },
-    { label: comparison.skill.meta.name, root: evalSource.root, compareWith: comparison.root },
-  ]) {
+  // Run sequentially — running both in parallel would double the
+  // LLM concurrency cap and risk tripping provider rate limits on
+  // bigger suites. Each call spawns vitest with the SAME eval
+  // source; the second pass overrides which SKILL.md the harness
+  // loads so we get a fair head-to-head against the same cases.
+  const runOne = async (label: string, compareSkillRoot?: string): Promise<EvalRunResult | 1> => {
     if (!jsonOutput) {
-      console.log(`──────── Run: ${target.label} ────────`);
+      console.log(`──────── Run: ${label} ────────`);
     }
-    let result: EvalRunResult;
     try {
       const runOpts: Parameters<typeof runVitestEvals>[0] = {
-        skillRoot: target.root,
+        skillRoot: evalSource.root,
         streamProgress: !jsonOutput,
       };
-      if (target.compareWith != null) runOpts.compareSkillRoot = target.compareWith;
-      result = await runVitestEvals(runOpts);
+      if (compareSkillRoot != null) runOpts.compareSkillRoot = compareSkillRoot;
+      return await runVitestEvals(runOpts);
     } catch (err: unknown) {
       if (jsonOutput) {
         console.log(
-          JSON.stringify(
-            { ok: false, error: errorMessage(err), failedSkill: target.label },
-            null,
-            2,
-          ),
+          JSON.stringify({ ok: false, error: errorMessage(err), failedSkill: label }, null, 2),
         );
       } else {
-        console.error(`Error running ${target.label}: ${errorMessage(err)}`);
+        console.error(`Error running ${label}: ${errorMessage(err)}`);
       }
       return 1;
     }
-    runs.push({
-      skill: { name: target.label, root: target.compareWith ?? target.root },
-      result,
-    });
-  }
+  };
+
+  const sourceResult = await runOne(evalSource.skill.meta.name);
+  if (sourceResult === 1) return 1;
+  const comparisonResult = await runOne(comparison.skill.meta.name, comparison.root);
+  if (comparisonResult === 1) return 1;
+
+  const runs: CompareEntry[] = [
+    {
+      skill: { name: evalSource.skill.meta.name, root: evalSource.root },
+      result: sourceResult,
+    },
+    {
+      skill: { name: comparison.skill.meta.name, root: comparison.root },
+      result: comparisonResult,
+    },
+  ];
 
   const report: CompareReport = {
     evalSource: { name: evalSource.skill.meta.name, root: evalSource.root },
