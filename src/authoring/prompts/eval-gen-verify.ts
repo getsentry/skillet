@@ -37,8 +37,8 @@ Return one of:
 { "approve": true }
 \`\`\`
 
-if every cap is respected and the plan tests the rule with
-deterministic-first assertions; OR
+if the plan tests the rule, every assertion is meaningful, and
+the contract is respected; OR
 
 \`\`\`json
 { "approve": false, "edits": [/* PlanEdit list */] }
@@ -50,73 +50,81 @@ if the plan needs targeted revisions to come into compliance.
 
 Reject (return edits) if any of these are true:
 
-- A case has only a \`judge\` assertion. Add deterministic checks
-  via \`add-deterministic\` or replace the judge entirely with
-  \`replace-judge-with-deterministic\`.
-- A judge \`criterion\` is over 200 characters. Use
+- A judge \`criterion\` bundles multiple properties (e.g.
+  "identifies the trigger AND rates severity"). Return a
+  \`split-judge\` edit with N narrower replacements, each testing
+  one property, plus the names to wire into each case.
+- A case is missing a check for an obvious testable property
+  (e.g. testing pwn-request without a check on whether the agent
+  rated severity). Return an \`add-judge\` edit declaring the
+  new judge and listing the cases to wire it into.
+- A judge \`criterion\` is over 200 characters. Return
   \`shorten-criterion\` with a tightened 1-2 sentence rubric.
-- An \`output-matches\` pattern matches common English without a
-  domain anchor (\`/vulnerable/i\`, \`/unsafe/i\`, \`/issue/i\`,
-  \`/risk/i\`). Use \`tighten-regex\` to add word boundaries and
-  pair with a domain term, or \`drop-assertion\` if it's
-  redundant.
-- An \`output-contains\` value is a single common English word
-  (\`vulnerable\`, \`unsafe\`, \`risk\`, \`issue\`, etc.) with no
-  domain context. Use \`tighten-regex\` to convert to a more
-  specific shape, or \`drop-assertion\`.
-- More than one judge appears. Use \`drop-judge\` on the
-  redundant one.
-- A check tests *that the agent talked about the rule* but not
-  *that it correctly identified the artifact*. Use
-  \`add-deterministic\` to add a check tying to a specific
-  fixture token (function name, fixture filename, sink API,
-  YAML key under audit).
-- A judge could be replaced by 2-3 deterministic checks for the
-  same rule. Use \`replace-judge-with-deterministic\` and supply
-  the replacements.
+- A plan declares a judge that no case references. Return
+  \`drop-judge\` to remove the dead declaration.
+- A judge could be replaced cleanly by a structural assertion
+  (the skill's output is structurable; you can pin the property
+  with \`output-match-object\`). Return
+  \`replace-judge-with-deterministic\` with the structural
+  replacement(s).
+- A case has an assertion that doesn't really test the rule.
+  Return \`drop-assertion\` to remove it.
 
 ## Edit kinds
 
 - \`{ "kind": "drop-judge", "judgeName": "FooJudge" }\` — Remove
   the judge declaration AND every assertion that references it.
+- \`{ "kind": "split-judge", "judgeName": "BroadJudge",
+  "replacements": [<JudgePlan>...], "caseAssignments": [<name>...] }\`
+  — Replace one broad judge with N narrower judges. Each case
+  that referenced the original gets one \`judge\` assertion per
+  name in \`caseAssignments\`, in order.
+- \`{ "kind": "add-judge", "judge": <JudgePlan>,
+  "caseNames": [<case>...] }\` — Declare a new judge and append a
+  \`judge\` assertion to each named case.
 - \`{ "kind": "replace-judge-with-deterministic", "judgeName":
   "FooJudge", "replacements": [<Assertion>...] }\` — Remove the
-  declaration; substitute the replacement assertions in every
-  case that referenced it. Replacements must be deterministic
-  (no judges).
-- \`{ "kind": "tighten-regex", "caseName": "...",
-  "assertionIndex": 0, "pattern": "...", "flags": "i" }\` —
-  Rewrite a single \`output-matches\` pattern in place.
-  \`assertionIndex\` is 0-based against the case's current
-  assertion list.
+  judge declaration; substitute structural assertions
+  (\`output-match-object\`, \`tool-calls\`) in every referencing
+  case. Replacements MUST be structural — judges as replacements
+  are rejected.
 - \`{ "kind": "shorten-criterion", "judgeName": "FooJudge",
   "criterion": "<≤200 char rubric>" }\` — Replace a judge's
   criterion text.
 - \`{ "kind": "add-deterministic", "caseName": "...",
-  "assertion": <Assertion> }\` — Append one deterministic
-  assertion to a case.
+  "assertion": <Assertion> }\` — Append one structural assertion
+  (\`output-match-object\` or \`tool-calls\`) to a case. Judges
+  are rejected here — use \`add-judge\` instead.
 - \`{ "kind": "drop-assertion", "caseName": "...",
   "assertionIndex": 0 }\` — Remove one assertion by 0-based
   index.
 
-Edits are applied in order. If a prior edit shifts indices,
-later index-based edits target the shifted positions.
+Edits are applied in order. If a prior edit shifts indices in a
+case, later index-based edits target the shifted positions.
+
+## Banned edit kinds
+
+- \`tighten-regex\` — regex assertions are banned outright; there
+  are no patterns to tighten. If you'd reach for this, use
+  \`split-judge\` (replace 1 broad regex-ish check with multiple
+  narrow judges) instead.
 
 ## When to approve
 
 Approve if:
 
-- The plan tests the rule (deterministic checks pin the
-  load-bearing facts).
-- Every assertion is meaningful (no bare-English-word patterns,
-  no redundant checks).
-- Judge usage respects the contract (≤1 judge, criterion ≤200
-  chars, used only when the rule is genuinely semantic, paired
-  with ≥2 deterministic assertions in the same case).
+- The plan tests the rule (judges and/or structural pin every
+  load-bearing property).
+- Each judge tests ONE property with a ≤200 char criterion.
+- Multiple narrow judges per case (when the rule is free-form
+  text) or a mix of structural + narrow judge (when the skill
+  emits structured output).
+- No banned assertion kinds (\`output-matches\`,
+  \`output-contains\`, \`output-not-contains\`).
+- No declared-but-unreferenced judges.
 
 Approve readily — the goal is to catch real contract violations,
-not to second-guess every plan. A short, well-targeted plan with
-no judge is fine.
+not to second-guess every plan.
 
 ## Output
 

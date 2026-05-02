@@ -21,15 +21,19 @@
 
 import type {
   AddDeterministicEdit,
+  AddJudgeEdit,
   AssertionPlan,
   CasePlan,
   DropAssertionEdit,
   DropJudgeEdit,
+  JudgePlan,
   PlanEdit,
   ReplaceJudgeWithDeterministicEdit,
   ShortenCriterionEdit,
-  TightenRegexEdit,
+  SplitJudgeEdit,
 } from "./eval-gen-types.js";
+
+const JUDGE_NAME_RE = /^[A-Z][A-Za-z0-9]*Judge$/;
 
 export class PlanEditError extends Error {
   constructor(message: string) {
@@ -53,13 +57,26 @@ export const applyPlanEdits = (plan: AssertionPlan, edits: PlanEdit[]): Assertio
 };
 
 const applyEdit = (plan: AssertionPlan, edit: PlanEdit): void => {
+  // Defense in depth — a stale verifier prompt could still emit a
+  // `tighten-regex` edit (the kind is gone but the JSON shape lives
+  // on in cached prompt template strings). Reject explicitly with a
+  // pointer to the new edit kinds.
+  // oxlint-disable-next-line no-unsafe-type-assertion
+  const kindStr = (edit as { kind: string }).kind;
+  if (kindStr === "tighten-regex") {
+    throw new PlanEditError(
+      `edit kind "tighten-regex" is no longer supported (regex assertions were banned). Use "split-judge", "replace-judge-with-deterministic", or "add-judge" instead.`,
+    );
+  }
   switch (edit.kind) {
     case "drop-judge":
       return applyDropJudge(plan, edit);
     case "replace-judge-with-deterministic":
       return applyReplaceJudge(plan, edit);
-    case "tighten-regex":
-      return applyTightenRegex(plan, edit);
+    case "split-judge":
+      return applySplitJudge(plan, edit);
+    case "add-judge":
+      return applyAddJudge(plan, edit);
     case "shorten-criterion":
       return applyShortenCriterion(plan, edit);
     case "add-deterministic":
@@ -127,22 +144,93 @@ const applyReplaceJudge = (plan: AssertionPlan, edit: ReplaceJudgeWithDeterminis
   }
 };
 
-const applyTightenRegex = (plan: AssertionPlan, edit: TightenRegexEdit): void => {
-  const c = findCase(plan, edit.caseName);
-  const target = c.assertions[edit.assertionIndex];
-  if (target == null) {
+const validateNewJudge = (judge: JudgePlan, plan: AssertionPlan, ctx: string): void => {
+  if (typeof judge.name !== "string" || !JUDGE_NAME_RE.test(judge.name)) {
     throw new PlanEditError(
-      `assertionIndex ${edit.assertionIndex} out of range in case "${edit.caseName}"`,
+      `${ctx}: judge name "${judge.name}" must be PascalCase ending in "Judge"`,
     );
   }
-  if (target.kind !== "output-matches") {
+  if (typeof judge.criterion !== "string" || judge.criterion.trim() === "") {
+    throw new PlanEditError(`${ctx}: judge "${judge.name}": criterion must be non-empty`);
+  }
+  if (plan.judges.some((j) => j.name === judge.name)) {
+    throw new PlanEditError(`${ctx}: judge "${judge.name}" is already declared in plan.judges`);
+  }
+};
+
+const applySplitJudge = (plan: AssertionPlan, edit: SplitJudgeEdit): void => {
+  const idx = requireJudgeIndex(plan, edit.judgeName);
+  if (!Array.isArray(edit.replacements) || edit.replacements.length < 2) {
     throw new PlanEditError(
-      `tighten-regex target is not an output-matches assertion (got "${target.kind}")`,
+      `split-judge needs at least 2 replacements (a single replacement is just a rename — use replace-judge-with-deterministic or shorten-criterion instead)`,
     );
   }
-  target.pattern = edit.pattern;
-  if (edit.flags != null) target.flags = edit.flags;
-  else delete target.flags;
+  if (!Array.isArray(edit.caseAssignments) || edit.caseAssignments.length === 0) {
+    throw new PlanEditError(
+      `split-judge needs caseAssignments — at least one replacement judge name to wire into the cases`,
+    );
+  }
+
+  // Validate replacement judges. The split judge itself was just
+  // removed from `plan.judges` view, but it's still in the array
+  // until we splice — so validation against `plan.judges` excludes
+  // the replaced entry.
+  const transient: AssertionPlan = { judges: [...plan.judges], cases: plan.cases };
+  transient.judges.splice(idx, 1);
+  for (const r of edit.replacements) {
+    validateNewJudge(r, transient, `split-judge for "${edit.judgeName}"`);
+    transient.judges.push(r);
+  }
+
+  // Each caseAssignment name must reference one of the replacements.
+  const replacementNames = new Set(edit.replacements.map((r) => r.name));
+  for (const name of edit.caseAssignments) {
+    if (!replacementNames.has(name)) {
+      throw new PlanEditError(
+        `split-judge: caseAssignment "${name}" is not one of the replacement names (${[
+          ...replacementNames,
+        ].join(", ")})`,
+      );
+    }
+  }
+
+  // Apply: replace the judge declaration with the replacements;
+  // rewrite each case's referencing judge assertion as N consecutive
+  // judge assertions for the names in caseAssignments.
+  plan.judges.splice(idx, 1, ...edit.replacements);
+  for (const c of plan.cases) {
+    const out: typeof c.assertions = [];
+    for (const a of c.assertions) {
+      if (a.kind === "judge" && a.judgeName === edit.judgeName) {
+        for (const replName of edit.caseAssignments) {
+          out.push({ kind: "judge", judgeName: replName });
+        }
+      } else {
+        out.push(a);
+      }
+    }
+    c.assertions = out;
+  }
+};
+
+const applyAddJudge = (plan: AssertionPlan, edit: AddJudgeEdit): void => {
+  if (edit.judge == null || typeof edit.judge !== "object") {
+    throw new PlanEditError(`add-judge needs a judge object`);
+  }
+  validateNewJudge(edit.judge, plan, `add-judge`);
+  if (!Array.isArray(edit.caseNames) || edit.caseNames.length === 0) {
+    throw new PlanEditError(`add-judge needs at least one case name to wire the new judge into`);
+  }
+  // Verify every case name resolves before mutating, so a typo
+  // halts the edit cleanly.
+  for (const name of edit.caseNames) {
+    findCase(plan, name);
+  }
+  plan.judges.push(edit.judge);
+  for (const name of edit.caseNames) {
+    const c = findCase(plan, name);
+    c.assertions.push({ kind: "judge", judgeName: edit.judge.name });
+  }
 };
 
 const applyShortenCriterion = (plan: AssertionPlan, edit: ShortenCriterionEdit): void => {

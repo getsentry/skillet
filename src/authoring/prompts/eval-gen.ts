@@ -53,7 +53,7 @@ Return ONLY a JSON object with two top-level fields:
   "judges": [
     {
       "name": "<PascalCase>Judge",
-      "criterion": "<≤200 char rubric, 1-2 sentences>"
+      "criterion": "<≤200 char rubric, 1-2 sentences, ONE property>"
     }
   ],
   "cases": [
@@ -63,118 +63,157 @@ Return ONLY a JSON object with two top-level fields:
       "input": "<realistic user prompt>",
       "setup": "<optional shell script seeding the workspace>",
       "timeout": 90000,
-      "assertions": [ /* deterministic checks first; judge last if present */ ]
+      "assertions": [ /* output-match-object | tool-calls | judge */ ]
     }
   ]
 }
 \`\`\`
 
-## Assertion kinds
+## Assertion kinds (only three)
 
 | kind | shape | renders as |
 |------|-------|-----------|
-| \`output-matches\` | \`{ kind: "output-matches", pattern: "...", flags?: "i" }\` | \`expect(result.session.outputText).toMatch(new RegExp(pattern, flags))\` |
-| \`output-contains\` | \`{ kind: "output-contains", value: "..." }\` | \`expect(result.session.outputText).toContain(value)\` |
-| \`output-not-contains\` | \`{ kind: "output-not-contains", value: "..." }\` | \`expect(result.session.outputText).not.toContain(value)\` |
 | \`output-match-object\` | \`{ kind: "output-match-object", value: { ... } }\` | \`expect(result.output).toMatchObject(value)\` |
 | \`tool-calls\` | \`{ kind: "tool-calls", expected: { type: "names-equal" \\| "names-include" \\| "names-exclude", names: [...] } }\` | \`expect(toolNames).toEqual(...)\` / \`arrayContaining\` / \`not.toContain\` |
 | \`judge\` | \`{ kind: "judge", judgeName: "<name in plan.judges>" }\` | \`await expect(result).toSatisfyJudge(<judgeName>)\` |
 
-## Picking the right assertion shape
+There is no \`output-matches\`, no \`output-contains\`, and no
+\`output-not-contains\`. Regex/substring matching against the
+agent's free-form chat is banned (see the contract above). The
+renderer rejects plans that include them.
 
-- **Required keyword in output** (severity tag, finding label,
-  refusal phrase): \`output-matches\` with word boundaries
-  (\`\\\\b(HIGH|CRITICAL)\\\\b\`).
-- **Required substring** (a stable name not at risk of substring
-  collisions): \`output-contains\`. Pair with a specific token
-  (function name, sink API, fixture filename) — never a bare
-  English word.
-- **Forbidden output** (must_not): \`output-not-contains\` for
-  the forbidden phrase. Add an \`output-matches\` regex asserting
-  the agent emitted a "no finding" / "out of scope" / "safe"
-  phrase. Avoid \`judge\` for must_nots unless the negation is
-  genuinely semantic.
-- **Specific tool-call sequence**: \`tool-calls\` with
-  \`names-equal\` (exact) or \`names-include\` (subset).
-- **Forbidden tool calls**: \`tool-calls\` \`names-exclude\`.
-- **Structured agent output** (the skill returns JSON or a known
-  shape): \`output-match-object\`.
-- **Quality of reasoning** (does the agent correctly connect a
-  privileged trigger to RCE? does it justify a severity by blast
-  radius?): \`judge\` referencing your behavior's named judge.
-  Always paired with at least 2 deterministic checks in the same
-  case.
+## Picking the right shape
 
-## Worked example — code-evals over prose
+- **Skill emits structured output** (a finding object on
+  \`result.output\` — JSON, YAML key:value, etc.): use
+  \`output-match-object\` for any property you can pin
+  structurally (severity, trigger, file path, status).
+- **Rule constrains tool calls**: use \`tool-calls\` with
+  \`names-equal\` / \`names-include\` / \`names-exclude\`.
+- **Rule is about reasoning quality** (does the agent connect
+  concepts? identify the artifact correctly? justify a
+  severity?): declare ONE narrow named judge per testable
+  property and reference each from the case. Multiple judges per
+  case is the canonical shape for free-form rules.
 
-WRONG (prose-heavy):
+## Worked example — judge-first (free-form text rule)
 
+Input:
 \`\`\`json
 {
-  "judges": [{
-    "name": "PwnRequestJudge",
-    "criterion": "The response identifies the workflow as a pwn-request vulnerability. It must explicitly connect the privileged trigger to the checkout/execution of attacker-controlled PR code AND note the presence of secrets or write-scoped tokens. A generic 'pin your actions' note does not satisfy the rubric."
-  }],
-  "cases": [{
-    "name": "report-pwn-request__pr-target-checkout",
-    "tests_behavior": "report-pwn-request",
-    "input": "...",
-    "assertions": [
-      { "kind": "judge", "judgeName": "PwnRequestJudge" }
-    ]
-  }]
+  "kind": "behavior",
+  "entry": {
+    "id": "report-pwn-request",
+    "statement": "Identify pwn-request style vulnerabilities where a privileged trigger executes attacker-controlled PR code with secrets available.",
+    "rationale": "These are the highest-impact GitHub Actions findings."
+  },
+  "must_not_rules": []
 }
 \`\`\`
 
-Problems: the criterion is 280 chars (cap is 200); the case has
-only a judge (cap is ≥2 deterministic per judged case).
-
-RIGHT (code-first):
-
+Output:
 \`\`\`json
 {
-  "judges": [{
-    "name": "PwnRequestJudge",
-    "criterion": "Ties the privileged trigger to execution of attacker-controlled PR code with secrets/write tokens available. Generic 'pin actions' does not satisfy."
-  }],
-  "cases": [{
-    "name": "report-pwn-request__pr-target-checkout",
-    "tests_behavior": "report-pwn-request",
-    "input": "...",
-    "assertions": [
-      { "kind": "output-matches", "pattern": "pull_request_target", "flags": "i" },
-      { "kind": "output-matches", "pattern": "\\\\b(HIGH|CRITICAL)\\\\b" },
-      { "kind": "judge", "judgeName": "PwnRequestJudge" }
-    ]
-  }]
+  "judges": [
+    {
+      "name": "IdentifiesPrivilegedTriggerJudge",
+      "criterion": "Names pull_request_target or workflow_run as the privileged trigger."
+    },
+    {
+      "name": "ConnectsExploitChainJudge",
+      "criterion": "Ties the trigger to checkout or execution of PR-controlled code with secrets available."
+    },
+    {
+      "name": "RatesHighSeverityJudge",
+      "criterion": "Rates the finding HIGH or CRITICAL severity."
+    }
+  ],
+  "cases": [
+    {
+      "name": "report-pwn-request__pr-target-checkout",
+      "tests_behavior": "report-pwn-request",
+      "input": "Audit .github/workflows/ci.yml for security issues.",
+      "setup": "mkdir -p .github/workflows\\ncat > .github/workflows/ci.yml <<'YAML'\\nname: CI\\non:\\n  pull_request_target:\\njobs:\\n  build:\\n    runs-on: ubuntu-latest\\n    steps:\\n      - uses: actions/checkout@v4\\n        with:\\n          ref: \${{ github.event.pull_request.head.sha }}\\n      - run: npm ci && npm test\\n        env:\\n          NPM_TOKEN: \${{ secrets.NPM_TOKEN }}\\nYAML",
+      "timeout": 120000,
+      "assertions": [
+        { "kind": "judge", "judgeName": "IdentifiesPrivilegedTriggerJudge" },
+        { "kind": "judge", "judgeName": "ConnectsExploitChainJudge" },
+        { "kind": "judge", "judgeName": "RatesHighSeverityJudge" }
+      ]
+    }
+  ]
 }
 \`\`\`
 
-The deterministic checks pin the load-bearing facts (the agent
-named the trigger, the agent emitted a high-severity tag); the
-judge handles the remaining semantic check (does the explanation
-actually connect the dots?). Code first, judge as the safety net.
+Three narrow judges, three \`toSatisfyJudge\` lines. Each fails
+independently with its own rationale. No regex on free-form text.
 
-## Worked example — must_not (no judge)
+## Worked example — structural-first (skill emits a finding shape)
+
+If your skill emits a structured finding block on
+\`result.output\` (e.g. the agent's deliverable is a JSON object,
+not free-form prose), pin properties structurally:
 
 \`\`\`json
 {
-  "judges": [],
-  "cases": [{
-    "name": "no-numeric-id-injection__pr-number-in-comment",
-    "tests_behavior": "no-numeric-id-injection",
-    "input": "Anything risky about \${{ github.event.pull_request.number }} used in the run command?",
-    "assertions": [
-      { "kind": "output-not-contains", "value": "injection vulnerability" },
-      { "kind": "output-not-contains", "value": "RCE" },
-      { "kind": "output-matches", "pattern": "(safe|not.*vulnerab|no.*finding|out of scope)", "flags": "i" }
-    ]
-  }]
+  "judges": [
+    {
+      "name": "ExploitChainExplanationJudge",
+      "criterion": "Explanation ties the privileged trigger to PR-controlled code execution with secrets — not just 'pin actions'."
+    }
+  ],
+  "cases": [
+    {
+      "name": "report-pwn-request__structured",
+      "tests_behavior": "report-pwn-request",
+      "input": "Audit .github/workflows/ci.yml; output JSON.",
+      "setup": "mkdir -p .github/workflows\\ncat > .github/workflows/ci.yml <<'YAML'\\n...\\nYAML",
+      "assertions": [
+        {
+          "kind": "output-match-object",
+          "value": { "severity": "HIGH", "trigger": "pull_request_target" }
+        },
+        { "kind": "tool-calls", "expected": { "type": "names-include", "names": ["read_file"] } },
+        { "kind": "judge", "judgeName": "ExploitChainExplanationJudge" }
+      ]
+    }
+  ]
 }
 \`\`\`
 
-Must_nots stay deterministic-only. The agent should produce a
-"no finding" phrase; the negation can be checked by structure.
+When the output is structurable, two structural assertions plus
+one judge for the prose-y reasoning is the cleanest shape.
+
+## Worked example — must_not (no false positives)
+
+\`\`\`json
+{
+  "judges": [
+    {
+      "name": "NoFalsePositiveOnNumericIdJudge",
+      "criterion": "Does NOT flag the numeric pull_request.number as an injection sink and does NOT recommend env+quoting as if it were a real vulnerability."
+    },
+    {
+      "name": "ExplainsSafeResolvedValueJudge",
+      "criterion": "Explains that pull_request.number resolves to a numeric ID and is not an injection vector."
+    }
+  ],
+  "cases": [
+    {
+      "name": "no-numeric-id-injection__pr-number-in-comment",
+      "tests_behavior": "no-numeric-id-injection",
+      "input": "Anything risky about \${{ github.event.pull_request.number }} used in the run command here?",
+      "assertions": [
+        { "kind": "judge", "judgeName": "NoFalsePositiveOnNumericIdJudge" },
+        { "kind": "judge", "judgeName": "ExplainsSafeResolvedValueJudge" }
+      ]
+    }
+  ]
+}
+\`\`\`
+
+Must_nots get judges too — one for "did NOT do the wrong thing"
+and one for "DID emit the right neutral framing."
 
 ## Hard rules
 

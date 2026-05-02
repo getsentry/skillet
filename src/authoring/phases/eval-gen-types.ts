@@ -44,32 +44,24 @@ export interface CasePlan {
   assertions: Assertion[];
 }
 
-export type Assertion =
-  | OutputMatchesAssertion
-  | OutputContainsAssertion
-  | OutputNotContainsAssertion
-  | OutputMatchObjectAssertion
-  | ToolCallsAssertion
-  | JudgeAssertion;
-
-/** Regex match against `result.session.outputText`. */
-export interface OutputMatchesAssertion {
-  kind: "output-matches";
-  pattern: string;
-  flags?: string;
-}
-
-/** Substring presence in `result.session.outputText`. */
-export interface OutputContainsAssertion {
-  kind: "output-contains";
-  value: string;
-}
-
-/** Substring absence in `result.session.outputText`. */
-export interface OutputNotContainsAssertion {
-  kind: "output-not-contains";
-  value: string;
-}
+/**
+ * Assertion kinds available to eval-gen plans. Three first-class
+ * shapes:
+ *
+ * - `output-match-object` — structural equality on `result.output`
+ *   when the skill emits a structured finding block.
+ * - `tool-calls` — structural assertions on the tool-call sequence.
+ * - `judge` — named LLM-rubric judge invoked via `toSatisfyJudge`.
+ *
+ * Regex/substring matching against the agent's free-form chat
+ * (`result.session.outputText`) is **banned**: those checks are
+ * brittle (the agent paraphrases between runs) and they test the
+ * assertion's grammar more than the agent's behavior. If a
+ * property needs to be checked, either the skill emits structured
+ * output (use `output-match-object`) or the property is judged by
+ * a named LLM rubric (use `judge`).
+ */
+export type Assertion = OutputMatchObjectAssertion | ToolCallsAssertion | JudgeAssertion;
 
 /** Structural equality against `result.output` via `toMatchObject`. */
 export interface OutputMatchObjectAssertion {
@@ -107,7 +99,8 @@ export interface JudgeAssertion {
 export type PlanEdit =
   | DropJudgeEdit
   | ReplaceJudgeWithDeterministicEdit
-  | TightenRegexEdit
+  | SplitJudgeEdit
+  | AddJudgeEdit
   | ShortenCriterionEdit
   | AddDeterministicEdit
   | DropAssertionEdit;
@@ -129,14 +122,32 @@ export interface ReplaceJudgeWithDeterministicEdit {
   replacements: Assertion[];
 }
 
-/** Rewrite a single `output-matches` pattern in place. */
-export interface TightenRegexEdit {
-  kind: "tighten-regex";
-  caseName: string;
-  /** 0-based index into the case's `assertions` array at edit time. */
-  assertionIndex: number;
-  pattern: string;
-  flags?: string;
+/**
+ * Replace a single judge declaration with N narrower judges, and
+ * rewrite each case that referenced the original to reference the
+ * named replacements in `caseAssignments` order.
+ */
+export interface SplitJudgeEdit {
+  kind: "split-judge";
+  judgeName: string;
+  /** New judges to declare in place of the original. */
+  replacements: JudgePlan[];
+  /**
+   * Subset of replacement judge names that each referencing case
+   * receives. The cases that referenced the original judge get one
+   * `judge` assertion per name in this list, in order.
+   */
+  caseAssignments: string[];
+}
+
+/**
+ * Declare a new judge AND wire it into named cases by appending a
+ * `judge` assertion to each one's assertion list.
+ */
+export interface AddJudgeEdit {
+  kind: "add-judge";
+  judge: JudgePlan;
+  caseNames: string[];
 }
 
 /** Shorten a judge's `criterion` text in place. */

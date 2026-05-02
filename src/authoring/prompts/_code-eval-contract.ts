@@ -15,69 +15,73 @@
  */
 export const CODE_EVAL_CONTRACT = `## Code-eval contract
 
-You produce **code-evals**. The deliverable is real \`expect(...)\`
-assertions on deterministic shapes — regex with word boundaries,
-specific substrings, tool-call sequences, output-object equality.
-Prose belongs in the spec entry's rationale and the PR description,
-not the test body. Judges exist for genuinely semantic checks; they
-are the exception, not the default.
+Eval files are **code-evals**. Assertions test the agent through
+one of three first-class shapes:
 
-A separate critic call will verify every plan against this
-contract. Plans that survive verify ship as-is; plans that violate
-it cost an extra LLM call and a re-render.
+1. **Structural — \`output-match-object\`.**
+   When the skill emits a structured finding block (JSON, YAML,
+   or any parseable shape on \`result.output\`), pin properties
+   with \`expect(result.output).toMatchObject({ ... })\`. This
+   is how upstream vitest-evals demos work and the cleanest
+   assertion when output is structurable.
+
+2. **Structural — \`tool-calls\`.**
+   When the rule constrains tool sequences or arguments, pin the
+   tool calls with \`expect(toolCalls(result.session).map(c => c.name)).toEqual([...])\`
+   (or \`arrayContaining\` / \`not.toContain\`).
+
+3. **Named LLM-rubric judges.**
+   When the deliverable is free-form text reasoning (an
+   explanation, a code review, a refusal), declare narrow named
+   judges with \`judge("Name", async ({ criterion }) => criterion("…"))\`
+   and assert with \`await expect(result).toSatisfyJudge(NameJudge)\`.
+   Each judge tests **one property**. Multiple judges per case
+   is the normal shape — split assertions across several
+   single-property judges, not one paragraph-long rubric.
+
+### Banned
+
+**Regex or substring matching against \`result.session.outputText\`
+is banned.** That includes:
+
+- \`expect(result.session.outputText).toMatch(/.../)\`
+- \`expect(result.session.outputText).toContain("...")\`
+- \`expect(result.session.outputText).not.toContain("...")\`
+
+The agent's chat output paraphrases between runs. Regex on
+free-form text is a brittle proxy that fails or passes for the
+wrong reasons. If the property is structurable, use the skill's
+structured output. If it isn't, write a narrow named judge.
+
+The plan's assertion kinds are limited to \`output-match-object\`,
+\`tool-calls\`, and \`judge\`. There are no \`output-matches\` /
+\`output-contains\` / \`output-not-contains\` kinds.
 
 ### Caps
 
-1. **At most one judge per file.** A behavior gets at most one
-   named LLM judge, reused across cases that need semantic
-   grading.
-2. **Judge criteria ≤ 200 characters.** A short rubric — 1-2
-   sentences. The renderer accepts up to 300 characters; the
-   critic flags anything over 200.
-3. **Judged cases need ≥2 deterministic checks.** Any case whose
-   assertions include a \`judge\` MUST also include at least two
-   deterministic assertions (\`output-matches\`,
-   \`output-contains\`, \`output-not-contains\`,
-   \`output-match-object\`, or \`tool-calls\`). A case whose only
-   assertion is a judge is rejected.
-4. **No bare-English-word patterns.** \`output-matches\` patterns
-   and \`output-contains\`/\`output-not-contains\` values must
-   not be a single common English word with no domain anchor.
-   Banned bare values: \`vulnerable\`, \`unsafe\`, \`dangerous\`,
-   \`risk\`, \`issue\`, \`problem\`, \`bug\`, \`wrong\`, \`bad\`,
-   \`broken\`. A pattern combining a banned word with another
-   anchor (e.g. \`\\\\bunsafe\\\\s+yaml\\\\.load\\\\b\`) is fine.
-5. **Word-boundary regex for token checks.** When matching a
-   load-bearing token (severity tag, finding label, API name),
-   write \`\\\\b(HIGH|CRITICAL)\\\\b\` not \`HIGH\`. Bare uppercase
-   tokens are rejected.
-6. **No declared-but-unreferenced judges.** Every judge in
-   \`plan.judges\` MUST be referenced by at least one case's
-   \`judge\` assertion.
+1. **Multiple narrow judges encouraged.** Each judge tests ONE
+   property. Per-file cap: ≤5 judges (more than that means
+   you're not splitting properties cleanly).
+2. **Judge criteria ≤ 200 characters.** Tight, one-property
+   rubric — 1-2 sentences. Renderer accepts up to 300 chars.
+3. **Every declared judge is referenced.** No dead judge
+   declarations.
+4. **A case can be 100% judges.** No deterministic floor —
+   stacking 2-3 narrow \`toSatisfyJudge\` calls in one case is
+   the canonical shape for free-form rules.
 
-### Deterministic-first
+### Judge-first vs structural-first
 
-Reach for a judge only when the rule is **semantic** — when the
-quality of the agent's reasoning matters and no shape-based check
-could verify it. Things that should be deterministic, not judged:
+Reach for **structural** (\`output-match-object\`, \`tool-calls\`)
+when the skill emits a structured finding block — JSON, YAML,
+key:value pairs the eval can parse. Each property pinned by a
+structural assertion is a property you don't have to spend a
+judge LLM call on.
 
-- The agent emitted a specific keyword (severity tag, sink name,
-  CVE id, fixture filename) — use \`output-matches\` /
-  \`output-contains\`.
-- The agent invoked a specific tool sequence — use
-  \`tool-calls\`.
-- The agent produced a specific JSON shape — use
-  \`output-match-object\`.
-- The agent referenced a specific function name, file path, or
-  YAML key from the input fixture — use \`output-contains\`.
-
-Things a judge is appropriate for:
-
-- The agent's *reasoning* connects two concepts (e.g. ties a
-  privileged trigger to RCE).
-- The agent correctly *justifies* a severity, distinguishes a
-  true positive from a false positive, or explains an exploit
-  mechanism.
-- The check is irreducibly subjective (style, tone, completeness
-  of an explanation).
+Reach for **named LLM-rubric judges** when the deliverable is
+free-form text reasoning. Split the rule into single-property
+judges — one for "did the agent identify the trigger?", another
+for "did it connect the exploit chain?", another for "did it
+rate severity correctly?". Each judge fails independently with
+a useful rationale.
 `;

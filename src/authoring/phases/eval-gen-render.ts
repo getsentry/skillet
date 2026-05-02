@@ -17,12 +17,9 @@ import type {
   Assertion,
   AssertionPlan,
   CasePlan,
-  JudgePlan,
   JudgeAssertion,
-  OutputContainsAssertion,
+  JudgePlan,
   OutputMatchObjectAssertion,
-  OutputMatchesAssertion,
-  OutputNotContainsAssertion,
   ToolCallExpectation,
   ToolCallsAssertion,
 } from "./eval-gen-types.js";
@@ -65,48 +62,20 @@ const JUDGE_NAME_RE = /^[A-Z][A-Za-z0-9]*Judge$/;
  */
 const MAX_CRITERION_CHARS = 300;
 
+/** Per-file judge cap. The contract caps at 5; the renderer enforces it. */
+const MAX_JUDGES_PER_FILE = 5;
+
 /**
- * Common English words banned as bare `output-matches` patterns
- * and `output-contains`/`output-not-contains` values. They match
- * any text discussing the topic without proving the agent
- * identified anything specific. Combinations that ANCHOR a banned
- * word to a domain term are fine (e.g.
- * `\\bunsafe\\s+yaml\\.load\\b`).
+ * Banned assertion-kind names. The TypeScript type system removes
+ * these from `Assertion`, but a verifier edit could still emit one
+ * via a stringly-typed JSON kind. The renderer rejects them with a
+ * migration message pointing at the recommended replacement.
  */
-const BANNED_BARE_WORDS = new Set([
-  "vulnerable",
-  "vulnerability",
-  "unsafe",
-  "dangerous",
-  "risk",
-  "risky",
-  "issue",
-  "problem",
-  "bug",
-  "wrong",
-  "bad",
-  "broken",
+const BANNED_ASSERTION_KINDS = new Set([
+  "output-matches",
+  "output-contains",
+  "output-not-contains",
 ]);
-
-/**
- * Strip regex metacharacters and anchors from a pattern to test
- * whether the underlying token is just a banned bare word. A
- * pattern like `\\bunsafe\\b` strips to `unsafe` (single bare
- * word — banned). A pattern like `\\bunsafe\\s+yaml\\.load\\b`
- * strips to `unsafeyaml.load` (multi-token — allowed).
- */
-const stripRegexMetacharacters = (pattern: string): string => {
-  return pattern
-    .replace(/\\[bBdDsSwW]/g, "")
-    .replace(/\\./g, "")
-    .replace(/[\^$.|?*+()[\]{}]/g, "")
-    .toLowerCase()
-    .trim();
-};
-
-const isBannedBareWord = (s: string): boolean => {
-  return BANNED_BARE_WORDS.has(s.toLowerCase().trim());
-};
 
 /**
  * Render an assertion plan to a complete `.eval.ts` file. Throws
@@ -144,11 +113,13 @@ const validatePlan = (entryId: string, plan: AssertionPlan): void => {
   if (!Array.isArray(plan.judges)) {
     throw new RenderError("plan.judges must be an array (use [] for no judges)");
   }
-  if (plan.judges.length > 1) {
+  if (plan.judges.length > MAX_JUDGES_PER_FILE) {
     throw new RenderError(
       `plan declares ${plan.judges.length} judges (${plan.judges
         .map((j) => j.name)
-        .join(", ")}); the code-eval contract allows at most one judge per file. Drop or merge.`,
+        .join(
+          ", ",
+        )}); the code-eval contract allows at most ${MAX_JUDGES_PER_FILE} judges per file. Consolidate or drop the least-load-bearing.`,
     );
   }
   for (const judge of plan.judges) {
@@ -188,21 +159,11 @@ const validatePlan = (entryId: string, plan: AssertionPlan): void => {
     if (!Array.isArray(c.assertions) || c.assertions.length === 0) {
       throw new RenderError(`case "${c.name}": assertions must be a non-empty array`);
     }
-    let hasDeterministic = false;
-    let hasJudge = false;
     for (const a of c.assertions) {
       validateAssertion(c, a, judgeNames);
       if (a.kind === "judge") {
-        hasJudge = true;
         referencedJudges.add(a.judgeName);
-      } else {
-        hasDeterministic = true;
       }
-    }
-    if (hasJudge && !hasDeterministic) {
-      throw new RenderError(
-        `case "${c.name}": every judged case must include at least one deterministic assertion (output-matches, output-contains, output-not-contains, output-match-object, or tool-calls).`,
-      );
     }
   }
 
@@ -219,23 +180,18 @@ const validatePlan = (entryId: string, plan: AssertionPlan): void => {
 };
 
 const validateAssertion = (caseData: CasePlan, a: Assertion, judgeNames: Set<string>): void => {
+  // Defense in depth — TypeScript already removes the banned kinds
+  // from `Assertion`, but a verifier edit could emit a banned kind
+  // via a stringly-typed JSON shape. Reject with a migration message
+  // pointing at the recommended replacement.
+  // oxlint-disable-next-line no-unsafe-type-assertion
+  const kindStr = (a as { kind: string }).kind;
+  if (BANNED_ASSERTION_KINDS.has(kindStr)) {
+    throw new RenderError(
+      `case "${caseData.name}": assertion kind "${kindStr}" is banned. Free-form agent output (result.session.outputText) is not structurable enough for regex/string matching to be reliable. Replace with one of: a named LLM-rubric judge ({ kind: "judge", judgeName: "..." }), a structural output-match-object on result.output, or a tool-calls assertion.`,
+    );
+  }
   switch (a.kind) {
-    case "output-matches": {
-      validateMatchesPattern(caseData, a);
-      return;
-    }
-    case "output-contains":
-    case "output-not-contains": {
-      if (typeof a.value !== "string" || a.value === "") {
-        throw new RenderError(`case "${caseData.name}": ${a.kind} requires a non-empty value`);
-      }
-      if (isBannedBareWord(a.value)) {
-        throw new RenderError(
-          `case "${caseData.name}": ${a.kind} value "${a.value}" is a bare common English word; pair it with a domain-specific token (e.g. function name, fixture filename, sink API) so the assertion proves something specific.`,
-        );
-      }
-      return;
-    }
     case "output-match-object": {
       if (a.value == null || typeof a.value !== "object") {
         throw new RenderError(
@@ -256,52 +212,10 @@ const validateAssertion = (caseData: CasePlan, a: Assertion, judgeNames: Set<str
       }
       return;
     }
-  }
-};
-
-/**
- * Suspicious-pattern guardrail. The LLM is fond of writing
- * `output-matches: "HIGH"` — that matches `HIGHEST` and any common
- * English usage of "HIGH" without proving the agent emitted a
- * severity tag. Reject single-token bare uppercase patterns without
- * word boundaries, empty patterns, and patterns that fail to
- * compile.
- *
- * We don't reject patterns that overlap with the case input — agents
- * legitimately quote input constructs when explaining findings, and
- * the regex still verifies the agent emitted the string.
- */
-const validateMatchesPattern = (caseData: CasePlan, a: OutputMatchesAssertion): void => {
-  const pattern = a.pattern;
-  if (typeof pattern !== "string" || pattern === "") {
-    throw new RenderError(`case "${caseData.name}": output-matches pattern must be non-empty`);
-  }
-  // Reject `^[A-Z]+$`-shaped tokens without word boundaries.
-  if (/^[A-Z]{2,}$/.test(pattern)) {
-    throw new RenderError(
-      `case "${caseData.name}": output-matches pattern "${pattern}" is a bare uppercase token; ` +
-        `use "\\\\b${pattern}\\\\b" or an alternation like "\\\\b(${pattern}|...)\\\\b" instead`,
-    );
-  }
-  // Reject bare common-English-word patterns (after stripping
-  // metacharacters) — they match any text discussing the topic
-  // without proving the agent identified anything specific.
-  const stripped = stripRegexMetacharacters(pattern);
-  if (stripped !== "" && isBannedBareWord(stripped)) {
-    throw new RenderError(
-      `case "${caseData.name}": output-matches pattern "${pattern}" reduces to a single common English word ("${stripped}"); pair it with a domain-specific token (function name, fixture filename, sink API) to prove the agent identified something specific.`,
-    );
-  }
-  // Verify the regex compiles. Assigning to a sink keeps lint happy
-  // (no-new) and the binding is intentionally unused.
-  try {
-    const compiled = new RegExp(pattern, a.flags);
-    void compiled;
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    throw new RenderError(
-      `case "${caseData.name}": output-matches pattern "${pattern}" failed to compile: ${msg}`,
-    );
+    default: {
+      const exhaustive: never = a;
+      throw new RenderError(`unknown assertion kind: ${JSON.stringify(exhaustive)}`);
+    }
   }
 };
 
@@ -412,12 +326,6 @@ const renderCase = (c: CasePlan, indent: string): string[] => {
 
 const renderAssertion = (a: Assertion, indent: string): string[] => {
   switch (a.kind) {
-    case "output-matches":
-      return [renderOutputMatches(a, indent)];
-    case "output-contains":
-      return [renderOutputContains(a, indent)];
-    case "output-not-contains":
-      return [renderOutputNotContains(a, indent)];
     case "output-match-object":
       return [renderOutputMatchObject(a, indent)];
     case "tool-calls":
@@ -431,19 +339,6 @@ const renderAssertion = (a: Assertion, indent: string): string[] => {
       throw new Error(`unknown assertion kind: ${JSON.stringify(exhaustive)}`);
     }
   }
-};
-
-const renderOutputMatches = (a: OutputMatchesAssertion, indent: string): string => {
-  const flagsArg = a.flags != null && a.flags !== "" ? `, ${JSON.stringify(a.flags)}` : "";
-  return `${indent}expect(result.session.outputText).toMatch(new RegExp(${JSON.stringify(a.pattern)}${flagsArg}));`;
-};
-
-const renderOutputContains = (a: OutputContainsAssertion, indent: string): string => {
-  return `${indent}expect(result.session.outputText).toContain(${JSON.stringify(a.value)});`;
-};
-
-const renderOutputNotContains = (a: OutputNotContainsAssertion, indent: string): string => {
-  return `${indent}expect(result.session.outputText).not.toContain(${JSON.stringify(a.value)});`;
 };
 
 const renderOutputMatchObject = (a: OutputMatchObjectAssertion, indent: string): string => {
