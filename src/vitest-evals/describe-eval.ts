@@ -259,20 +259,25 @@ const runCallbackForm = <TInput>(
         const meta = testTask.meta as Record<string, unknown>;
 
         let invokedRun = false;
-        // Pending setup script stashed by `harness.setup(...)` and
-        // forwarded into the harness's run context as `caseData.setup`.
-        // skilletHarness reads it at workspace creation time.
+        // Pending setup script and/or fixture slug stashed by
+        // `harness.setup(...)` / `harness.useFixture(...)` and
+        // forwarded into the harness's run context. skilletHarness
+        // reads them at workspace creation time.
         let pendingSetup: string | undefined;
+        let pendingFixture: string | undefined;
 
         // Wrap the user-supplied harness so the fixture can expose
-        // a `setup(script)` method without changing the base
-        // harness contract. The wrapped harness defers setup until
-        // the next `run()` call.
+        // `setup(script)` and `useFixture(slug)` methods without
+        // changing the base harness contract. Both defer the actual
+        // workspace mutation until the next `run()` call.
         const fixtureHarness: FixtureHarness<TInput> = {
           name: options.harness.name,
           run: options.harness.run,
           setup: async (script: string): Promise<void> => {
             pendingSetup = script;
+          },
+          useFixture: async (slug: string): Promise<void> => {
+            pendingFixture = slug;
           },
         };
 
@@ -287,6 +292,7 @@ const runCallbackForm = <TInput>(
               input,
               name: testName,
               ...(pendingSetup != null ? { setup: pendingSetup } : {}),
+              ...(pendingFixture != null ? { fixtureSlug: pendingFixture } : {}),
               ...runOpts?.metadata,
             };
             const harnessCtx: HarnessContext<HarnessCase<TInput>> = {

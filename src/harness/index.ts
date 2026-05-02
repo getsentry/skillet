@@ -21,6 +21,8 @@
  * chat transcript.
  */
 
+import { cpSync, existsSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { resolveModels } from "../agent/provider.js";
 import { runAgent } from "../agent/loop.js";
 import { loadSkill } from "../skill/loader.js";
@@ -44,7 +46,18 @@ export interface SkilletHarnessOptions {
 
 /** Per-case fields the harness reads from `caseData`. */
 interface SkilletCase extends HarnessCase<string> {
-  /** Optional shell setup script run in the workspace before the agent. */
+  /**
+   * Slug under `<skill-root>/evals/fixtures/<slug>/`. When set, the
+   * harness recursively copies that directory tree into the per-test
+   * workspace before running the agent. Preferred over `setup` for
+   * eval-gen-produced cases.
+   */
+  fixtureSlug?: string;
+  /**
+   * Optional shell setup script run in the workspace before the agent.
+   * Legacy path for hand-authored cases without a fixture tree on
+   * disk; eval-gen produces `fixtureSlug` instead.
+   */
   setup?: string;
   /** Per-case timeout override (ms). */
   timeout?: number;
@@ -68,6 +81,27 @@ const isSkilletCase = (c: HarnessCase): c is SkilletCase => {
  */
 export const COMPARE_SKILL_ENV = "SKILLET_COMPARE_SKILL";
 
+/**
+ * Recursively copy `<skillPath>/evals/fixtures/<slug>/` into the
+ * per-test workspace. Throws a clear error when the slug doesn't
+ * resolve so authors find typos at test time, not silently.
+ */
+const copyFixtureTree = (skillPath: string, slug: string, workspaceDir: string): void => {
+  const root = join(skillPath, "evals", "fixtures", slug);
+  if (!existsSync(root)) {
+    throw new Error(
+      `harness.useFixture("${slug}"): no such fixture (looked under ${root}). Generate or hand-write the fixture tree, or use a different slug.`,
+    );
+  }
+  const stat = statSync(root);
+  if (!stat.isDirectory()) {
+    throw new Error(
+      `harness.useFixture("${slug}"): expected a directory at ${root} but found a file.`,
+    );
+  }
+  cpSync(root, workspaceDir, { recursive: true });
+};
+
 export const skilletHarness = (opts: SkilletHarnessOptions): Harness<string, SkilletCase> => {
   const override = process.env[COMPARE_SKILL_ENV];
   const skillPath = override != null && override !== "" ? override : opts.skill;
@@ -81,10 +115,20 @@ export const skilletHarness = (opts: SkilletHarnessOptions): Harness<string, Ski
         throw new Error("skilletHarness: case input must be a string");
       }
       const setup = ctx.caseData.setup;
+      const fixtureSlug = ctx.caseData.fixtureSlug;
       const timeout = ctx.caseData.timeout ?? defaultTimeout;
       const explicitArtifacts = ctx.caseData.artifacts;
 
       const workspace = createWorkspace(setup != null ? { setup } : undefined);
+
+      // Copy the per-case fixture tree into the workspace AFTER
+      // createWorkspace runs (so any legacy `setup` script ran first
+      // and the workspace dir exists). The fixture tree is a real
+      // directory at `<skillPath>/evals/fixtures/<slug>/`; we
+      // mirror it into `workspace.dir`.
+      if (fixtureSlug != null && fixtureSlug !== "") {
+        copyFixtureTree(skillPath, fixtureSlug, workspace.dir);
+      }
 
       try {
         // Snapshot AFTER setup so seeded fixtures aren't counted as

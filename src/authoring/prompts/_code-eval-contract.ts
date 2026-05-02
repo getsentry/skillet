@@ -84,4 +84,48 @@ judges — one for "did the agent identify the trigger?", another
 for "did it connect the exploit chain?", another for "did it
 rate severity correctly?". Each judge fails independently with
 a useful rationale.
+
+### Stable judge naming
+
+Judges declared across the suite are deduped at consolidation
+time by **exact name match**. To make dedup catch the same
+concept across behaviors, follow stable verb-prefix patterns:
+
+- \`Identifies…Judge\` — agent named the artifact / trigger / sink
+- \`Rates…Judge\` — agent assigned a severity / confidence
+- \`Connects…Judge\` — agent tied two concepts together
+- \`Recommends…Judge\` — agent emitted a remediation
+- \`RecognizesNo…Judge\` — must_not: agent correctly did NOT
+  flag a non-issue
+- \`DoesNot…Judge\` — must_not: agent did NOT do something
+  forbidden
+
+Two behaviors that need the same property check should reuse the
+same judge name verbatim — they collapse into one declaration in
+\`evals/_judges.ts\`. Distinct semantics get distinct names. You
+do not need to dedupe yourself; the consolidation pass handles
+it.
+
+### Fixtures (workspace seeding)
+
+When a case needs a workspace fixture (a YAML file to audit, a
+script to read, a directory tree), use the case's \`fixture\`
+field — a map from relative workspace path to file content:
+
+\`\`\`json
+"fixture": {
+  ".github/workflows/ci.yml": "name: CI\\non: pull_request_target\\n...",
+  "scripts/run.sh": "#!/bin/bash\\nset -e\\n..."
+}
+\`\`\`
+
+Skillet writes those files under
+\`evals/fixtures/<case-name>/\` at consolidation time, and the
+generated test calls \`await harness.useFixture(<case-name>)\` to
+copy the tree into the per-test workspace. The fixture lives as
+real files on disk — readable, editable normally.
+
+Do NOT use the legacy \`setup\` field (a single shell script)
+unless you genuinely need shell logic beyond writing files. The
+\`fixture\` map covers the overwhelming common case.
 `;

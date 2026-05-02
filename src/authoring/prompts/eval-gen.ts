@@ -61,13 +61,21 @@ Return ONLY a JSON object with two top-level fields:
       "name": "<entry-id>__<short-slug>",
       "tests_behavior": "<entry id, exact>",
       "input": "<realistic user prompt>",
-      "setup": "<optional shell script seeding the workspace>",
+      "fixture": {
+        "<rel/path/in/workspace>": "<file content>"
+      },
       "timeout": 90000,
       "assertions": [ /* output-match-object | tool-calls | judge */ ]
     }
   ]
 }
 \`\`\`
+
+The \`fixture\` map is preferred over a shell \`setup\` script.
+Each entry becomes a real file under
+\`evals/fixtures/<case-name>/<rel-path>\` after consolidation;
+the generated test calls \`harness.useFixture(<case-name>)\` to
+copy the tree into the workspace.
 
 ## Assertion kinds (only three)
 
@@ -133,7 +141,9 @@ Output:
       "name": "report-pwn-request__pr-target-checkout",
       "tests_behavior": "report-pwn-request",
       "input": "Audit .github/workflows/ci.yml for security issues.",
-      "setup": "mkdir -p .github/workflows\\ncat > .github/workflows/ci.yml <<'YAML'\\nname: CI\\non:\\n  pull_request_target:\\njobs:\\n  build:\\n    runs-on: ubuntu-latest\\n    steps:\\n      - uses: actions/checkout@v4\\n        with:\\n          ref: \${{ github.event.pull_request.head.sha }}\\n      - run: npm ci && npm test\\n        env:\\n          NPM_TOKEN: \${{ secrets.NPM_TOKEN }}\\nYAML",
+      "fixture": {
+        ".github/workflows/ci.yml": "name: CI\\non:\\n  pull_request_target:\\njobs:\\n  build:\\n    runs-on: ubuntu-latest\\n    steps:\\n      - uses: actions/checkout@v4\\n        with:\\n          ref: \${{ github.event.pull_request.head.sha }}\\n      - run: npm ci && npm test\\n        env:\\n          NPM_TOKEN: \${{ secrets.NPM_TOKEN }}\\n"
+      },
       "timeout": 120000,
       "assertions": [
         { "kind": "judge", "judgeName": "IdentifiesPrivilegedTriggerJudge" },
@@ -167,7 +177,9 @@ not free-form prose), pin properties structurally:
       "name": "report-pwn-request__structured",
       "tests_behavior": "report-pwn-request",
       "input": "Audit .github/workflows/ci.yml; output JSON.",
-      "setup": "mkdir -p .github/workflows\\ncat > .github/workflows/ci.yml <<'YAML'\\n...\\nYAML",
+      "fixture": {
+        ".github/workflows/ci.yml": "name: CI\\non:\\n  pull_request_target:\\n  ..."
+      },
       "assertions": [
         {
           "kind": "output-match-object",
@@ -227,11 +239,11 @@ and one for "DID emit the right neutral framing."
    chars.
 4. **Realistic prompts.** Imagine a real user typing into a chat
    with the skill loaded.
-5. **\`setup\` is shell.** Multi-line scripts are fine. Use
-   heredocs for fixture files. Relative paths only — the harness
-   drops the agent into a fresh temp directory. Always create
-   parent dirs before writing nested files. Setup is preflighted
-   before write.
+5. **\`fixture\` is a file map.** Relative paths only — they're
+   written to a per-test workspace seeded fresh on every run.
+   Parent directories are auto-created. Both fixture and any
+   legacy \`setup\` are preflighted in a temp workspace before
+   the eval file is written.
 
 ## Must-not awareness
 
