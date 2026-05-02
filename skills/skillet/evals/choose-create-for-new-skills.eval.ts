@@ -6,26 +6,34 @@
 // ──────────────────────────────────────────────────────────
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
+import { expect } from "vitest";
 import {
   describeEval,
-  CriterionJudge,
-  SubstringJudge,
   skilletHarness,
 } from "@sentry/skillet/evals";
+import {
+  DoesNotRecommendApiKeySetupJudge,
+  DoesNotRecommendValidateJudge,
+  RecommendsCreateCommandJudge,
+} from "./_judges.js";
 
 const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, "");
 
-describeEval("choose-create-for-new-skills", {
-  data: [
-  {
-    name: "choose-create-for-new-skills__new_python_skill",
-    tests_behavior: "choose-create-for-new-skills",
-    input: "I need a skill for reviewing Python imports. What skillet command should I use?",
-    criteria: "The agent must recommend `skillet create` (via `npx @sentry/skillet create`) as the primary command for new skills. Both `create` and the `@sentry/skillet` package name should appear in the recommendation.",
+describeEval(
+  "choose-create-for-new-skills",
+  { harness: skilletHarness({ skill: skillRoot }) },
+  (it) => {
+    it(
+      "choose-create-for-new-skills__yaml-linter",
+      { timeout: 90_000 },
+      async ({ run, behavior }) => {
+        behavior("choose-create-for-new-skills");
+        const result = await run("I want to make a skill that lints YAML files for common mistakes. How do I get started with skillet?");
+
+        await expect(result).toSatisfyJudge(RecommendsCreateCommandJudge);
+        await expect(result).toSatisfyJudge(DoesNotRecommendApiKeySetupJudge);
+        await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
+      },
+    );
   },
-  ],
-  harness: skilletHarness({ skill: skillRoot }),
-  judges: [SubstringJudge(), CriterionJudge()],
-  threshold: 0.75,
-  timeout: 60_000,
-});
+);

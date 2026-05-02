@@ -6,26 +6,31 @@
 // ──────────────────────────────────────────────────────────
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
+import { expect } from "vitest";
 import {
   describeEval,
-  CriterionJudge,
-  SubstringJudge,
   skilletHarness,
 } from "@sentry/skillet/evals";
+import {
+  DoesNotRecommendValidateJudge,
+  RecommendsVerifyJudge,
+} from "./_judges.js";
 
 const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, "");
 
-describeEval("choose-verify-for-checking", {
-  data: [
-  {
-    name: "choose-verify-for-checking__check_skill",
-    tests_behavior: "choose-verify-for-checking",
-    input: "I just edited my skill and want to check that everything's consistent before running the evals. What should I do?",
-    criteria: "The agent must recommend `skillet verify`. Recommending `skillet validate` is a failure — that command was removed.",
+describeEval(
+  "choose-verify-for-checking",
+  { harness: skilletHarness({ skill: skillRoot }) },
+  (it) => {
+    it(
+      "choose-verify-for-checking__basic-ask",
+      async ({ run, behavior }) => {
+        behavior("choose-verify-for-checking");
+        const result = await run("I want to check that my skill is internally consistent — coverage, structure, all that. What command should I run?");
+
+        await expect(result).toSatisfyJudge(RecommendsVerifyJudge);
+        await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
+      },
+    );
   },
-  ],
-  harness: skilletHarness({ skill: skillRoot }),
-  judges: [SubstringJudge(), CriterionJudge()],
-  threshold: 0.75,
-  timeout: 60_000,
-});
+);

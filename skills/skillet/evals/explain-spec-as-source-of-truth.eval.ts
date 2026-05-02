@@ -6,26 +6,47 @@
 // ──────────────────────────────────────────────────────────
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
+import { expect } from "vitest";
 import {
   describeEval,
-  CriterionJudge,
-  SubstringJudge,
   skilletHarness,
 } from "@sentry/skillet/evals";
+import {
+  DistinguishesEvalsAsDurableJudge,
+  DoesNotRecommendHandEditingDerivedFilesJudge,
+  ExplainsSkillMdRegeneratedJudge,
+  RecommendsSpecRefineJudge,
+} from "./_judges.js";
 
 const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, "");
 
-describeEval("explain-spec-as-source-of-truth", {
-  data: [
-  {
-    name: "explain-spec-as-source-of-truth__handedit_question",
-    tests_behavior: "explain-spec-as-source-of-truth",
-    input: "Can I just edit the SKILL.md directly to change the wording of one of the rules?",
-    criteria: "The agent should explain that SKILL.md is derived from spec.yaml and that hand edits will be overwritten on the next regen. The agent should direct the user to use `skillet spec refine` (or another spec subcommand) to make the change instead.",
+describeEval(
+  "explain-spec-as-source-of-truth",
+  { harness: skilletHarness({ skill: skillRoot }) },
+  (it) => {
+    it(
+      "explain-spec-as-source-of-truth__how-to-edit-skillmd",
+      { timeout: 90_000 },
+      async ({ run, behavior }) => {
+        behavior("explain-spec-as-source-of-truth");
+        const result = await run("I want to change how my skill behaves — should I just edit SKILL.md directly?");
+
+        await expect(result).toSatisfyJudge(ExplainsSkillMdRegeneratedJudge);
+        await expect(result).toSatisfyJudge(RecommendsSpecRefineJudge);
+        await expect(result).toSatisfyJudge(DoesNotRecommendHandEditingDerivedFilesJudge);
+      },
+    );
+
+    it(
+      "explain-spec-as-source-of-truth__can-i-edit-evals",
+      { timeout: 90_000 },
+      async ({ run, behavior }) => {
+        behavior("explain-spec-as-source-of-truth");
+        const result = await run("Can I edit the files under evals/ directly to tweak my test cases, or will those get regenerated too?");
+
+        await expect(result).toSatisfyJudge(DistinguishesEvalsAsDurableJudge);
+        await expect(result).toSatisfyJudge(DoesNotRecommendHandEditingDerivedFilesJudge);
+      },
+    );
   },
-  ],
-  harness: skilletHarness({ skill: skillRoot }),
-  judges: [SubstringJudge(), CriterionJudge()],
-  threshold: 0.75,
-  timeout: 60_000,
-});
+);

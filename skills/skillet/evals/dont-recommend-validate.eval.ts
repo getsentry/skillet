@@ -6,26 +6,32 @@
 // ──────────────────────────────────────────────────────────
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
+import { expect } from "vitest";
 import {
   describeEval,
-  CriterionJudge,
-  SubstringJudge,
   skilletHarness,
 } from "@sentry/skillet/evals";
+import {
+  DoesNotRecommendValidateJudge,
+  RecommendsVerifyJudge,
+} from "./_judges.js";
 
 const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, "");
 
-describeEval("dont-recommend-validate", {
-  data: [
-  {
-    name: "dont-recommend-validate__pre_eval_check",
-    tests_behavior: "dont-recommend-validate",
-    input: "I just wrote a new skill and want to do a quick structural check before running evals. Walk me through the steps.",
-    criteria: "The agent must recommend `skillet verify` for the structural check, not `skillet validate`. The validate command was removed and recommending it would error out for the user. If the agent says `validate` anywhere as a literal command (e.g. `skillet validate`), that's a fail.",
+describeEval(
+  "dont-recommend-validate",
+  { harness: skilletHarness({ skill: skillRoot }) },
+  (it) => {
+    it(
+      "dont-recommend-validate__how-to-check-skill",
+      { timeout: 90_000 },
+      async ({ run, behavior }) => {
+        behavior("dont-recommend-validate");
+        const result = await run("I just edited my skill spec. How do I check that the skill files are structurally valid before running the full eval suite?");
+
+        await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
+        await expect(result).toSatisfyJudge(RecommendsVerifyJudge);
+      },
+    );
   },
-  ],
-  harness: skilletHarness({ skill: skillRoot }),
-  judges: [SubstringJudge(), CriterionJudge()],
-  threshold: 0.75,
-  timeout: 60_000,
-});
+);

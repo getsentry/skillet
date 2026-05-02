@@ -1,0 +1,7 @@
+name: code-reviewer
+description: Reviews TypeScript PRs
+behaviors:
+  - id: flag-any-types
+    statement: Flag uses of `any` in new code.
+  - id: suggest-tests
+    statement: Suggest unit tests for new exported functions.

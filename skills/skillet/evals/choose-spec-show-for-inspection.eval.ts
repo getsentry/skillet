@@ -6,26 +6,34 @@
 // ──────────────────────────────────────────────────────────
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
+import { expect } from "vitest";
 import {
   describeEval,
-  CriterionJudge,
-  SubstringJudge,
   skilletHarness,
 } from "@sentry/skillet/evals";
+import {
+  DoesNotRecommendApiKeySetupJudge,
+  DoesNotRecommendValidateJudge,
+  RecommendsSpecShowJudge,
+} from "./_judges.js";
 
 const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, "");
 
-describeEval("choose-spec-show-for-inspection", {
-  data: [
-  {
-    name: "choose-spec-show-for-inspection__view_spec",
-    tests_behavior: "choose-spec-show-for-inspection",
-    input: "I want to see what's in the spec.yaml of my skill at ./my-skill without making any changes. What command?",
-    expectedContains: "spec show",
+describeEval(
+  "choose-spec-show-for-inspection",
+  { harness: skilletHarness({ skill: skillRoot }) },
+  (it) => {
+    it(
+      "choose-spec-show-for-inspection__read-current-spec",
+      { timeout: 90_000 },
+      async ({ run, behavior }) => {
+        behavior("choose-spec-show-for-inspection");
+        const result = await run("I just want to read my current skill spec to see what behaviors are defined — I don't want to change anything. What command should I run?");
+
+        await expect(result).toSatisfyJudge(RecommendsSpecShowJudge);
+        await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
+        await expect(result).toSatisfyJudge(DoesNotRecommendApiKeySetupJudge);
+      },
+    );
   },
-  ],
-  harness: skilletHarness({ skill: skillRoot }),
-  judges: [SubstringJudge(), CriterionJudge()],
-  threshold: 0.75,
-  timeout: 60_000,
-});
+);
