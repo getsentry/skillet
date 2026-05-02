@@ -108,7 +108,6 @@ const validatePlanShape = (raw: unknown, expectedId: string): AssertionPlan => {
       }
       if (Object.keys(fixture).length > 0) casePlan.fixture = fixture;
     }
-    if (isString(c.setup) && c.setup !== "") casePlan.setup = c.setup;
     if (isNumber(c.timeout)) casePlan.timeout = c.timeout;
     cases.push(casePlan);
   }
@@ -117,24 +116,16 @@ const validatePlanShape = (raw: unknown, expectedId: string): AssertionPlan => {
 };
 
 /**
- * Pre-flight any per-case `fixture` or `setup` shells in a temp
- * workspace to catch failed scripts, missing directories, or bad
- * heredocs before the eval file is written.
- *
- * For `fixture` (file map), we synthesize a single shell heredoc
- * that writes each entry, then run it through createWorkspace —
- * the same path used by `harness.useFixture` at runtime, so we
- * fail fast on bad fixture content (e.g. a heredoc terminator
- * inside the YAML).
+ * Pre-flight any per-case `fixture` map by synthesizing a shell
+ * heredoc and running it through `createWorkspace` so bad fixture
+ * content (e.g. an embedded heredoc terminator) surfaces as a
+ * validation failure before the eval file is written.
  */
 const validateCaseFixtures = (cases: CasePlan[]): void => {
   for (const c of cases) {
     if (c.fixture != null && Object.keys(c.fixture).length > 0) {
       const script = fixtureMapToShell(c.fixture);
       const workspace = createWorkspace({ setup: script });
-      workspace.cleanup();
-    } else if (c.setup != null && c.setup !== "") {
-      const workspace = createWorkspace({ setup: c.setup });
       workspace.cleanup();
     }
   }

@@ -3,6 +3,7 @@ import { join, resolve } from "node:path";
 import { authorSkill } from "../authoring/loop.js";
 import { findSkillRoot } from "../skill/loader.js";
 import { specFileName } from "../spec/index.js";
+import { findIntFlag, findPositional } from "./_args.js";
 
 export interface ImproveOptions {
   path?: string;
@@ -10,13 +11,11 @@ export interface ImproveOptions {
 }
 
 const parseImproveArgs = (args: string[]): ImproveOptions => {
-  const path = args.find((a) => !a.startsWith("--"));
-  const iterFlag = args.find((a) => a.startsWith("--max-iterations="));
-  const maxIterations = iterFlag != null ? parseInt(iterFlag.split("=")[1] ?? "", 10) : undefined;
-
+  const positional = findPositional(args, ["max-iterations"]);
   const opts: ImproveOptions = {};
-  if (path != null) opts.path = path;
-  if (maxIterations != null && !Number.isNaN(maxIterations)) opts.maxIterations = maxIterations;
+  if (positional[0] != null) opts.path = positional[0];
+  const maxIterations = findIntFlag(args, "max-iterations");
+  if (maxIterations != null) opts.maxIterations = maxIterations;
   return opts;
 };
 

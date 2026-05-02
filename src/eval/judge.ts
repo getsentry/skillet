@@ -3,7 +3,12 @@ import type { AnyModel } from "../agent/provider.js";
 import { completeWithBackoff } from "../agent/complete-with-backoff.js";
 import { submitAiJob } from "../agent/queue.js";
 
-export interface JudgeResult {
+/**
+ * Output of the LLM judge call. Distinct from `JudgeResult`
+ * exported by `vitest-evals/types.ts` — that's a vitest-evals
+ * matcher result; this is the internal LLM judge call's return.
+ */
+export interface LLMJudgeOutput {
   grade: string;
   score: number;
   reasoning: string;
@@ -77,7 +82,7 @@ export const judge = async (
   agentOutput: string,
   criteria: string,
   artifacts: JudgeArtifact[] = [],
-): Promise<JudgeResult> => {
+): Promise<LLMJudgeOutput> => {
   const artifactSection = formatArtifacts(artifacts);
   const context: Context = {
     systemPrompt: JUDGE_PROMPT,

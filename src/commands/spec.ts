@@ -10,7 +10,7 @@ import { handleSpecAuthorPause } from "../cli/pause.js";
 import { withElapsed } from "../cli/progress.js";
 import { createInteractiveSession } from "../cli/transport.js";
 import { withStaging } from "../staging/index.js";
-import { collectInputs } from "./_inputs.js";
+import { collectInputs, findFlag, findPositional } from "./_args.js";
 import {
   applyPatches,
   readSpec,
@@ -25,46 +25,6 @@ import { printCoverageReport } from "./coverage-report.js";
 
 const errorMessage = (err: unknown): string => {
   return err instanceof Error ? err.message : String(err);
-};
-
-/**
- * Look up a single-value flag in argv. Accepts both `--name=value` and
- * `--name value` forms. Pass the bare flag name (e.g. `"path"` for
- * `--path` / `--path=...`).
- */
-const findFlag = (args: string[], flagName: string): string | undefined => {
-  const equalsForm = `--${flagName}=`;
-  for (let i = 0; i < args.length; i++) {
-    const a = args[i] ?? "";
-    if (a.startsWith(equalsForm)) return a.slice(equalsForm.length);
-    if (a === `--${flagName}`) {
-      const next = args[i + 1];
-      if (next != null && !next.startsWith("--")) return next;
-    }
-  }
-  return undefined;
-};
-
-/** Positional args, excluding any value consumed by a known
- *  space-form single-value flag. */
-const findPositional = (
-  args: string[],
-  spaceValueFlags: string[] = ["path", "input"],
-): string[] => {
-  const out: string[] = [];
-  for (let i = 0; i < args.length; i++) {
-    const a = args[i] ?? "";
-    if (a.startsWith("--")) {
-      const bareName = a.slice(2).split("=")[0] ?? "";
-      if (spaceValueFlags.includes(bareName) && !a.includes("=")) {
-        // Consume the next arg as this flag's value.
-        i += 1;
-      }
-      continue;
-    }
-    out.push(a);
-  }
-  return out;
 };
 
 /**

@@ -217,10 +217,9 @@ const validateToolCallsAssertion = (caseName: string, a: ToolCallsAssertion): vo
 /**
  * Render a per-entry `.eval.ts` from a `ConsolidatedPlan` plus the
  * suite-wide canonical judges. Imports the judges this entry's
- * cases reference from `./_judges.js`; emits `useFixture(<slug>)`
- * when a case has a fixture on disk; falls back to legacy
- * `harness.setup(<script>)` when the case carries `setup` instead
- * (hand-authored plans only — never produced by eval-gen).
+ * cases reference from `./_judges.js`; emits
+ * `await harness.useFixture(<slug>)` when a case has a fixture
+ * tree on disk.
  */
 export const renderEvalFile = (
   entryId: string,
@@ -334,9 +333,7 @@ const renderCase = (c: ConsolidatedCasePlan, indent: string): string[] => {
   const body = inner + "  ";
 
   const usesFixture = c.fixtureSlug != null && c.fixtureSlug !== "";
-  const usesSetup = c.setup != null && c.setup !== "";
-  const fixtureFields =
-    usesFixture || usesSetup ? "{ run, behavior, harness }" : "{ run, behavior }";
+  const fixtureFields = usesFixture ? "{ run, behavior, harness }" : "{ run, behavior }";
 
   const header: string[] = [];
   header.push(`${indent}it(`);
@@ -350,8 +347,6 @@ const renderCase = (c: ConsolidatedCasePlan, indent: string): string[] => {
   block.push(`${body}behavior(${JSON.stringify(c.tests_behavior)});`);
   if (usesFixture) {
     block.push(`${body}await harness.useFixture(${JSON.stringify(c.fixtureSlug)});`);
-  } else if (usesSetup) {
-    block.push(`${body}await harness.setup(${JSON.stringify(c.setup)});`);
   }
   block.push(`${body}const result = await run(${JSON.stringify(c.input)});`);
   block.push("");

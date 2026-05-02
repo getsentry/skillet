@@ -2,10 +2,14 @@
  * Discover `.eval.ts` files and extract the case metadata that
  * `verifyCoverage` needs (case names + `tests_behavior` IDs).
  *
- * Skillet generates eval files in a known template, so a regex scan
- * of the `data` array is sufficient. Adding a full TypeScript AST
- * parser would be heavyweight for what is, in practice, extracting
- * two string literals per case.
+ * Skillet generates eval files in a known shape. The current
+ * generator emits the harness-first callback form
+ * (`describeEval(id, opts, (it) => { it("name", ...) })`) where the
+ * suite id doubles as `tests_behavior`. The legacy data-array
+ * form is also recognized for files generated before the
+ * harness-first migration. A regex scan over both shapes is
+ * sufficient — adding a TypeScript AST parser is heavyweight for
+ * what is, in practice, extracting two string literals per case.
  *
  * Hand-edited eval files that deviate from the template may not
  * extract correctly. That's acceptable — coverage verification is

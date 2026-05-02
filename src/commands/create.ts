@@ -5,7 +5,7 @@ import { SpecAuthorPaused } from "../authoring/phases/spec-author.js";
 import { sessionExists } from "../authoring/session.js";
 import { handleSpecAuthorPause } from "../cli/pause.js";
 import { specFileName } from "../spec/index.js";
-import { collectInputs } from "./_inputs.js";
+import { collectInputs } from "./_args.js";
 
 /** Default `allowed-tools` for fresh skills. Permissive enough that
  *  authoring workflows aren't blocked by permission prompts on the

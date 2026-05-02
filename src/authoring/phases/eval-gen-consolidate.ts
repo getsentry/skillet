@@ -133,10 +133,6 @@ const consolidateCase = (
   if (c.fixture != null && Object.keys(c.fixture).length > 0) {
     fixtures[c.name] = c.fixture;
     out.fixtureSlug = c.name;
-  } else if (c.setup != null && c.setup !== "") {
-    // Hand-authored legacy plans: pass `setup` straight through; the
-    // renderer falls back to `harness.setup(<script>)` for these.
-    out.setup = c.setup;
   }
   return out;
 };

@@ -1,24 +1,35 @@
 /**
  * Skillet harness adapter for vitest-evals.
  *
- * `skilletHarness({ skill: "./path" })` returns a vitest-evals `Harness`
- * that runs the agent loop against a loaded skill. Generated `.eval.ts`
- * files use it like:
+ * `skilletHarness({ skill: "./path" })` returns a `Harness` that
+ * runs the agent loop against a loaded skill. Generated
+ * `.eval.ts` files use it like:
  *
- *   describeEval("my-skill", {
- *     data: [...cases],
- *     harness: skilletHarness({ skill: "./my-skill" }),
- *     judges: [CriterionJudge(), SubstringJudge()],
- *   });
+ *   describeEval(
+ *     "my-skill",
+ *     { harness: skilletHarness({ skill: skillRoot }) },
+ *     (it) => {
+ *       it("...", async ({ run, behavior, harness }) => {
+ *         behavior("my-skill");
+ *         await harness.useFixture("my-skill__fixture");
+ *         const result = await run("audit ...");
+ *         await expect(result).toSatisfyJudge(MyJudge);
+ *       });
+ *     },
+ *   );
  *
- * Per-case workspace setup is read from `caseData.setup` if present.
- * Cases without setup get a fresh empty temp directory.
+ * The harness reads `caseData.fixtureSlug` (set by the
+ * callback-form fixture wrapper after the test calls
+ * `harness.useFixture(slug)`) and copies
+ * `<skill-root>/evals/fixtures/<slug>/` into the per-test
+ * workspace before the agent runs. A legacy `caseData.setup`
+ * shell-script field is still honored for the data-array
+ * `describeEval` compat path.
  *
- * After the agent runs, the harness captures any text files the agent
- * created or modified and exposes them on `HarnessRun.artifacts`. The
- * CriterionJudge surfaces those to the LLM judge — coding skills whose
- * deliverable is a file edit are graded against the file, not just the
- * chat transcript.
+ * After the agent runs, the harness captures any text files the
+ * agent created or modified and exposes them on
+ * `HarnessRun.artifacts` so LLM judges can grade the deliverable
+ * directly (not just the chat transcript).
  */
 
 import { cpSync, existsSync, statSync } from "node:fs";

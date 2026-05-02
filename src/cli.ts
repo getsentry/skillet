@@ -7,7 +7,8 @@ import { INSTALL_USAGE, installCommand } from "./commands/install.js";
 import { RESUME_USAGE, resumeCommand } from "./commands/resume.js";
 import { specCommand } from "./commands/spec.js";
 import { VERIFY_USAGE, verifyCommand } from "./commands/verify.js";
-import { drainQueue, onJobEvent, setQueueConfig, type JobEvent } from "./agent/queue.js";
+import { drainQueue, setQueueConfig } from "./agent/queue.js";
+import { installJobSummary, printJobSummary } from "./cli/job-summary.js";
 import { setVerbose } from "./log.js";
 
 const args = process.argv.slice(2);
@@ -23,7 +24,7 @@ const parseIntFlag = (argv: string[], name: string): number | undefined => {
     const a = argv[i] ?? "";
     if (a === `--${name}`) {
       const next = argv[i + 1];
-      const n = next != null ? Number(next) : NaN;
+      const n = next != null ? Number(next) : Number.NaN;
       if (Number.isInteger(n) && n > 0) return n;
     }
     if (a.startsWith(`--${name}=`)) {
@@ -49,53 +50,52 @@ if (aiConcurrency != null) queueOverrides.concurrency = aiConcurrency;
 if (aiTimeoutMs != null) queueOverrides.timeoutMs = aiTimeoutMs;
 if (Object.keys(queueOverrides).length > 0) setQueueConfig(queueOverrides);
 
-// ── Job-event sink (for end-of-command summary) ───────────
-
-interface JobStats {
-  succeeded: number;
-  failed: number;
-  failuresByPrefix: Map<string, string[]>;
-}
-
-const stats: JobStats = {
-  succeeded: 0,
-  failed: 0,
-  failuresByPrefix: new Map(),
-};
-
-const recordEvent = (e: JobEvent): void => {
-  if (e.kind === "succeeded") {
-    stats.succeeded++;
-  }
-  if (e.kind === "failed") {
-    stats.failed++;
-    const prefix = e.name.split(":")[0] ?? "ai";
-    const list = stats.failuresByPrefix.get(prefix) ?? [];
-    list.push(e.name);
-    stats.failuresByPrefix.set(prefix, list);
-  }
-};
-
-onJobEvent(recordEvent);
-
-const printJobSummary = (): void => {
-  if (stats.succeeded + stats.failed === 0) return;
-  process.stderr.write(
-    `\x1b[2mAI jobs: ${stats.succeeded} succeeded, ${stats.failed} failed\x1b[0m\n`,
-  );
-  if (stats.failed > 0) {
-    process.stderr.write("\x1b[2mFailures clustered by name prefix:\x1b[0m\n");
-    for (const [prefix, names] of stats.failuresByPrefix) {
-      const sample = names.slice(0, 5).join(", ");
-      const more = names.length > 5 ? ` (+${names.length - 5} more)` : "";
-      process.stderr.write(
-        `\x1b[2m  ${prefix}:* — ${names.length} failed (${sample}${more})\x1b[0m\n`,
-      );
-    }
-  }
-};
+installJobSummary();
 
 // ── Command dispatch ──────────────────────────────────────
+
+/**
+ * Dispatch table. Each entry pairs a usage string with a handler
+ * that takes the per-command argv slice (everything after the
+ * command name). `spec` is special-cased — it owns subcommand
+ * help routing internally.
+ */
+type CommandHandler = (subArgs: string[]) => Promise<number> | number;
+
+interface CommandEntry {
+  usage: string;
+  run: CommandHandler;
+}
+
+const COMMANDS: Record<string, CommandEntry> = {
+  eval: {
+    usage: EVAL_USAGE,
+    run: (subArgs) => {
+      const jsonFlag = subArgs.includes("--json");
+      const positional = subArgs.filter((a) => !a.startsWith("--"));
+      return evalCommand(positional[0], jsonFlag);
+    },
+  },
+  compare: {
+    usage: COMPARE_USAGE,
+    run: (subArgs) => {
+      const jsonFlag = subArgs.includes("--json");
+      const positional = subArgs.filter((a) => !a.startsWith("--"));
+      const [first, second] = positional;
+      if (first == null || second == null) {
+        console.error(COMPARE_USAGE);
+        return Promise.resolve(1);
+      }
+      return compareCommand(first, second, { json: jsonFlag });
+    },
+  },
+  verify: { usage: VERIFY_USAGE, run: verifyCommand },
+  create: { usage: CREATE_USAGE, run: createCommand },
+  improve: { usage: IMPROVE_USAGE, run: improveCommand },
+  "add-eval": { usage: ADD_EVAL_USAGE, run: addEvalCommand },
+  install: { usage: INSTALL_USAGE, run: installCommand },
+  resume: { usage: RESUME_USAGE, run: resumeCommand },
+};
 
 const main = async (): Promise<number> => {
   if (command == null || command === "" || command === "--help" || command === "-h") {
@@ -103,90 +103,25 @@ const main = async (): Promise<number> => {
     return 0;
   }
 
-  // Per-command --help short-circuit. Must run before any command body
-  // touches the filesystem, sessions, or the LLM. (Spec subcommands
-  // handle their own --help inside specCommand.)
   const subArgs = args.slice(1);
-  const helpRequested = subArgs.includes("--help") || subArgs.includes("-h");
 
-  switch (command) {
-    case "eval": {
-      if (helpRequested) {
-        console.log(EVAL_USAGE);
-        return 0;
-      }
-      const jsonFlag = args.includes("--json");
-      const positional = args.filter((a, i) => i > 0 && !a.startsWith("--"));
-      const evalPath = positional[0];
-      return evalCommand(evalPath, jsonFlag);
-    }
+  // `spec` owns its own subcommand --help routing.
+  if (command === "spec") return specCommand(subArgs);
 
-    case "compare": {
-      if (helpRequested) {
-        console.log(COMPARE_USAGE);
-        return 0;
-      }
-      const jsonFlag = args.includes("--json");
-      const positional = args.filter((a, i) => i > 0 && !a.startsWith("--"));
-      const [first, second] = positional;
-      if (first == null || second == null) {
-        console.error(COMPARE_USAGE);
-        return 1;
-      }
-      return compareCommand(first, second, { json: jsonFlag });
-    }
-
-    case "verify":
-      if (helpRequested) {
-        console.log(VERIFY_USAGE);
-        return 0;
-      }
-      return verifyCommand(subArgs);
-
-    case "create":
-      if (helpRequested) {
-        console.log(CREATE_USAGE);
-        return 0;
-      }
-      return createCommand(subArgs);
-
-    case "improve":
-      if (helpRequested) {
-        console.log(IMPROVE_USAGE);
-        return 0;
-      }
-      return improveCommand(subArgs);
-
-    case "add-eval":
-      if (helpRequested) {
-        console.log(ADD_EVAL_USAGE);
-        return 0;
-      }
-      return addEvalCommand(subArgs);
-
-    case "install":
-      if (helpRequested) {
-        console.log(INSTALL_USAGE);
-        return 0;
-      }
-      return installCommand(subArgs);
-
-    case "spec":
-      // specCommand handles its own subcommand --help routing internally.
-      return specCommand(subArgs);
-
-    case "resume":
-      if (helpRequested) {
-        console.log(RESUME_USAGE);
-        return 0;
-      }
-      return resumeCommand(subArgs);
-
-    default:
-      console.error(`Unknown command: ${command}`);
-      printUsage();
-      return 1;
+  const entry = COMMANDS[command];
+  if (entry == null) {
+    console.error(`Unknown command: ${command}`);
+    printUsage();
+    return 1;
   }
+
+  const helpRequested = subArgs.includes("--help") || subArgs.includes("-h");
+  if (helpRequested) {
+    console.log(entry.usage);
+    return 0;
+  }
+
+  return entry.run(subArgs);
 };
 
 const printUsage = (): void => {

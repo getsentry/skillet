@@ -39,18 +39,10 @@ export interface CasePlan {
   /**
    * Map of relative workspace path → file content. Skillet writes
    * these files under `evals/fixtures/<case-name>/<rel-path>` at
-   * consolidation time and replaces the inline content with a
-   * `useFixture(<case-name>)` call in the rendered eval. Preferred
-   * over `setup` for new generation.
+   * consolidation time and renders the test body with a
+   * `await harness.useFixture(<case-name>)` call.
    */
   fixture?: Record<string, string>;
-  /**
-   * @deprecated Legacy shell-script seeding the workspace. New
-   * generation produces `fixture` instead. Still parsed for
-   * backwards compat with hand-authored plans; the renderer falls
-   * back to `harness.setup(<script>)` when only `setup` is set.
-   */
-  setup?: string;
   /** Per-case timeout in milliseconds. */
   timeout?: number;
   /** Ordered list of assertions evaluated inside the test body. */
@@ -60,8 +52,7 @@ export interface CasePlan {
 /**
  * Per-case plan after consolidation. Fixture content has been
  * extracted to disk; the case references it by slug
- * (typically the case `name`). Same shape as `CasePlan` minus
- * the inline `fixture`/`setup` content.
+ * (typically the case `name`).
  */
 export interface ConsolidatedCasePlan {
   name: string;
@@ -69,13 +60,6 @@ export interface ConsolidatedCasePlan {
   input: string;
   /** Slug under `evals/fixtures/<slug>/`; rendered as `useFixture(slug)`. */
   fixtureSlug?: string;
-  /**
-   * @deprecated Falls through to `harness.setup` when a
-   * hand-authored plan didn't supply a `fixture` map. Never
-   * produced by the consolidation pass for plans that came from
-   * eval-gen.
-   */
-  setup?: string;
   timeout?: number;
   assertions: Assertion[];
 }
