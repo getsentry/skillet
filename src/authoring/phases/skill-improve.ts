@@ -16,9 +16,6 @@ const formatFailures = (runResult: EvalRunResult): string => {
   for (const c of failed) {
     lines.push(`### ${c.name} — ${c.status.toUpperCase()}`);
     if (c.tests_behavior != null) lines.push(`tests_behavior: ${c.tests_behavior}`);
-    for (const check of c.checks) {
-      if (!check.passed) lines.push(`  ✗ ${check.name}: ${check.detail}`);
-    }
     if (c.judge != null) {
       lines.push(`  judge: ${c.judge.grade} (${c.judge.score}) — ${c.judge.reasoning}`);
     }

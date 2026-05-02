@@ -56,5 +56,3 @@ const loadReference = (filename: string): string => {
 export const loadSkillPatterns = (): string => loadReference("skill-patterns.md");
 
 export const loadAuthoringGuidance = (): string => loadReference("authoring-guidance.md");
-
-export const loadEvalExamples = (): string => loadReference("eval-examples.md");

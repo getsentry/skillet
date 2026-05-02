@@ -49,13 +49,7 @@ export interface UsageSummary {
   toolCalls?: number;
 }
 
-// ── Check / Judge ─────────────────────────────────────────
-
-export interface CheckResultNormalized {
-  name: string;
-  passed: boolean;
-  detail: string;
-}
+// ── Judge ─────────────────────────────────────────────────
 
 export interface JudgeResultNormalized {
   grade: string;
@@ -81,7 +75,6 @@ export interface EvalCaseResult {
   duration: number;
   session: NormalizedSession;
   usage: UsageSummary;
-  checks: CheckResultNormalized[];
   judge?: JudgeResultNormalized;
   errors: ErrorRecord[];
   /** Why it was skipped (only when status is "skip") */

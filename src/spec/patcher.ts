@@ -94,8 +94,7 @@ export const validateSpecPatch = (raw: unknown, index: number): SpecPatch => {
  * misapplying ops would degrade quality without an alarm.
  */
 export const applyPatch = (spec: SkillSpec, patch: SpecPatch): SkillSpec => {
-  const knownOps: ReadonlySet<string> = new Set<string>(SPEC_PATCH_OPS);
-  if (!knownOps.has(patch.op)) {
+  if (!KNOWN_OPS.has(patch.op)) {
     throw new Error(`Unknown SpecPatch op: ${(patch as { op: string }).op}`);
   }
 

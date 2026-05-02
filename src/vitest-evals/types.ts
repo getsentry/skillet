@@ -59,17 +59,12 @@ export type UsageSummary = {
   retries?: number;
 };
 
-export type TimingSummary = {
-  totalMs?: number;
-};
-
 // ── Harness contract ─────────────────────────────────────
 
 export type HarnessRun = {
   session: NormalizedSession;
   output?: JsonValue;
   usage: UsageSummary;
-  timings?: TimingSummary;
   artifacts?: Record<string, JsonValue>;
   errors: Array<Record<string, JsonValue>>;
 };

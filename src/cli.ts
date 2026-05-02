@@ -2,7 +2,6 @@ import { ADD_EVAL_USAGE, addEvalCommand } from "./commands/add-eval.js";
 import { COMPARE_USAGE, compareCommand } from "./commands/compare.js";
 import { CREATE_USAGE, createCommand } from "./commands/create.js";
 import { EVAL_USAGE, evalCommand } from "./commands/eval.js";
-import { isHelpRequest } from "./commands/_help.js";
 import { IMPROVE_USAGE, improveCommand } from "./commands/improve.js";
 import { INSTALL_USAGE, installCommand } from "./commands/install.js";
 import { RESUME_USAGE, resumeCommand } from "./commands/resume.js";
@@ -44,21 +43,11 @@ const parseEnvInt = (name: string): number | undefined => {
 
 const aiConcurrency = parseIntFlag(args, "ai-concurrency") ?? parseEnvInt("SKILLET_AI_CONCURRENCY");
 const aiTimeoutMs = parseEnvInt("SKILLET_AI_TIMEOUT");
-// Deprecated: --concurrency on eval/compare. Still routes to the
-// AI queue but emits a deprecation note.
-const deprecatedConcurrency = parseIntFlag(args, "concurrency");
 
 const queueOverrides: Parameters<typeof setQueueConfig>[0] = {};
 if (aiConcurrency != null) queueOverrides.concurrency = aiConcurrency;
-else if (deprecatedConcurrency != null) queueOverrides.concurrency = deprecatedConcurrency;
 if (aiTimeoutMs != null) queueOverrides.timeoutMs = aiTimeoutMs;
 if (Object.keys(queueOverrides).length > 0) setQueueConfig(queueOverrides);
-
-if (deprecatedConcurrency != null && aiConcurrency == null) {
-  process.stderr.write(
-    "\x1b[2mNote: --concurrency is deprecated; use --ai-concurrency to control LLM throughput.\x1b[0m\n",
-  );
-}
 
 // ── Job-event sink (for end-of-command summary) ───────────
 
@@ -118,7 +107,7 @@ const main = async (): Promise<number> => {
   // touches the filesystem, sessions, or the LLM. (Spec subcommands
   // handle their own --help inside specCommand.)
   const subArgs = args.slice(1);
-  const helpRequested = isHelpRequest(subArgs);
+  const helpRequested = subArgs.includes("--help") || subArgs.includes("-h");
 
   switch (command) {
     case "eval": {

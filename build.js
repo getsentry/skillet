@@ -15,12 +15,8 @@ const cliConfig = {
   banner: {
     js: "#!/usr/bin/env node",
   },
-  external: [
-    // AI SDK loads providers dynamically — keep them external
-    // so npm can resolve them at runtime from skillet's own node_modules
-  ],
-  // Keep node_modules external — they'll be resolved from skillet's
-  // own node_modules when installed via npm/npx
+  // Keep node_modules external — resolved from skillet's own
+  // node_modules at runtime under npm/npx.
   packages: "external",
 };
 

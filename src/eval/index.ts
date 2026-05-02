@@ -31,7 +31,6 @@ export type {
   NormalizedMessage,
   NormalizedSession,
   UsageSummary,
-  CheckResultNormalized,
   JudgeResultNormalized,
   ErrorRecord,
   CaseStatus,

@@ -35,7 +35,7 @@ specific files in patch rationales when the citation matters
 (e.g. "flag the N+1 in views.py:list_books").
 
 You may also read skillet's bundled references (skill-patterns.md,
-authoring-guidance.md, eval-examples.md) — they are part of the scope.
+authoring-guidance.md) — they are part of the scope.
 
 Stop investigating when further reads add no new information. Then emit
 your patches/questions/commit_request as JSON. Do not pad the

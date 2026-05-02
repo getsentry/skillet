@@ -63,7 +63,7 @@ const isLikelyText = (buf: Buffer): boolean => {
 const walk = (dir: string, root: string, out: Map<string, FileSnapshot>): void => {
   let entries;
   try {
-    entries = readdirSync(dir, { withFileTypes: true, encoding: "utf-8" });
+    entries = readdirSync(dir, { withFileTypes: true });
   } catch {
     return;
   }

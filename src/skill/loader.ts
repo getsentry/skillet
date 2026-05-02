@@ -5,7 +5,6 @@ import { parse as parseYaml } from "yaml";
 export interface SkillMeta {
   name: string;
   description: string;
-  allowedTools?: string[];
   [key: string]: unknown;
 }
 
@@ -72,25 +71,6 @@ const metaString = (meta: Record<string, unknown>, key: string): string | undefi
   return typeof v === "string" ? v : undefined;
 };
 
-const parseAllowedTools = (meta: Record<string, unknown>): string[] | undefined => {
-  const raw = meta["allowed-tools"];
-  if (raw == null) return undefined;
-
-  if (Array.isArray(raw)) {
-    const list: string[] = [];
-    for (const item of raw) {
-      if (typeof item === "string") list.push(item.trim());
-    }
-    return list;
-  }
-
-  if (typeof raw === "string") {
-    return raw.split(",").map((t) => t.trim());
-  }
-
-  return undefined;
-};
-
 /**
  * Load a skill from its root directory.
  */
@@ -105,16 +85,10 @@ export const loadSkill = (skillRoot: string): Skill => {
 
   const name = metaString(meta, "name") ?? basename(skillRoot);
   const description = metaString(meta, "description") ?? "";
-  const allowedTools = parseAllowedTools(meta);
-
-  const result: SkillMeta = { ...meta, name, description };
-  if (allowedTools != null) {
-    result.allowedTools = allowedTools;
-  }
 
   return {
     root: resolve(skillRoot),
-    meta: result,
+    meta: { ...meta, name, description },
     body,
   };
 };

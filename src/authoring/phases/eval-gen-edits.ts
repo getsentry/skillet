@@ -58,17 +58,6 @@ export const applyPlanEdits = (plan: AssertionPlan, edits: PlanEdit[]): Assertio
 };
 
 const applyEdit = (plan: AssertionPlan, edit: PlanEdit): void => {
-  // Defense in depth — a stale verifier prompt could still emit a
-  // `tighten-regex` edit (the kind is gone but the JSON shape lives
-  // on in cached prompt template strings). Reject explicitly with a
-  // pointer to the new edit kinds.
-  // oxlint-disable-next-line no-unsafe-type-assertion
-  const kindStr = (edit as { kind: string }).kind;
-  if (kindStr === "tighten-regex") {
-    throw new PlanEditError(
-      `edit kind "tighten-regex" is no longer supported (regex assertions were banned). Use "split-judge", "replace-judge-with-deterministic", or "add-judge" instead.`,
-    );
-  }
   switch (edit.kind) {
     case "drop-judge":
       return applyDropJudge(plan, edit);

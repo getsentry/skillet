@@ -383,7 +383,6 @@ const assertionToCaseResult = (
     duration: assertion.duration ?? 0,
     session,
     usage,
-    checks: [],
     errors,
   };
   if (judge != null) result.judge = judge;

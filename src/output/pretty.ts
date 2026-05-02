@@ -27,17 +27,10 @@ export const printCaseResult = (result: EvalCaseResult): void => {
     console.log(`  skipped: ${result.skipReason}`);
   }
 
-  if (result.status === "fail") {
-    for (const check of result.checks) {
-      if (!check.passed) {
-        console.log(`  FAIL: ${check.detail}`);
-      }
-    }
-    if (result.judge != null) {
-      console.log(
-        `  Judge: ${result.judge.grade} (${result.judge.score}) — ${result.judge.reasoning}`,
-      );
-    }
+  if (result.status === "fail" && result.judge != null) {
+    console.log(
+      `  Judge: ${result.judge.grade} (${result.judge.score}) — ${result.judge.reasoning}`,
+    );
   }
 
   if (result.status === "error" && result.errors.length > 0) {

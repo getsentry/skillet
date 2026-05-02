@@ -86,18 +86,6 @@ const MAX_CRITERION_CHARS = 300;
 /** Per-entry judge cap (cross-suite consolidation can have many more). */
 const MAX_JUDGES_PER_FILE = 5;
 
-/**
- * Banned assertion-kind names. The TypeScript type system removes
- * these from `Assertion`, but a verifier edit could still emit one
- * via a stringly-typed JSON kind. The renderer rejects them with a
- * migration message pointing at the recommended replacement.
- */
-const BANNED_ASSERTION_KINDS = new Set([
-  "output-matches",
-  "output-contains",
-  "output-not-contains",
-]);
-
 // ── Validation (pre-consolidation) ─────────────────────────────────────────
 
 /**
@@ -182,16 +170,6 @@ const validateJudgeShape = (judge: JudgePlan): void => {
 };
 
 const validateAssertion = (caseName: string, a: Assertion, judgeNames: Set<string>): void => {
-  // Defense in depth — TypeScript removes the banned kinds from
-  // `Assertion`, but a verifier edit could emit a banned kind via a
-  // stringly-typed JSON shape. Reject with a migration message.
-  // oxlint-disable-next-line no-unsafe-type-assertion
-  const kindStr = (a as { kind: string }).kind;
-  if (BANNED_ASSERTION_KINDS.has(kindStr)) {
-    throw new RenderError(
-      `case "${caseName}": assertion kind "${kindStr}" is banned. Free-form agent output (result.session.outputText) is not structurable enough for regex/string matching to be reliable. Replace with one of: a named LLM-rubric judge ({ kind: "judge", judgeName: "..." }), a structural output-match-object on result.output, or a tool-calls assertion.`,
-    );
-  }
   switch (a.kind) {
     case "output-match-object": {
       if (a.value == null || typeof a.value !== "object") {
