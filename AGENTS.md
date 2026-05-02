@@ -52,6 +52,7 @@ Co-Authored-By: (agent model name) <email>
 
 - `policies/README.md` (when to add a policy doc and how policy docs should stay scoped)
 - `policies/code-comments.md` (repo default for code comments, docstrings, and exported-function JSDoc)
+- `policies/skill-creation-lifecycle.md` (keep `LIFECYCLE.md` current when the skill-creation flow changes)
 - `policies/policy-template.md` (template for adding new policy docs)
 
 ## Investigation-First Development
@@ -60,6 +61,14 @@ Co-Authored-By: (agent model name) <email>
 - Before removing an architectural layer, prove the replacement handles all known edge cases in a working proof-of-concept. Do not remove the incumbent until the replacement is verified end-to-end.
 - When changing a function signature, error contract, or shared pattern, grep for all consumers and verify each one still works.
 - If a fix attempt fails, stop. Re-read the error, trace the full system from input to output, and identify the root cause before trying another fix.
+
+## Skill Creation Flow
+
+The end-to-end flow of how a skill gets created is documented in
+`LIFECYCLE.md` at the repo root. Read it before changing
+anything in `src/authoring/`. When you change a phase, sub-pass,
+or artifact layout, update `LIFECYCLE.md` in the same change —
+see `policies/skill-creation-lifecycle.md`.
 
 ## Architecture Discipline
 
