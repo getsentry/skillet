@@ -28,6 +28,8 @@ import type {
   ConsolidatedCasePlan,
   ConsolidatedPlan,
   JudgePlan,
+  MergeJudgesEdit,
+  SuiteEdit,
 } from "./eval-gen-types.js";
 
 export interface ConsolidationInput {
@@ -137,4 +139,118 @@ const consolidateCase = (
     out.setup = c.setup;
   }
   return out;
+};
+
+// ── Suite-edit applier ─────────────────────────────────────────────────────
+
+const JUDGE_NAME_RE = /^[A-Z][A-Za-z0-9]*Judge$/;
+
+export class SuiteEditError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SuiteEditError";
+  }
+}
+
+/**
+ * Apply a list of `SuiteEdit`s to a consolidation result. Pure
+ * function — produces a new `ConsolidationResult` without mutating
+ * the input. Throws `SuiteEditError` on missing targets / malformed
+ * edits; caller falls back to the unedited consolidation on throw.
+ *
+ * The fixture map is unchanged — suite edits operate only on judges
+ * and the per-entry plans' references to them.
+ */
+export const applySuiteEdits = (
+  consolidation: ConsolidationResult,
+  edits: SuiteEdit[],
+): ConsolidationResult => {
+  if (edits.length === 0) return consolidation;
+  const next: ConsolidationResult = {
+    judges: structuredClone(consolidation.judges),
+    perEntry: structuredClone(consolidation.perEntry),
+    fixtures: consolidation.fixtures,
+    conflicts: consolidation.conflicts,
+    totalDeclared: consolidation.totalDeclared,
+  };
+  for (const [i, edit] of edits.entries()) {
+    try {
+      applySuiteEdit(next, edit);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new SuiteEditError(`suite-edit[${i}] (${edit.kind}): ${msg}`);
+    }
+  }
+  return next;
+};
+
+const applySuiteEdit = (c: ConsolidationResult, edit: SuiteEdit): void => {
+  switch (edit.kind) {
+    case "merge-judges":
+      return applyMergeJudges(c, edit);
+    default: {
+      const exhaustive: never = edit.kind;
+      throw new SuiteEditError(`unknown suite-edit kind: ${JSON.stringify(exhaustive)}`);
+    }
+  }
+};
+
+const applyMergeJudges = (c: ConsolidationResult, edit: MergeJudgesEdit): void => {
+  if (typeof edit.canonical !== "string" || !JUDGE_NAME_RE.test(edit.canonical)) {
+    throw new SuiteEditError(`canonical "${edit.canonical}" must be PascalCase ending in "Judge"`);
+  }
+  if (!Array.isArray(edit.merged) || edit.merged.length === 0) {
+    throw new SuiteEditError(`merged must be a non-empty array`);
+  }
+  const canonicalIdx = c.judges.findIndex((j) => j.name === edit.canonical);
+  if (canonicalIdx < 0) {
+    throw new SuiteEditError(`canonical judge "${edit.canonical}" not found in suite`);
+  }
+  const mergedSet = new Set<string>();
+  for (const name of edit.merged) {
+    if (typeof name !== "string" || name === "") {
+      throw new SuiteEditError(`merged names must be non-empty strings`);
+    }
+    if (name === edit.canonical) {
+      throw new SuiteEditError(`merged list contains canonical "${edit.canonical}" (no-op)`);
+    }
+    if (!c.judges.some((j) => j.name === name)) {
+      throw new SuiteEditError(`merged judge "${name}" not found in suite`);
+    }
+    mergedSet.add(name);
+  }
+  // Optional criterion override.
+  if (edit.criterion != null) {
+    if (typeof edit.criterion !== "string" || edit.criterion.trim() === "") {
+      throw new SuiteEditError(`criterion override must be a non-empty string`);
+    }
+    const canonical = c.judges[canonicalIdx];
+    if (canonical != null) canonical.criterion = edit.criterion;
+  }
+  // Drop merged declarations.
+  c.judges = c.judges.filter((j) => !mergedSet.has(j.name));
+  // Rewrite every per-entry case's `judge` assertions to point at the canonical.
+  // Dedupe in place — if a case ended up referencing the canonical AND a
+  // merged-from name, it gets two identical references after rewrite; collapse.
+  for (const { plan } of c.perEntry) {
+    for (const c2 of plan.cases) {
+      const seen = new Set<string>();
+      const out: typeof c2.assertions = [];
+      for (const a of c2.assertions) {
+        if (a.kind === "judge") {
+          const target = mergedSet.has(a.judgeName) ? edit.canonical : a.judgeName;
+          if (target === edit.canonical) {
+            if (seen.has(edit.canonical)) continue;
+            seen.add(edit.canonical);
+            out.push({ kind: "judge", judgeName: edit.canonical });
+          } else {
+            out.push(a);
+          }
+        } else {
+          out.push(a);
+        }
+      }
+      c2.assertions = out;
+    }
+  }
 };

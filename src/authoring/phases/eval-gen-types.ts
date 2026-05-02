@@ -232,3 +232,33 @@ export interface DropAssertionEdit {
 
 /** Verifier response shape. */
 export type VerifyVerdict = { approve: true } | { approve: false; edits: PlanEdit[] };
+
+// ── Suite-level edits (post-consolidation audit) ───────────────────────────
+
+/**
+ * Edits applied to the consolidated suite (not individual plans).
+ * Currently only `merge-judges`; the audit may grow more kinds as
+ * cross-suite operations show up.
+ */
+export type SuiteEdit = MergeJudgesEdit;
+
+/**
+ * Collapse N near-duplicate canonical judges into one. The merged
+ * declarations are dropped from the suite and every assertion that
+ * referenced them is rewritten to point at the canonical name. An
+ * optional `criterion` overrides the canonical's text — useful when
+ * the audit produces a refined rubric that combines wording from
+ * the inputs.
+ */
+export interface MergeJudgesEdit {
+  kind: "merge-judges";
+  /** The judge that survives the merge (must already be in the suite). */
+  canonical: string;
+  /** Other judges to merge into the canonical (must all exist in the suite). */
+  merged: string[];
+  /** Optional refined criterion text for the canonical (≤200 chars). */
+  criterion?: string;
+}
+
+/** Audit response shape. Same approve / edits pattern as VerifyVerdict. */
+export type SuiteVerdict = { approve: true } | { approve: false; edits: SuiteEdit[] };
