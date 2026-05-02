@@ -97,3 +97,68 @@ export interface JudgeAssertion {
   /** Must match a `name` in `plan.judges`. */
   judgeName: string;
 }
+
+// ── Plan edits (verify-pass output) ────────────────────────────────────────
+
+/**
+ * A single revision to an `AssertionPlan` produced by the verify
+ * pass. Edits are applied in input order by `applyPlanEdits`.
+ */
+export type PlanEdit =
+  | DropJudgeEdit
+  | ReplaceJudgeWithDeterministicEdit
+  | TightenRegexEdit
+  | ShortenCriterionEdit
+  | AddDeterministicEdit
+  | DropAssertionEdit;
+
+/** Remove a judge declaration AND every assertion that references it. */
+export interface DropJudgeEdit {
+  kind: "drop-judge";
+  judgeName: string;
+}
+
+/**
+ * Remove a judge declaration AND, in every case that referenced it,
+ * splice the supplied deterministic assertions in place of the
+ * judge assertion.
+ */
+export interface ReplaceJudgeWithDeterministicEdit {
+  kind: "replace-judge-with-deterministic";
+  judgeName: string;
+  replacements: Assertion[];
+}
+
+/** Rewrite a single `output-matches` pattern in place. */
+export interface TightenRegexEdit {
+  kind: "tighten-regex";
+  caseName: string;
+  /** 0-based index into the case's `assertions` array at edit time. */
+  assertionIndex: number;
+  pattern: string;
+  flags?: string;
+}
+
+/** Shorten a judge's `criterion` text in place. */
+export interface ShortenCriterionEdit {
+  kind: "shorten-criterion";
+  judgeName: string;
+  criterion: string;
+}
+
+/** Append a deterministic assertion to a case's assertion list. */
+export interface AddDeterministicEdit {
+  kind: "add-deterministic";
+  caseName: string;
+  assertion: Assertion;
+}
+
+/** Drop a single assertion from a case (by 0-based index). */
+export interface DropAssertionEdit {
+  kind: "drop-assertion";
+  caseName: string;
+  assertionIndex: number;
+}
+
+/** Verifier response shape. */
+export type VerifyVerdict = { approve: true } | { approve: false; edits: PlanEdit[] };

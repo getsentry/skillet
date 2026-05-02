@@ -8,10 +8,18 @@ import { createWorkspace } from "../../eval/workspace.js";
 import { event } from "../../log.js";
 import type { Behavior, MustNot, SkillSpec } from "../../spec/index.js";
 import { buildEvalGenPrompt } from "../prompts/eval-gen.js";
+import { buildEvalGenVerifyPrompt } from "../prompts/eval-gen-verify.js";
 import { saveFailedOutput } from "./_diagnostics.js";
 import { extractText, isRecord, stripFences } from "./_text.js";
-import type { AssertionPlan, CasePlan, JudgePlan } from "./eval-gen-types.js";
+import { applyPlanEdits, PlanEditError } from "./eval-gen-edits.js";
 import { renderEvalFile, RenderError } from "./eval-gen-render.js";
+import type {
+  AssertionPlan,
+  CasePlan,
+  JudgePlan,
+  PlanEdit,
+  VerifyVerdict,
+} from "./eval-gen-types.js";
 
 export { EVAL_TS_BANNER } from "./eval-gen-render.js";
 
@@ -119,10 +127,13 @@ interface SingleEntryInput {
 }
 
 /**
- * Issue ONE LLM call for a single spec entry, retrying on
- * parse/validation/render failure. Returns the validated plan. The
- * signal comes from the AI queue's per-job deadline and is forwarded
- * into every pi-ai call inside the parse-retry loop.
+ * **Stage 2: Generate.** Issue ONE LLM call for a single spec
+ * entry, retrying on parse/validation/render failure. Returns the
+ * validated plan AND the rendered file (rendered here so the
+ * renderer's contract caps act as part of the parse-retry loop).
+ *
+ * The signal comes from the AI queue's per-job deadline and is
+ * forwarded into every pi-ai call inside the parse-retry loop.
  */
 const generateForEntry = async (
   model: AnyModel,
@@ -214,9 +225,10 @@ const generateForEntry = async (
     try {
       rendered = renderEvalFile(input.entry.id, plan);
     } catch (err: unknown) {
-      // Renderer guardrails (bare `/HIGH/`-style regex, unknown judge
-      // refs, etc.) bubble up as RenderError. Treat them like a
-      // schema failure so the LLM gets a chance to fix the plan.
+      // Renderer guardrails (contract caps, suspicious regex,
+      // unknown judge refs) bubble up as RenderError. Treat them
+      // like a schema failure so the LLM gets a chance to fix the
+      // plan.
       const rerr = err instanceof RenderError ? err : null;
       lastError = rerr ?? (err instanceof Error ? err : new Error(String(err)));
       const saved = saveFailedOutput({
@@ -242,14 +254,141 @@ const generateForEntry = async (
 };
 
 /**
+ * **Stage 3: Verify.** Issue one LLM call asking a critic whether
+ * the generator's plan honors the code-eval contract. Returns the
+ * approve/edits verdict.
+ *
+ * Single-pass — no retry loop. Parse failures fall through to a
+ * benign `{ approve: true }` so a flaky verifier doesn't tank the
+ * file. The renderer's caps still bound what reaches disk.
+ */
+const verifyPlan = async (
+  model: AnyModel,
+  input: SingleEntryInput,
+  plan: AssertionPlan,
+  signal: AbortSignal,
+): Promise<VerifyVerdict> => {
+  const userContent = `Critic call. Spec entry + must_not list + the generator's plan are below. Decide: did the generator honor the code-eval contract? Return JSON.\n\n## Spec entry\n\n\`\`\`json\n${JSON.stringify(
+    { kind: input.kind, entry: input.entry, must_not_rules: input.mustNotRules },
+    null,
+    2,
+  )}\n\`\`\`\n\n## Plan\n\n\`\`\`json\n${JSON.stringify(plan, null, 2)}\n\`\`\``;
+
+  const context: Context = {
+    systemPrompt: buildEvalGenVerifyPrompt(),
+    messages: [{ role: "user", content: userContent, timestamp: Date.now() }],
+  };
+
+  const response = await completeWithBackoff(model, context, { maxTokens: 4000, signal });
+  const text = extractText(response);
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stripFences(text, "json"));
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const saved = saveFailedOutput({
+      phase: "eval-gen-verify",
+      key: input.entry.id,
+      attempt: 1,
+      raw: text,
+      errorMessage: `response was not valid JSON: ${msg}`,
+      kind: "parse",
+    });
+    event("warn", `eval-gen-verify behavior=${input.entry.id} parse-fail`, {
+      message: msg,
+      savedTo: saved.path,
+      responseHead: saved.excerpt,
+    });
+    return { approve: true };
+  }
+
+  const verdict = parseVerdict(parsed);
+  if (verdict == null) {
+    const saved = saveFailedOutput({
+      phase: "eval-gen-verify",
+      key: input.entry.id,
+      attempt: 1,
+      raw: text,
+      errorMessage: "verdict shape is neither {approve:true} nor {approve:false, edits:[...]}",
+      kind: "schema",
+    });
+    event("warn", `eval-gen-verify behavior=${input.entry.id} bad-shape`, {
+      savedTo: saved.path,
+    });
+    return { approve: true };
+  }
+  return verdict;
+};
+
+const parseVerdict = (raw: unknown): VerifyVerdict | null => {
+  if (!isRecord(raw)) return null;
+  if (raw.approve === true) return { approve: true };
+  if (raw.approve !== false) return null;
+  if (!Array.isArray(raw.edits)) return null;
+  const edits: PlanEdit[] = [];
+  for (const e of raw.edits) {
+    if (!isRecord(e)) return null;
+    // Trust the shape — the applier will throw on missing
+    // targets, unknown kinds, or out-of-range indices, and the
+    // caller falls back to the original plan on PlanEditError.
+    // oxlint-disable-next-line no-unsafe-type-assertion
+    edits.push(e as unknown as PlanEdit);
+  }
+  return { approve: false, edits };
+};
+
+/**
+ * **Stage 4: Apply edits + render.** When the verifier returned
+ * edits, try applying them to the plan and re-rendering. If the
+ * applier throws OR the resulting plan fails the renderer's caps,
+ * fall back to the unedited plan's render and log a warning so
+ * the user can audit verifier quality.
+ */
+const applyEditsSafely = (
+  entryId: string,
+  originalPlan: AssertionPlan,
+  edits: PlanEdit[],
+  fallbackRendered: string,
+): { rendered: string; usedEdits: boolean } => {
+  if (edits.length === 0) return { rendered: fallbackRendered, usedEdits: false };
+  try {
+    const editedPlan = applyPlanEdits(originalPlan, edits);
+    validateCaseSetups(editedPlan.cases);
+    const rendered = renderEvalFile(entryId, editedPlan);
+    event("info", `eval-gen-verify behavior=${entryId} edits-applied count=${edits.length}`);
+    return { rendered, usedEdits: true };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const tag = err instanceof PlanEditError ? "edit-failed" : "edit-rendered-invalid";
+    event("warn", `eval-gen-verify behavior=${entryId} ${tag}`, {
+      message: msg,
+      editCount: edits.length,
+    });
+    return { rendered: fallbackRendered, usedEdits: false };
+  }
+};
+
+/**
  * Run the eval-gen phase: spec entries → one `.eval.ts` file per
  * behavior/must_not.
  *
- * Each missing entry submits one job to the AI queue. Parallelism is
- * the queue's concurrency cap (`--ai-concurrency`). Failures are
- * isolated per-entry — a failure on entry X does not abort Y and Z;
- * the result surfaces { written, skipped, failed } so the caller can
- * decide whether partial success is acceptable.
+ * **Per-entry flow: Request → Generate → Verify → Render.**
+ *
+ * 1. Request — both prompts embed the shared `CODE_EVAL_CONTRACT`.
+ * 2. Generate — `generateForEntry` (parse-retry up to 3x).
+ * 3. Verify — `verifyPlan` (1 call, no loop). Returns approve or
+ *    plan edits.
+ * 4. Render — if approve, write the original render. If edits,
+ *    `applyEditsSafely` produces a new render or falls back.
+ *
+ * Each missing entry submits the generate + verify pair as separate
+ * AI jobs (`eval-gen:<id>`, `eval-gen:verify:<id>`). The queue's
+ * concurrency cap throttles total parallelism.
+ *
+ * Failures are isolated per-entry — a failure on entry X does not
+ * abort Y and Z; the result surfaces { written, skipped, failed }
+ * so the caller can decide whether partial success is acceptable.
  *
  * Existing eval files are PRESERVED. Edit them directly to refine
  * prompts/setup/assertions; regen leaves them alone.
@@ -295,37 +434,84 @@ export const runEvalGen = async (
   const failed: Array<{ id: string; error: string }> = [];
 
   const tasks = missing.map(({ entry, kind }) =>
-    submitAiJob({
-      name: `eval-gen:${entry.id}`,
-      run: async (signal) => {
-        const start = Date.now();
-        try {
-          const { plan, rendered } = await generateForEntry(
-            model,
-            { entry, kind, mustNotRules },
-            signal,
-          );
-          const filePath = join(evalsDir, `${entry.id}.eval.ts`);
-          writeFileSync(filePath, rendered, "utf-8");
-          const elapsed = Date.now() - start;
-          written.push(filePath);
-          event(
-            "info",
-            `eval-gen behavior=${entry.id} ok=true cases=${plan.cases.length} judges=${plan.judges.length} (${elapsed}ms)`,
-          );
-          log?.(`  wrote ${filePath}`);
-        } catch (err: unknown) {
-          const elapsed = Date.now() - start;
-          const msg = err instanceof Error ? err.message : String(err);
-          failed.push({ id: entry.id, error: msg });
-          event("error", `eval-gen behavior=${entry.id} ok=false (${elapsed}ms): ${msg}`);
-          log?.(`  failed ${entry.id}: ${msg}`);
-        }
+    generateAndWrite(
+      model,
+      evalsDir,
+      {
+        entry,
+        kind,
+        mustNotRules,
       },
-    }),
+      written,
+      failed,
+      log,
+    ),
   );
 
   await Promise.all(tasks);
 
   return { written, skipped, failed };
+};
+
+/**
+ * Per-entry pipeline submitted as one AI job (the verify call is
+ * a separate sub-job inside it). Captures success / failure into
+ * the shared `written` and `failed` arrays.
+ */
+const generateAndWrite = (
+  model: AnyModel,
+  evalsDir: string,
+  input: SingleEntryInput,
+  written: string[],
+  failed: Array<{ id: string; error: string }>,
+  log?: (msg: string) => void,
+): Promise<void> => {
+  return submitAiJob({
+    name: `eval-gen:${input.entry.id}`,
+    run: async (signal) => {
+      const start = Date.now();
+      try {
+        // ── Generate ───────────────────────────────────
+        const { plan, rendered: originalRender } = await generateForEntry(model, input, signal);
+
+        // ── Verify ─────────────────────────────────────
+        // Called directly inside the outer eval-gen job — re-entering
+        // the queue here would deadlock when concurrency is fully
+        // saturated with generate jobs, each blocked on a verify
+        // slot. The outer slot already covers both calls.
+        const verdict = await verifyPlan(model, input, plan, signal);
+
+        let rendered: string;
+        let edited = false;
+        if (verdict.approve) {
+          rendered = originalRender;
+          event("info", `eval-gen-verify behavior=${input.entry.id} approve=true`);
+        } else {
+          const result = applyEditsSafely(input.entry.id, plan, verdict.edits, originalRender);
+          rendered = result.rendered;
+          edited = result.usedEdits;
+          event(
+            "info",
+            `eval-gen-verify behavior=${input.entry.id} approve=false edits=${verdict.edits.length} applied=${edited}`,
+          );
+        }
+
+        const filePath = join(evalsDir, `${input.entry.id}.eval.ts`);
+        writeFileSync(filePath, rendered, "utf-8");
+        const elapsed = Date.now() - start;
+        written.push(filePath);
+        event(
+          "info",
+          `eval-gen behavior=${input.entry.id} ok=true cases=${plan.cases.length} judges=${plan.judges.length} edited=${edited} (${elapsed}ms)`,
+        );
+        log?.(`  wrote ${filePath}${edited ? " (post-verify edits applied)" : ""}`);
+      } catch (err: unknown) {
+        const elapsed = Date.now() - start;
+        const msg = err instanceof Error ? err.message : String(err);
+        failed.push({ id: input.entry.id, error: msg });
+        event("error", `eval-gen behavior=${input.entry.id} ok=false (${elapsed}ms): ${msg}`);
+        log?.(`  failed ${input.entry.id}: ${msg}`);
+      }
+    },
+  });
 };

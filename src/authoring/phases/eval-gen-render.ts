@@ -59,6 +59,56 @@ const DEFAULT_INDENT = "  ";
 const JUDGE_NAME_RE = /^[A-Z][A-Za-z0-9]*Judge$/;
 
 /**
+ * Maximum chars in a judge `criterion`. The generator targets 200
+ * (per the code-eval contract); the renderer's 300 absorbs minor
+ * overruns the verifier didn't catch without blocking output.
+ */
+const MAX_CRITERION_CHARS = 300;
+
+/**
+ * Common English words banned as bare `output-matches` patterns
+ * and `output-contains`/`output-not-contains` values. They match
+ * any text discussing the topic without proving the agent
+ * identified anything specific. Combinations that ANCHOR a banned
+ * word to a domain term are fine (e.g.
+ * `\\bunsafe\\s+yaml\\.load\\b`).
+ */
+const BANNED_BARE_WORDS = new Set([
+  "vulnerable",
+  "vulnerability",
+  "unsafe",
+  "dangerous",
+  "risk",
+  "risky",
+  "issue",
+  "problem",
+  "bug",
+  "wrong",
+  "bad",
+  "broken",
+]);
+
+/**
+ * Strip regex metacharacters and anchors from a pattern to test
+ * whether the underlying token is just a banned bare word. A
+ * pattern like `\\bunsafe\\b` strips to `unsafe` (single bare
+ * word — banned). A pattern like `\\bunsafe\\s+yaml\\.load\\b`
+ * strips to `unsafeyaml.load` (multi-token — allowed).
+ */
+const stripRegexMetacharacters = (pattern: string): string => {
+  return pattern
+    .replace(/\\[bBdDsSwW]/g, "")
+    .replace(/\\./g, "")
+    .replace(/[\^$.|?*+()[\]{}]/g, "")
+    .toLowerCase()
+    .trim();
+};
+
+const isBannedBareWord = (s: string): boolean => {
+  return BANNED_BARE_WORDS.has(s.toLowerCase().trim());
+};
+
+/**
  * Render an assertion plan to a complete `.eval.ts` file. Throws
  * `RenderError` on validation failures.
  */
@@ -94,6 +144,13 @@ const validatePlan = (entryId: string, plan: AssertionPlan): void => {
   if (!Array.isArray(plan.judges)) {
     throw new RenderError("plan.judges must be an array (use [] for no judges)");
   }
+  if (plan.judges.length > 1) {
+    throw new RenderError(
+      `plan declares ${plan.judges.length} judges (${plan.judges
+        .map((j) => j.name)
+        .join(", ")}); the code-eval contract allows at most one judge per file. Drop or merge.`,
+    );
+  }
   for (const judge of plan.judges) {
     if (!JUDGE_NAME_RE.test(judge.name)) {
       throw new RenderError(
@@ -103,8 +160,14 @@ const validatePlan = (entryId: string, plan: AssertionPlan): void => {
     if (typeof judge.criterion !== "string" || judge.criterion.trim() === "") {
       throw new RenderError(`judge "${judge.name}": criterion must be a non-empty string`);
     }
+    if (judge.criterion.length > MAX_CRITERION_CHARS) {
+      throw new RenderError(
+        `judge "${judge.name}": criterion is ${judge.criterion.length} chars (cap is ${MAX_CRITERION_CHARS}). Tighten the rubric to 1-2 sentences.`,
+      );
+    }
   }
   const judgeNames = new Set(plan.judges.map((j) => j.name));
+  const referencedJudges = new Set<string>();
   const seenCaseNames = new Set<string>();
   for (const c of plan.cases) {
     if (typeof c.name !== "string" || c.name === "") {
@@ -125,8 +188,32 @@ const validatePlan = (entryId: string, plan: AssertionPlan): void => {
     if (!Array.isArray(c.assertions) || c.assertions.length === 0) {
       throw new RenderError(`case "${c.name}": assertions must be a non-empty array`);
     }
+    let hasDeterministic = false;
+    let hasJudge = false;
     for (const a of c.assertions) {
       validateAssertion(c, a, judgeNames);
+      if (a.kind === "judge") {
+        hasJudge = true;
+        referencedJudges.add(a.judgeName);
+      } else {
+        hasDeterministic = true;
+      }
+    }
+    if (hasJudge && !hasDeterministic) {
+      throw new RenderError(
+        `case "${c.name}": every judged case must include at least one deterministic assertion (output-matches, output-contains, output-not-contains, output-match-object, or tool-calls).`,
+      );
+    }
+  }
+
+  // Reject judges declared but never referenced — dead weight from
+  // a verifier edit that didn't fully clean up, or a generator
+  // mistake.
+  for (const j of plan.judges) {
+    if (!referencedJudges.has(j.name)) {
+      throw new RenderError(
+        `judge "${j.name}" is declared but never referenced. Remove it from plan.judges or wire it into a case's assertions.`,
+      );
     }
   }
 };
@@ -141,6 +228,11 @@ const validateAssertion = (caseData: CasePlan, a: Assertion, judgeNames: Set<str
     case "output-not-contains": {
       if (typeof a.value !== "string" || a.value === "") {
         throw new RenderError(`case "${caseData.name}": ${a.kind} requires a non-empty value`);
+      }
+      if (isBannedBareWord(a.value)) {
+        throw new RenderError(
+          `case "${caseData.name}": ${a.kind} value "${a.value}" is a bare common English word; pair it with a domain-specific token (e.g. function name, fixture filename, sink API) so the assertion proves something specific.`,
+        );
       }
       return;
     }
@@ -189,6 +281,15 @@ const validateMatchesPattern = (caseData: CasePlan, a: OutputMatchesAssertion): 
     throw new RenderError(
       `case "${caseData.name}": output-matches pattern "${pattern}" is a bare uppercase token; ` +
         `use "\\\\b${pattern}\\\\b" or an alternation like "\\\\b(${pattern}|...)\\\\b" instead`,
+    );
+  }
+  // Reject bare common-English-word patterns (after stripping
+  // metacharacters) — they match any text discussing the topic
+  // without proving the agent identified anything specific.
+  const stripped = stripRegexMetacharacters(pattern);
+  if (stripped !== "" && isBannedBareWord(stripped)) {
+    throw new RenderError(
+      `case "${caseData.name}": output-matches pattern "${pattern}" reduces to a single common English word ("${stripped}"); pair it with a domain-specific token (function name, fixture filename, sink API) to prove the agent identified something specific.`,
     );
   }
   // Verify the regex compiles. Assigning to a sink keeps lint happy
