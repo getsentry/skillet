@@ -44,7 +44,6 @@ import type {
   HarnessContext,
   HarnessRun,
   JsonValue,
-  NormalizedMessage,
 } from "../vitest-evals/index.js";
 import { collectChangedArtifacts, snapshotWorkspace } from "./workspace-snapshot.js";
 
@@ -160,7 +159,7 @@ export const skilletHarness = (opts: SkilletHarnessOptions): Harness<string, Ski
         });
 
         const session = {
-          messages: result.messages as NormalizedMessage[],
+          messages: result.messages,
           outputText: result.output,
         };
 

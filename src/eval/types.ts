@@ -1,53 +1,20 @@
 /**
- * Normalized eval result types, shaped toward vitest-evals compatibility.
- *
- * These mirror the vitest-evals NormalizedSession / HarnessRun / UsageSummary
- * shapes so that future migration is a type alignment, not a data restructure.
+ * Eval result types. Re-exports the JSON / session / message /
+ * usage shapes from `vitest-evals/types.ts` (the canonical source
+ * for those, mirroring upstream vitest-evals#41) and adds
+ * skillet's per-run / per-case shapes on top.
  */
 
-// ── Primitives ────────────────────────────────────────────
+export type {
+  JsonPrimitive,
+  JsonValue,
+  NormalizedMessage,
+  NormalizedSession,
+  ToolCallRecord,
+  UsageSummary,
+} from "../vitest-evals/types.js";
 
-export type JsonPrimitive = string | number | boolean | null;
-
-export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
-
-// ── Session / Messages ────────────────────────────────────
-
-export interface ToolCallRecord {
-  id?: string;
-  name: string;
-  arguments?: Record<string, JsonValue>;
-  result?: JsonValue;
-  error?: { message: string; type?: string };
-  startedAt?: string;
-  finishedAt?: string;
-  durationMs?: number;
-}
-
-export interface NormalizedMessage {
-  role: "system" | "user" | "assistant" | "tool";
-  content?: JsonValue;
-  toolCalls?: ToolCallRecord[];
-  metadata?: Record<string, JsonValue>;
-}
-
-export interface NormalizedSession {
-  messages: NormalizedMessage[];
-  outputText?: string;
-  provider?: string;
-  model?: string;
-}
-
-// ── Usage ─────────────────────────────────────────────────
-
-export interface UsageSummary {
-  provider?: string;
-  model?: string;
-  inputTokens?: number;
-  outputTokens?: number;
-  totalTokens?: number;
-  toolCalls?: number;
-}
+import type { NormalizedSession, UsageSummary } from "../vitest-evals/types.js";
 
 // ── Judge ─────────────────────────────────────────────────
 
@@ -81,9 +48,9 @@ export interface EvalCaseResult {
   skipReason?: string;
   /**
    * ID of the spec behavior or must_not this case tested, when known.
-   * Comes from the case's `tests_behavior` YAML field (preferred) or
-   * the `<id>__<slug>` case-name convention (fallback). Used by
-   * `verifyResults` to map case outcomes back to spec entries.
+   * Comes from the case's `behavior(...)` call inside the test body
+   * (which writes `task.meta.tests_behavior`). Used by `verifyResults`
+   * to map case outcomes back to spec entries.
    */
   tests_behavior?: string;
 }

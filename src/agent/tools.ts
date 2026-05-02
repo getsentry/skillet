@@ -5,14 +5,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, statSy
 import { join, resolve, dirname, relative } from "node:path";
 import { sanitizedProcessEnv } from "../eval/env.js";
 
-/**
- * Type guard for errors thrown by execSync that carry status/stderr/stdout.
- */
-const isExecError = (
-  err: unknown,
-): err is { status: number | null; stderr: Buffer | null; stdout: Buffer | null } => {
-  return err != null && typeof err === "object" && "status" in err;
-};
+import { isExecError } from "../util/exec-error.js";
 
 const errorMessage = (err: unknown): string => {
   if (err instanceof Error) return err.message;

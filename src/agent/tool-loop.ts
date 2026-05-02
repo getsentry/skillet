@@ -7,7 +7,7 @@
 
 import type { Context, Message } from "@mariozechner/pi-ai";
 import { validateToolCall } from "@mariozechner/pi-ai";
-import type { JsonValue, NormalizedMessage, ToolCallRecord } from "../eval/index.js";
+import type { JsonValue, NormalizedMessage, ToolCallRecord } from "../vitest-evals/types.js";
 import { completeWithBackoff } from "./complete-with-backoff.js";
 import type { AnyModel } from "./provider.js";
 

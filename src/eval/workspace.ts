@@ -16,11 +16,7 @@ export interface Workspace {
   cleanup(): void;
 }
 
-const isExecError = (
-  err: unknown,
-): err is { status: number | null; stderr: Buffer | null; stdout: Buffer | null } => {
-  return err != null && typeof err === "object" && "status" in err;
-};
+import { isExecError } from "../util/exec-error.js";
 
 const errorMessage = (err: unknown): string => {
   if (err instanceof Error) return err.message;
