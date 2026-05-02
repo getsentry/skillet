@@ -85,26 +85,76 @@ for "did it connect the exploit chain?", another for "did it
 rate severity correctly?". Each judge fails independently with
 a useful rationale.
 
-### Stable judge naming
+### Reuse judges across behaviors
 
-Judges declared across the suite are deduped at consolidation
-time by **exact name match**. To make dedup catch the same
-concept across behaviors, follow stable verb-prefix patterns:
+Judges are **suite-wide artifacts**. The consolidation pass dedupes
+by **exact name match** and writes one canonical declaration per
+unique name to \`evals/_judges.ts\`. If your judge tests a property
+that another behavior also tests — *reuse the name verbatim* so
+the two declarations collapse into one. The whole point is that
+many security-review behaviors share check-shapes
+("did the agent identify the trigger?", "did it rate severity?",
+"did it connect the exploit chain?"); these should be ONE
+canonical judge each, referenced from every behavior that needs
+them, not redeclared per behavior.
 
-- \`Identifies…Judge\` — agent named the artifact / trigger / sink
-- \`Rates…Judge\` — agent assigned a severity / confidence
+**Default to reuse.** When you sit down to declare a judge, ask
+first: "is there a reasonable canonical name some other behavior
+in this skill would also use?" If yes, use that name. New names
+should appear only when the property is genuinely specific to
+this one behavior.
+
+#### Canonical naming stems
+
+Pick the smallest stem that fits. Don't be cute. **Do not** add
+modifiers like \`Correctly\`, \`Properly\`, \`Successfully\`,
+\`Accurately\`, \`Reasonably\` — they don't change the meaning,
+they just defeat dedup. Two behaviors that both need the
+"identifies the trigger" check should both name their judge
+\`IdentifiesPrivilegedTriggerJudge\` (NOT
+\`IdentifiesPrivilegedTriggerJudge\` and
+\`IdentifiesTriggerCorrectlyJudge\`).
+
+Recommended stems:
+
+- \`Identifies…Judge\` — agent named the artifact / trigger /
+  sink / role / construct
+- \`Rates…Judge\` — agent assigned a severity / confidence /
+  rating
 - \`Connects…Judge\` — agent tied two concepts together
-- \`Recommends…Judge\` — agent emitted a remediation
-- \`RecognizesNo…Judge\` — must_not: agent correctly did NOT
-  flag a non-issue
-- \`DoesNot…Judge\` — must_not: agent did NOT do something
-  forbidden
+  (trigger → impact, input → sink, etc.)
+- \`Distinguishes…Judge\` — agent correctly differentiated
+  between two adjacent concepts
+- \`Recommends…Judge\` — agent emitted a remediation / fix /
+  hardening
+- \`Explains…Judge\` — agent justified a verdict with reasoning
+- \`Includes…Judge\` — agent included a required output element
+  (file/line, fix code, etc.)
+- \`DoesNotFlag…Judge\` — must_not: agent did NOT flag a
+  non-issue
+- \`DoesNotFabricate…Judge\` — must_not: agent did NOT invent
+  a missing piece of evidence
+- \`DoesNotRecommend…Judge\` — must_not: agent did NOT
+  recommend something forbidden
 
-Two behaviors that need the same property check should reuse the
-same judge name verbatim — they collapse into one declaration in
-\`evals/_judges.ts\`. Distinct semantics get distinct names. You
-do not need to dedupe yourself; the consolidation pass handles
-it.
+#### Examples
+
+**Good (reuses across behaviors)**:
+\`\`\`
+IdentifiesPrivilegedTriggerJudge   // used by report-pwn-request, report-credential-exposure, state-entry-point
+RatesHighSeverityJudge             // used by anything that tests severity calibration on a HIGH case
+ConnectsExploitChainJudge          // used by report-pwn-request, report-toctou, report-comment-chatops
+\`\`\`
+
+**Bad (over-specific, defeats dedup)**:
+\`\`\`
+IdentifiesPullRequestTargetTriggerJudge       // too specific — use IdentifiesPrivilegedTriggerJudge
+RatesHighSeverityCorrectlyJudge               // "Correctly" adds nothing — drop it
+ConnectsExploitChainForPwnRequestJudge        // bake the case in the criterion text, not the name
+\`\`\`
+
+The verifier will rename judges that violate these patterns —
+ship clean names from the start to avoid the round trip.
 
 ### Fixtures (workspace seeding)
 

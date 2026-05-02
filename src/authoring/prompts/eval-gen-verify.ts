@@ -50,14 +50,25 @@ if the plan needs targeted revisions to come into compliance.
 
 Reject (return edits) if any of these are true:
 
+- **A judge name violates the canonical naming rules.** Names
+  with vacuous modifiers (\`Correctly\`, \`Properly\`,
+  \`Successfully\`, \`Accurately\`, \`Reasonably\`), names baked
+  with the case slug (\`…ForPwnRequestJudge\`), or names that
+  describe a too-specific concept when a stem from the contract
+  would fit (\`IdentifiesPullRequestTargetTriggerJudge\` →
+  \`IdentifiesPrivilegedTriggerJudge\`) — return a
+  \`rename-judge\` edit aligning to the canonical name. **Be
+  liberal here**: this is the primary lever for keeping
+  \`evals/_judges.ts\` small. If a similar canonical name plausibly
+  works for the property, push toward it.
 - A judge \`criterion\` bundles multiple properties (e.g.
   "identifies the trigger AND rates severity"). Return a
-  \`split-judge\` edit with N narrower replacements, each testing
-  one property, plus the names to wire into each case.
+  \`split-judge\` edit with N narrower replacements.
 - A case is missing a check for an obvious testable property
   (e.g. testing pwn-request without a check on whether the agent
-  rated severity). Return an \`add-judge\` edit declaring the
-  new judge and listing the cases to wire it into.
+  rated severity). Return an \`add-judge\` edit. When adding a
+  judge, **prefer a canonical name from the contract's stems**;
+  only mint a new name when no stem fits.
 - A judge \`criterion\` is over 200 characters. Return
   \`shorten-criterion\` with a tightened 1-2 sentence rubric.
 - A plan declares a judge that no case references. Return
@@ -72,6 +83,11 @@ Reject (return edits) if any of these are true:
 
 ## Edit kinds
 
+- \`{ "kind": "rename-judge", "judgeName": "OldName",
+  "newName": "NewName" }\` — Rename a judge declaration AND every
+  assertion that references it. Use this to align names with the
+  canonical stems in the contract so consolidation dedupes
+  cleanly across behaviors.
 - \`{ "kind": "drop-judge", "judgeName": "FooJudge" }\` — Remove
   the judge declaration AND every assertion that references it.
 - \`{ "kind": "split-judge", "judgeName": "BroadJudge",
@@ -81,7 +97,8 @@ Reject (return edits) if any of these are true:
   name in \`caseAssignments\`, in order.
 - \`{ "kind": "add-judge", "judge": <JudgePlan>,
   "caseNames": [<case>...] }\` — Declare a new judge and append a
-  \`judge\` assertion to each named case.
+  \`judge\` assertion to each named case. Prefer canonical stem
+  names from the contract.
 - \`{ "kind": "replace-judge-with-deterministic", "judgeName":
   "FooJudge", "replacements": [<Assertion>...] }\` — Remove the
   judge declaration; substitute structural assertions

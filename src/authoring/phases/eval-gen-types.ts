@@ -146,6 +146,7 @@ export type PlanEdit =
   | ReplaceJudgeWithDeterministicEdit
   | SplitJudgeEdit
   | AddJudgeEdit
+  | RenameJudgeEdit
   | ShortenCriterionEdit
   | AddDeterministicEdit
   | DropAssertionEdit;
@@ -193,6 +194,19 @@ export interface AddJudgeEdit {
   kind: "add-judge";
   judge: JudgePlan;
   caseNames: string[];
+}
+
+/**
+ * Rename a judge declaration AND every assertion that references
+ * it. Used by the verifier to align judges to canonical names so
+ * the consolidation pass dedupes them across the suite.
+ */
+export interface RenameJudgeEdit {
+  kind: "rename-judge";
+  /** Existing judge name in `plan.judges`. */
+  judgeName: string;
+  /** New canonical name. Must be PascalCase + Judge suffix. */
+  newName: string;
 }
 
 /** Shorten a judge's `criterion` text in place. */

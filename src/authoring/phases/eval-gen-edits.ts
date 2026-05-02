@@ -28,6 +28,7 @@ import type {
   DropJudgeEdit,
   JudgePlan,
   PlanEdit,
+  RenameJudgeEdit,
   ReplaceJudgeWithDeterministicEdit,
   ShortenCriterionEdit,
   SplitJudgeEdit,
@@ -77,6 +78,8 @@ const applyEdit = (plan: AssertionPlan, edit: PlanEdit): void => {
       return applySplitJudge(plan, edit);
     case "add-judge":
       return applyAddJudge(plan, edit);
+    case "rename-judge":
+      return applyRenameJudge(plan, edit);
     case "shorten-criterion":
       return applyShortenCriterion(plan, edit);
     case "add-deterministic":
@@ -210,6 +213,32 @@ const applySplitJudge = (plan: AssertionPlan, edit: SplitJudgeEdit): void => {
       }
     }
     c.assertions = out;
+  }
+};
+
+const applyRenameJudge = (plan: AssertionPlan, edit: RenameJudgeEdit): void => {
+  const idx = requireJudgeIndex(plan, edit.judgeName);
+  if (typeof edit.newName !== "string" || !JUDGE_NAME_RE.test(edit.newName)) {
+    throw new PlanEditError(
+      `rename-judge: new name "${edit.newName}" must be PascalCase ending in "Judge"`,
+    );
+  }
+  if (edit.newName === edit.judgeName) {
+    throw new PlanEditError(`rename-judge: new name equals old name "${edit.newName}" (no-op)`);
+  }
+  if (plan.judges.some((j) => j.name === edit.newName)) {
+    throw new PlanEditError(
+      `rename-judge: target name "${edit.newName}" is already declared. Use drop-judge on this one if it's redundant.`,
+    );
+  }
+  const judge = plan.judges[idx];
+  if (judge != null) judge.name = edit.newName;
+  for (const c of plan.cases) {
+    for (const a of c.assertions) {
+      if (a.kind === "judge" && a.judgeName === edit.judgeName) {
+        a.judgeName = edit.newName;
+      }
+    }
   }
 };
 
