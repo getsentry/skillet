@@ -1,9 +1,6 @@
 name: sql-auditor
-description: Audits SQL queries for injection risks
+description: Audits SQL queries for injection risks.
 behaviors:
-  - id: flag-string-concatenation
-    statement: Flag SQL queries built by string concatenation with user input.
+  - id: flag-string-concat
+    statement: Flag SQL built via string concatenation with user input.
     rationale: Classic injection vector.
-must_not:
-  - id: dont-flag-parameterized
-    statement: Do not flag parameterized queries as injection risks.

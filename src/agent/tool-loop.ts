@@ -29,9 +29,9 @@ export interface ToolLoopOptions {
    * Validated executor for tool calls. The kernel narrows the
    * `arguments` field via pi-ai's `validateToolCall` against the
    * tools declared on `context.tools` and hands the result here.
-   * Returns the text payload the model will see.
+   * Returns the text payload the model will see (sync or async).
    */
-  executeTool: (name: string, args: Record<string, unknown>) => string;
+  executeTool: (name: string, args: Record<string, unknown>) => string | Promise<string>;
   /**
    * Wall-clock deadline (ms epoch). The kernel throws on overrun before
    * each LLM call.
@@ -231,7 +231,7 @@ export const runToolLoop = async (opts: ToolLoopOptions): Promise<ToolLoopResult
       try {
         const validated: unknown = validateToolCall(tools, block);
         const args: Record<string, unknown> = isRecord(validated) ? validated : {};
-        resultText = executeTool(block.name, args);
+        resultText = await executeTool(block.name, args);
       } catch (err: unknown) {
         const message =
           err instanceof Error ? err.message : typeof err === "string" ? err : JSON.stringify(err);

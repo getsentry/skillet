@@ -9,7 +9,9 @@ import { dirname } from "node:path";
 import { expect } from "vitest";
 import {
   describeEval,
-  skilletHarness,
+  piAiHarness,
+  skilletAgent,
+  skilletTools,
 } from "@sentry/skillet/evals";
 import {
   DoesNotRecommendValidateJudge,
@@ -20,13 +22,30 @@ const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, ""
 
 describeEval(
   "choose-verify-for-checking",
-  { harness: skilletHarness({ skill: skillRoot }), judgeThreshold: 0.75 },
+  {
+    harness: piAiHarness({
+      createAgent: () => skilletAgent({ skillRoot }),
+      tools: skilletTools({ skillRoot }),
+    }),
+    judgeThreshold: 0.75,
+  },
   (it) => {
     it(
-      "choose-verify-for-checking__consistency-check",
-      { timeout: 90_000 },
+      "choose-verify-for-checking__basic",
+      { timeout: 120_000 },
       async ({ run }) => {
-        const result = await run("I want to check that my skill is internally consistent — spec, evals, and SKILL.md all line up. What command should I run?");
+        const result = await run("I want to check that my skill is internally consistent — what command should I run?");
+
+        await expect(result).toSatisfyJudge(RecommendsVerifyJudge);
+        await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
+      },
+    );
+
+    it(
+      "choose-verify-for-checking__asks-for-validate",
+      { timeout: 120_000 },
+      async ({ run }) => {
+        const result = await run("How do I validate my skill to make sure everything lines up?");
 
         await expect(result).toSatisfyJudge(RecommendsVerifyJudge);
         await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);

@@ -9,7 +9,9 @@ import { dirname } from "node:path";
 import { expect } from "vitest";
 import {
   describeEval,
-  skilletHarness,
+  piAiHarness,
+  skilletAgent,
+  skilletTools,
 } from "@sentry/skillet/evals";
 import {
   DoesNotRecommendHandEditingSkillMdJudge,
@@ -21,13 +23,19 @@ const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, ""
 
 describeEval(
   "choose-spec-refine-for-feedback",
-  { harness: skilletHarness({ skill: skillRoot }), judgeThreshold: 0.75 },
+  {
+    harness: piAiHarness({
+      createAgent: () => skilletAgent({ skillRoot }),
+      tools: skilletTools({ skillRoot }),
+    }),
+    judgeThreshold: 0.75,
+  },
   (it) => {
     it(
       "choose-spec-refine-for-feedback__tone-change",
       { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("I want my skill to be more concise and avoid hedging language. How do I make that change?");
+        const result = await run("I want my skill to be more concise and stop using so many bullet points. How do I change it?");
 
         await expect(result).toSatisfyJudge(RecommendsSpecRefineJudge);
         await expect(result).toSatisfyJudge(DoesNotRecommendHandEditingSkillMdJudge);

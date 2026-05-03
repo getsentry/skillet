@@ -12,7 +12,7 @@ import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
-import { COMPARE_SKILL_ENV } from "../harness/index.js";
+import { COMPARE_SKILL_ENV } from "../evals/skillet-agent.js";
 import { discoverEvalTsFiles } from "./discovery.js";
 import type { EvalCaseResult, EvalRunResult, NormalizedSession, UsageSummary } from "./types.js";
 

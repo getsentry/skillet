@@ -9,10 +9,12 @@ import { dirname } from "node:path";
 import { expect } from "vitest";
 import {
   describeEval,
-  skilletHarness,
+  piAiHarness,
+  skilletAgent,
+  skilletTools,
 } from "@sentry/skillet/evals";
 import {
-  DoesNotRecommendApiKeySetupJudge,
+  DoesNotMentionApiKeysJudge,
   DoesNotRecommendValidateJudge,
   RecommendsSkilletCreateJudge,
 } from "./_judges.js";
@@ -21,17 +23,23 @@ const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, ""
 
 describeEval(
   "choose-create-for-new-skills",
-  { harness: skilletHarness({ skill: skillRoot }), judgeThreshold: 0.75 },
+  {
+    harness: piAiHarness({
+      createAgent: () => skilletAgent({ skillRoot }),
+      tools: skilletTools({ skillRoot }),
+    }),
+    judgeThreshold: 0.75,
+  },
   (it) => {
     it(
-      "choose-create-for-new-skills__pdf-extractor",
+      "choose-create-for-new-skills__new-skill-request",
       { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("I want to make a skill that extracts tables from PDF files. How do I get started with skillet?");
+        const result = await run("I want to make a new skill that audits Dockerfiles for security issues. How do I start?");
 
         await expect(result).toSatisfyJudge(RecommendsSkilletCreateJudge);
         await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
-        await expect(result).toSatisfyJudge(DoesNotRecommendApiKeySetupJudge);
+        await expect(result).toSatisfyJudge(DoesNotMentionApiKeysJudge);
       },
     );
   },

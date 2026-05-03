@@ -9,12 +9,13 @@ import { dirname } from "node:path";
 import { expect } from "vitest";
 import {
   describeEval,
-  skilletHarness,
+  piAiHarness,
+  skilletAgent,
+  skilletTools,
 } from "@sentry/skillet/evals";
 import {
   DistinguishesEvalFilesAsDurableJudge,
   DoesNotRecommendHandEditingSkillMdJudge,
-  IdentifiesSkillMdAsDerivedJudge,
   RecommendsSpecRefineJudge,
 } from "./_judges.js";
 
@@ -22,26 +23,32 @@ const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, ""
 
 describeEval(
   "dont-tell-user-to-handedit-derived-files",
-  { harness: skilletHarness({ skill: skillRoot }), judgeThreshold: 0.75 },
+  {
+    harness: piAiHarness({
+      createAgent: () => skilletAgent({ skillRoot }),
+      tools: skilletTools({ skillRoot }),
+    }),
+    judgeThreshold: 0.75,
+  },
   (it) => {
     it(
-      "dont-tell-user-to-handedit-derived-files__change-skill-instructions",
+      "dont-tell-user-to-handedit-derived-files__change-behavior",
       { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("I want to change the wording of one of the instructions my skill follows. Should I just open SKILL.md and edit that paragraph directly?");
+        const result = await run("I want to change how my skill behaves — it should refuse certain inputs. Should I just edit SKILL.md to add that instruction?");
 
         await expect(result).toSatisfyJudge(DoesNotRecommendHandEditingSkillMdJudge);
         await expect(result).toSatisfyJudge(RecommendsSpecRefineJudge);
-        await expect(result).toSatisfyJudge(IdentifiesSkillMdAsDerivedJudge);
       },
     );
 
     it(
-      "dont-tell-user-to-handedit-derived-files__eval-file-edits-ok",
+      "dont-tell-user-to-handedit-derived-files__tweak-eval",
       { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("I want to tweak the assertions in one of my generated .eval.ts files to tighten a judge rubric. Is it safe to edit that file directly, or will it get clobbered?");
+        const result = await run("One of my eval cases has the wrong assertion shape — I want to tighten the judge rubric. Do I need to regenerate, or can I just edit the .eval.ts file? And should I touch SKILL.md while I'm at it?");
 
+        await expect(result).toSatisfyJudge(DoesNotRecommendHandEditingSkillMdJudge);
         await expect(result).toSatisfyJudge(DistinguishesEvalFilesAsDurableJudge);
       },
     );

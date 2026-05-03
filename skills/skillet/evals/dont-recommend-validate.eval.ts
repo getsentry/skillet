@@ -9,7 +9,9 @@ import { dirname } from "node:path";
 import { expect } from "vitest";
 import {
   describeEval,
-  skilletHarness,
+  piAiHarness,
+  skilletAgent,
+  skilletTools,
 } from "@sentry/skillet/evals";
 import {
   DoesNotRecommendValidateJudge,
@@ -20,13 +22,19 @@ const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, ""
 
 describeEval(
   "dont-recommend-validate",
-  { harness: skilletHarness({ skill: skillRoot }), judgeThreshold: 0.75 },
+  {
+    harness: piAiHarness({
+      createAgent: () => skilletAgent({ skillRoot }),
+      tools: skilletTools({ skillRoot }),
+    }),
+    judgeThreshold: 0.75,
+  },
   (it) => {
     it(
       "dont-recommend-validate__how-to-check-skill",
       { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("I just edited my skill spec. What command should I run to check that the per-file structure is correct before committing?");
+        const result = await run("I just edited my skill's SKILL.md frontmatter. What skillet command should I run to check that everything is structurally correct before I commit?");
 
         await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
         await expect(result).toSatisfyJudge(RecommendsVerifyJudge);

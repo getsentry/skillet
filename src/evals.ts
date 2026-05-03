@@ -2,17 +2,22 @@
  * Public surface for generated `.eval.ts` files.
  *
  * Generated files import everything they need from
- * `@sentry/skillet/evals`. The barrel re-exports the upstream
- * `vitest-evals` API verbatim and adds three skillet-specific
- * helpers:
+ * `@sentry/skillet/evals`. The barrel re-exports upstream's
+ * `vitest-evals` and `@vitest-evals/harness-pi-ai` verbatim,
+ * and adds skillet-specific helpers:
  *
- * - `criterionJudge(name, text)` — single-criterion LLM-as-judge
- *   built on upstream's `namedJudge`.
- * - `createWorkspace(skillRoot, slug?)` — per-test tempdir helper;
- *   optionally seeds from `evals/fixtures/<slug>/` and registers
- *   cleanup via vitest's `onTestFinished`.
- * - `skilletHarness({ skill })` — the `Harness` adapter that
- *   runs skillet's agent loop.
+ * - `skilletAgent({ skillRoot })` — pi-ai agent that loads
+ *   the skill and drives the LLM-call-with-tools loop.
+ * - `skilletTools()` — `PiAiToolset` with the agent's tools
+ *   (Bash, Read, Write, Edit, Glob, Grep). File-writing tools
+ *   call `ctx.setArtifact(path, content)` so artifacts surface
+ *   on `HarnessRun.artifacts`.
+ * - `criterionJudge(name, text)` — single-criterion LLM judge
+ *   built on upstream `namedJudge`.
+ * - `createWorkspace(skillRoot, slug?)` — per-test tempdir
+ *   helper that optionally seeds from
+ *   `evals/fixtures/<slug>/` and registers cleanup via vitest's
+ *   `onTestFinished`.
  */
 
 export {
@@ -34,10 +39,18 @@ export {
   type ToolCallRecord,
 } from "vitest-evals";
 
+export {
+  piAiHarness,
+  type PiAiRuntime,
+  type PiAiToolDefinition,
+  type PiAiToolset,
+} from "@vitest-evals/harness-pi-ai";
+
 export { criterionJudge } from "./evals/criterion-judge.js";
 export { createWorkspace } from "./evals/with-workspace.js";
 export {
-  skilletHarness,
-  type SkilletHarnessOptions,
-  type SkilletHarnessMetadata,
-} from "./harness/index.js";
+  skilletAgent,
+  type SkilletAgent,
+  type SkilletAgentOptions,
+} from "./evals/skillet-agent.js";
+export { skilletTools, type SkilletToolsOptions } from "./evals/skillet-tools.js";

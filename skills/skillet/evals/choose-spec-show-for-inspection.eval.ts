@@ -9,10 +9,12 @@ import { dirname } from "node:path";
 import { expect } from "vitest";
 import {
   describeEval,
-  skilletHarness,
+  piAiHarness,
+  skilletAgent,
+  skilletTools,
 } from "@sentry/skillet/evals";
 import {
-  DoesNotRecommendApiKeySetupJudge,
+  DoesNotMentionApiKeysJudge,
   DoesNotRecommendValidateJudge,
   RecommendsSpecShowJudge,
 } from "./_judges.js";
@@ -21,17 +23,23 @@ const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, ""
 
 describeEval(
   "choose-spec-show-for-inspection",
-  { harness: skilletHarness({ skill: skillRoot }), judgeThreshold: 0.75 },
+  {
+    harness: piAiHarness({
+      createAgent: () => skilletAgent({ skillRoot }),
+      tools: skilletTools({ skillRoot }),
+    }),
+    judgeThreshold: 0.75,
+  },
   (it) => {
     it(
-      "choose-spec-show-for-inspection__read-current-spec",
+      "choose-spec-show-for-inspection__read-only-view",
       { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("I just want to read the current spec for my skill to see what's in it — I'm not changing anything. What command should I run?");
+        const result = await run("I just want to look at my skill's current spec to see what's in it — I'm not changing anything yet. What command should I run?");
 
         await expect(result).toSatisfyJudge(RecommendsSpecShowJudge);
         await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
-        await expect(result).toSatisfyJudge(DoesNotRecommendApiKeySetupJudge);
+        await expect(result).toSatisfyJudge(DoesNotMentionApiKeysJudge);
       },
     );
   },

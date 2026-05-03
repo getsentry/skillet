@@ -9,7 +9,9 @@ import { dirname } from "node:path";
 import { expect } from "vitest";
 import {
   describeEval,
-  skilletHarness,
+  piAiHarness,
+  skilletAgent,
+  skilletTools,
 } from "@sentry/skillet/evals";
 import {
   DoesNotRecommendUnscopedPackageJudge,
@@ -20,13 +22,19 @@ const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, ""
 
 describeEval(
   "scope-package-name",
-  { harness: skilletHarness({ skill: skillRoot }), judgeThreshold: 0.75 },
+  {
+    harness: piAiHarness({
+      createAgent: () => skilletAgent({ skillRoot }),
+      tools: skilletTools({ skillRoot }),
+    }),
+    judgeThreshold: 0.75,
+  },
   (it) => {
     it(
       "scope-package-name__how-to-run",
       { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("How do I run skillet to evaluate my skill? Give me the exact command.");
+        const result = await run("How do I run skillet to regenerate my skill?");
 
         await expect(result).toSatisfyJudge(RecommendsScopedPackageJudge);
         await expect(result).toSatisfyJudge(DoesNotRecommendUnscopedPackageJudge);

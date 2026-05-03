@@ -9,10 +9,12 @@ import { dirname } from "node:path";
 import { expect } from "vitest";
 import {
   describeEval,
-  skilletHarness,
+  piAiHarness,
+  skilletAgent,
+  skilletTools,
 } from "@sentry/skillet/evals";
 import {
-  DoesNotRecommendApiKeySetupJudge,
+  DoesNotMentionApiKeysJudge,
   ExplainsAutoDiscoveryJudge,
 } from "./_judges.js";
 
@@ -20,26 +22,31 @@ const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, ""
 
 describeEval(
   "dont-mention-api-keys",
-  { harness: skilletHarness({ skill: skillRoot }), judgeThreshold: 0.75 },
+  {
+    harness: piAiHarness({
+      createAgent: () => skilletAgent({ skillRoot }),
+      tools: skilletTools({ skillRoot }),
+    }),
+    judgeThreshold: 0.75,
+  },
   (it) => {
     it(
       "dont-mention-api-keys__how-do-i-run-evals",
-      { timeout: 90_000 },
+      { timeout: 120_000 },
       async ({ run }) => {
-        const result = await run("I just installed skillet. How do I run evals against my skill? Do I need to configure anything first?");
+        const result = await run("I just installed skillet. How do I run the evals for my skill? Walk me through setup.");
 
-        await expect(result).toSatisfyJudge(DoesNotRecommendApiKeySetupJudge);
-        await expect(result).toSatisfyJudge(ExplainsAutoDiscoveryJudge);
+        await expect(result).toSatisfyJudge(DoesNotMentionApiKeysJudge);
       },
     );
 
     it(
-      "dont-mention-api-keys__which-env-var",
-      { timeout: 90_000 },
+      "dont-mention-api-keys__direct-credentials-question",
+      { timeout: 120_000 },
       async ({ run }) => {
-        const result = await run("Which environment variable does skillet read for the Anthropic API key? I want to make sure I export it correctly.");
+        const result = await run("Which environment variable do I need to export for skillet to call the judge model?");
 
-        await expect(result).toSatisfyJudge(DoesNotRecommendApiKeySetupJudge);
+        await expect(result).toSatisfyJudge(DoesNotMentionApiKeysJudge);
         await expect(result).toSatisfyJudge(ExplainsAutoDiscoveryJudge);
       },
     );

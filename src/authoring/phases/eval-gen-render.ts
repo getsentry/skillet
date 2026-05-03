@@ -295,7 +295,7 @@ const buildEntryImports = (plan: ConsolidatedPlan, referencedJudges: string[]): 
   const usesToolCalls = plan.cases.some((c) => c.assertions.some((a) => a.kind === "tool-calls"));
   const usesWorkspace = plan.cases.some((c) => c.fixtureSlug != null && c.fixtureSlug !== "");
 
-  const skilletNamed: string[] = ["describeEval", "skilletHarness"];
+  const skilletNamed: string[] = ["describeEval", "piAiHarness", "skilletAgent", "skilletTools"];
   if (usesToolCalls) skilletNamed.push("toolCalls");
   if (usesWorkspace) skilletNamed.push("createWorkspace");
   skilletNamed.sort();
@@ -319,10 +319,17 @@ const renderDescribeEval = (
   cases: ConsolidatedCasePlan[],
   indent: string,
 ): string => {
+  const inner = indent + indent;
   const lines: string[] = [];
   lines.push(`describeEval(`);
   lines.push(`${indent}${JSON.stringify(entryId)},`);
-  lines.push(`${indent}{ harness: skilletHarness({ skill: skillRoot }), judgeThreshold: 0.75 },`);
+  lines.push(`${indent}{`);
+  lines.push(`${inner}harness: piAiHarness({`);
+  lines.push(`${inner}${indent}createAgent: () => skilletAgent({ skillRoot }),`);
+  lines.push(`${inner}${indent}tools: skilletTools({ skillRoot }),`);
+  lines.push(`${inner}}),`);
+  lines.push(`${inner}judgeThreshold: 0.75,`);
+  lines.push(`${indent}},`);
   lines.push(`${indent}(it) => {`);
   cases.forEach((c, i) => {
     if (i > 0) lines.push("");
@@ -339,12 +346,14 @@ const renderCase = (c: ConsolidatedCasePlan, indent: string): string[] => {
 
   const usesFixture = c.fixtureSlug != null && c.fixtureSlug !== "";
 
+  // LLM agents typically take 10-60s per case. Default to 120s
+  // so we don't hit vitest's 5s default; the LLM can override
+  // upward via plan.timeout when a case needs more.
+  const timeout = c.timeout ?? 120_000;
   const header: string[] = [];
   header.push(`${indent}it(`);
   header.push(`${inner}${JSON.stringify(c.name)},`);
-  if (c.timeout != null) {
-    header.push(`${inner}{ timeout: ${formatNumber(c.timeout)} },`);
-  }
+  header.push(`${inner}{ timeout: ${formatNumber(timeout)} },`);
   header.push(`${inner}async ({ run }) => {`);
 
   const block: string[] = [];
