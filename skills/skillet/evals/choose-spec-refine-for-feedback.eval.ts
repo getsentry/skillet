@@ -12,7 +12,7 @@ import {
   skilletHarness,
 } from "@sentry/skillet/evals";
 import {
-  DoesNotRecommendHandEditingDerivedFilesJudge,
+  DoesNotRecommendHandEditingSkillMdJudge,
   DoesNotRecommendValidateJudge,
   RecommendsSpecRefineJudge,
 } from "./_judges.js";
@@ -21,17 +21,16 @@ const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, ""
 
 describeEval(
   "choose-spec-refine-for-feedback",
-  { harness: skilletHarness({ skill: skillRoot }) },
+  { harness: skilletHarness({ skill: skillRoot }), judgeThreshold: 0.75 },
   (it) => {
     it(
       "choose-spec-refine-for-feedback__tone-change",
       { timeout: 90_000 },
-      async ({ run, behavior }) => {
-        behavior("choose-spec-refine-for-feedback");
-        const result = await run("I want my skill to be more concise and stop using bullet lists everywhere. How do I make that change?");
+      async ({ run }) => {
+        const result = await run("I want my skill to be more concise and avoid hedging language. How do I make that change?");
 
         await expect(result).toSatisfyJudge(RecommendsSpecRefineJudge);
-        await expect(result).toSatisfyJudge(DoesNotRecommendHandEditingDerivedFilesJudge);
+        await expect(result).toSatisfyJudge(DoesNotRecommendHandEditingSkillMdJudge);
         await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
       },
     );

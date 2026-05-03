@@ -14,25 +14,24 @@ import {
 import {
   DoesNotRecommendApiKeySetupJudge,
   DoesNotRecommendValidateJudge,
-  RecommendsCreateCommandJudge,
+  RecommendsSkilletCreateJudge,
 } from "./_judges.js";
 
 const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, "");
 
 describeEval(
   "choose-create-for-new-skills",
-  { harness: skilletHarness({ skill: skillRoot }) },
+  { harness: skilletHarness({ skill: skillRoot }), judgeThreshold: 0.75 },
   (it) => {
     it(
-      "choose-create-for-new-skills__yaml-linter",
+      "choose-create-for-new-skills__pdf-extractor",
       { timeout: 90_000 },
-      async ({ run, behavior }) => {
-        behavior("choose-create-for-new-skills");
-        const result = await run("I want to make a skill that lints YAML files for common mistakes. How do I get started with skillet?");
+      async ({ run }) => {
+        const result = await run("I want to make a skill that extracts tables from PDF files. How do I get started with skillet?");
 
-        await expect(result).toSatisfyJudge(RecommendsCreateCommandJudge);
-        await expect(result).toSatisfyJudge(DoesNotRecommendApiKeySetupJudge);
+        await expect(result).toSatisfyJudge(RecommendsSkilletCreateJudge);
         await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
+        await expect(result).toSatisfyJudge(DoesNotRecommendApiKeySetupJudge);
       },
     );
   },

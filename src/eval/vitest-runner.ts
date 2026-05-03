@@ -60,9 +60,10 @@ interface VitestAssertionMeta {
     };
   };
   /**
-   * Channel populated by the `toSatisfyJudge` matcher: one entry
-   * per named judge invocation in the test body. Score is 0..1;
-   * rationale and grade come from the LLM judge's response.
+   * Channel populated by upstream's `toSatisfyJudge` matcher and our
+   * own `criterionJudge`: one entry per named judge invocation in the
+   * test body. Score is 0..1; rationale and grade come from the LLM
+   * judge's response.
    */
   judges?: Array<{
     name?: string;
@@ -70,12 +71,17 @@ interface VitestAssertionMeta {
     rationale?: string;
     grade?: string;
   }>;
-  tests_behavior?: string;
 }
 
 interface VitestAssertionResult {
   fullName: string;
   title: string;
+  /**
+   * Outer-most-first suite names. For skillet evals the first entry
+   * is the `describeEval(<id>)` suite name, which doubles as the
+   * spec entry id (`tests_behavior`).
+   */
+  ancestorTitles?: string[];
   status: "passed" | "failed" | "pending" | "skipped" | "todo";
   duration?: number;
   failureMessages?: string[];
@@ -359,8 +365,12 @@ const assertionToCaseResult = (
     errors,
   };
   if (judge != null) result.judge = judge;
-  if (typeof meta.tests_behavior === "string") {
-    result.tests_behavior = meta.tests_behavior;
+  // Suite name is the `describeEval(<id>)` arg; for skillet-generated
+  // evals that id IS the spec entry id, so mapping back to coverage
+  // doesn't need a runtime side-channel.
+  const suiteName = assertion.ancestorTitles?.[0];
+  if (typeof suiteName === "string" && suiteName !== "") {
+    result.tests_behavior = suiteName;
   }
   return result;
 };

@@ -20,14 +20,24 @@ const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, ""
 
 describeEval(
   "dont-mention-api-keys",
-  { harness: skilletHarness({ skill: skillRoot }) },
+  { harness: skilletHarness({ skill: skillRoot }), judgeThreshold: 0.75 },
   (it) => {
     it(
-      "dont-mention-api-keys__how-do-i-configure-provider",
+      "dont-mention-api-keys__how-do-i-run-evals",
       { timeout: 90_000 },
-      async ({ run, behavior }) => {
-        behavior("dont-mention-api-keys");
-        const result = await run("I just installed skillet and want to run my first eval. How do I configure the LLM provider so the judge calls work?");
+      async ({ run }) => {
+        const result = await run("I just installed skillet. How do I run evals against my skill? Do I need to configure anything first?");
+
+        await expect(result).toSatisfyJudge(DoesNotRecommendApiKeySetupJudge);
+        await expect(result).toSatisfyJudge(ExplainsAutoDiscoveryJudge);
+      },
+    );
+
+    it(
+      "dont-mention-api-keys__which-env-var",
+      { timeout: 90_000 },
+      async ({ run }) => {
+        const result = await run("Which environment variable does skillet read for the Anthropic API key? I want to make sure I export it correctly.");
 
         await expect(result).toSatisfyJudge(DoesNotRecommendApiKeySetupJudge);
         await expect(result).toSatisfyJudge(ExplainsAutoDiscoveryJudge);

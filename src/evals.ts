@@ -1,35 +1,43 @@
 /**
  * Public surface for generated `.eval.ts` files.
  *
- * Generated files import from `@sentry/skillet/evals` and pick up:
- * - `describeEval`, `judge`, `toolCalls` — harness-first eval API
- *   from the local mini-lib (`src/vitest-evals/`) until upstream
- *   vitest-evals ships the equivalent, then from the published
- *   package
- * - `skilletHarness` — wraps skillet's agent loop
- * - The `toSatisfyJudge` matcher (registered on `expect` at import)
+ * Generated files import everything they need from
+ * `@sentry/skillet/evals`. The barrel re-exports the upstream
+ * `vitest-evals` API verbatim and adds three skillet-specific
+ * helpers:
+ *
+ * - `criterionJudge(name, text)` — single-criterion LLM-as-judge
+ *   built on upstream's `namedJudge`.
+ * - `createWorkspace(skillRoot, slug?)` — per-test tempdir helper;
+ *   optionally seeds from `evals/fixtures/<slug>/` and registers
+ *   cleanup via vitest's `onTestFinished`.
+ * - `skilletHarness({ skill })` — the `Harness` adapter that
+ *   runs skillet's agent loop.
  */
 
-export { describeEval, judge, toolCalls } from "./vitest-evals/index.js";
+export {
+  describeEval,
+  namedJudge,
+  toolCalls,
+  type BaseJudgeOptions,
+  type DescribeEvalOptions,
+  type Harness,
+  type HarnessContext,
+  type HarnessMetadata,
+  type HarnessRun,
+  type JsonValue,
+  type JudgeContext,
+  type JudgeFn,
+  type JudgeResult,
+  type NormalizedMessage,
+  type NormalizedSession,
+  type ToolCallRecord,
+} from "vitest-evals";
 
-export type {
-  BareDescribeEvalOptions,
-  EvalIt,
-  EvalSuiteBody,
-  EvalTestContext,
-  FixtureHarness,
-  Harness,
-  HarnessCase,
-  HarnessContext,
-  HarnessRun,
-  JsonValue,
-  JudgeBodyResult,
-  JudgeContext,
-  NamedJudgeFn,
-  NormalizedMessage,
-  NormalizedSession,
-  ToolCallRecord,
-  ToSatisfyJudgeOptions,
-} from "./vitest-evals/index.js";
-
-export { skilletHarness, type SkilletHarnessOptions } from "./harness/index.js";
+export { criterionJudge } from "./evals/criterion-judge.js";
+export { createWorkspace } from "./evals/with-workspace.js";
+export {
+  skilletHarness,
+  type SkilletHarnessOptions,
+  type SkilletHarnessMetadata,
+} from "./harness/index.js";

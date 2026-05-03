@@ -33,11 +33,11 @@ one of three first-class shapes:
 3. **Named LLM-rubric judges.**
    When the deliverable is free-form text reasoning (an
    explanation, a code review, a refusal), declare narrow named
-   judges with \`judge("Name", async ({ criterion }) => criterion("…"))\`
-   and assert with \`await expect(result).toSatisfyJudge(NameJudge)\`.
-   Each judge tests **one property**. Multiple judges per case
-   is the normal shape — split assertions across several
-   single-property judges, not one paragraph-long rubric.
+   judges with \`criterionJudge("Name", "…rubric…")\` and assert with
+   \`await expect(result).toSatisfyJudge(NameJudge)\`. Each judge
+   tests **one property**. Multiple judges per case is the normal
+   shape — split assertions across several single-property
+   judges, not one paragraph-long rubric.
 
 ### Banned
 
@@ -171,11 +171,14 @@ field — a map from relative workspace path to file content:
 
 Skillet writes those files under
 \`evals/fixtures/<case-name>/\` at consolidation time, and the
-generated test calls \`await harness.useFixture(<case-name>)\` to
-copy the tree into the per-test workspace. The fixture lives as
-real files on disk — readable, editable normally.
+generated test calls
+\`const cwd = createWorkspace(skillRoot, "<case-name>")\` (skillet's
+helper that copies the tree into a tempdir and registers cleanup
+with vitest's \`onTestFinished\`) followed by
+\`await run(input, { metadata: { cwd } })\`. The fixture lives
+as real files on disk — readable, editable normally.
 
-Do NOT use the legacy \`setup\` field (a single shell script)
-unless you genuinely need shell logic beyond writing files. The
-\`fixture\` map covers the overwhelming common case.
+There is no \`setup\` shell-script field. If you need shell-side
+preparation, prefer writing the resulting files into the
+\`fixture\` map directly.
 `;

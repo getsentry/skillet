@@ -20,13 +20,13 @@ const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, ""
 
 describeEval(
   "choose-verify-for-checking",
-  { harness: skilletHarness({ skill: skillRoot }) },
+  { harness: skilletHarness({ skill: skillRoot }), judgeThreshold: 0.75 },
   (it) => {
     it(
-      "choose-verify-for-checking__basic-ask",
-      async ({ run, behavior }) => {
-        behavior("choose-verify-for-checking");
-        const result = await run("I want to check that my skill is internally consistent — coverage, structure, all that. What command should I run?");
+      "choose-verify-for-checking__consistency-check",
+      { timeout: 90_000 },
+      async ({ run }) => {
+        const result = await run("I want to check that my skill is internally consistent — spec, evals, and SKILL.md all line up. What command should I run?");
 
         await expect(result).toSatisfyJudge(RecommendsVerifyJudge);
         await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);

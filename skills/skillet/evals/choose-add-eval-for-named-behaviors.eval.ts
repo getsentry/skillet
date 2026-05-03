@@ -12,8 +12,7 @@ import {
   skilletHarness,
 } from "@sentry/skillet/evals";
 import {
-  DoesNotRecommendApiKeySetupJudge,
-  DoesNotRecommendHandEditingDerivedFilesJudge,
+  DoesNotRecommendHandEditingSkillMdJudge,
   DoesNotRecommendValidateJudge,
   RecommendsAddEvalCommandJudge,
 } from "./_judges.js";
@@ -22,31 +21,28 @@ const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, ""
 
 describeEval(
   "choose-add-eval-for-named-behaviors",
-  { harness: skilletHarness({ skill: skillRoot }) },
+  { harness: skilletHarness({ skill: skillRoot }), judgeThreshold: 0.75 },
   (it) => {
     it(
       "choose-add-eval-for-named-behaviors__single-behavior",
       { timeout: 90_000 },
-      async ({ run, behavior }) => {
-        behavior("choose-add-eval-for-named-behaviors");
-        const result = await run("I want to add an eval case for the 'rejects-empty-input' behavior in my skill. How do I do that?");
+      async ({ run }) => {
+        const result = await run("I want to add an eval case for the behavior 'rejects empty input gracefully' in my skill. How do I do that?");
 
         await expect(result).toSatisfyJudge(RecommendsAddEvalCommandJudge);
-        await expect(result).toSatisfyJudge(DoesNotRecommendHandEditingDerivedFilesJudge);
         await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
+        await expect(result).toSatisfyJudge(DoesNotRecommendHandEditingSkillMdJudge);
       },
     );
 
     it(
       "choose-add-eval-for-named-behaviors__multiple-behaviors",
       { timeout: 90_000 },
-      async ({ run, behavior }) => {
-        behavior("choose-add-eval-for-named-behaviors");
-        const result = await run("Can you help me add eval cases for two behaviors: 'handles-unicode-input' and 'preserves-whitespace'?");
+      async ({ run }) => {
+        const result = await run("Can you help me add eval cases for two behaviors: 'handles unicode filenames' and 'preserves trailing newlines'?");
 
         await expect(result).toSatisfyJudge(RecommendsAddEvalCommandJudge);
-        await expect(result).toSatisfyJudge(DoesNotRecommendApiKeySetupJudge);
-        await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
+        await expect(result).toSatisfyJudge(DoesNotRecommendHandEditingSkillMdJudge);
       },
     );
   },

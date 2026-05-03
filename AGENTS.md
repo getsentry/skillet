@@ -75,7 +75,7 @@ see `policies/skill-creation-lifecycle.md`.
 - `src/agent/` owns LLM call lifecycle (queue, backoff, tool-loop). Phases and commands submit jobs through `submitAiJob`; they do not call pi-ai's `complete` directly.
 - `src/authoring/phases/` are the spec-author / eval-gen / skill-gen / skill-improve / spec-refine / reference-gen phases. Each phase is one file. Each LLM call in a phase is wrapped in `submitAiJob` with a name like `<phase>:<key>`.
 - `src/spec/` is the source-of-truth schema and parser/validator. Patches go through `applyPatch` / `applyPatches` in `patcher.ts`; the parser and structural validator are independent so spec edits round-trip cleanly.
-- `src/vitest-evals/` is the local mini-lib mirroring vitest-evals#41 (harness-first describeEval, judge factory, toSatisfyJudge matcher). Replaceable by the upstream package once it ships; the import path `@sentry/skillet/evals` is the contract.
+- `src/evals.ts` is the public entry for generated `.eval.ts` files. It re-exports upstream `vitest-evals` (`describeEval`, `toSatisfyJudge`, `Harness*`, …) and adds three skillet-specific helpers: `criterionJudge(name, text)`, `createWorkspace(skillRoot, slug?)`, and `skilletHarness({ skill })`. The import path `@sentry/skillet/evals` is the contract.
 - `src/eval/vitest-runner.ts` is the only place that spawns vitest. The custom YAML runner is gone.
 - `src/cli.ts` parses global flags (queue config, --verbose) and dispatches to `src/commands/*`. Each command exports its `*_USAGE` constant; the dispatcher routes `--help`/`-h` to print usage before invoking the command body.
 - Use `openspec/specs/<capability>/spec.md` as the canonical capability description; change deltas live under `openspec/changes/`. Don't duplicate spec content into AGENTS.md.

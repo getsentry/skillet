@@ -2,125 +2,114 @@
 name: skillet
 description: >
   Create, evaluate, and improve agent skills using the skillet CLI.
-  Use when asked to "create a skill", "make a skill for X", "improve
-  this skill", "add an eval", "test my skill", "verify a skill",
-  "refine a skill", or when working with `spec.yaml`, `SKILL.md`, or
-  eval files.
+  Skillet is spec-driven: spec.yaml captures intent, SKILL.md is
+  regenerated from it, and eval files are generated once then edited
+  directly. Use when asked to "create a skill", "make a skill for X",
+  "improve this skill", "add an eval", "test my skill", "verify a
+  skill", "refine a skill", "working with spec.yaml", "working with
+  SKILL.md", or "working with eval files".
 ---
 
-# Skillet
+<!--
+  Generated from spec.yaml. The behavior set, must-nots, and
+  triggers live in spec.yaml — edit there. `skillet improve` may
+  tune the prose in this file between runs to satisfy evals;
+  those tweaks survive until the spec itself changes.
+-->
 
-Skillet is a spec-driven CLI for authoring agent skills. The source
-of truth for every skill is `spec.yaml` — a structured file capturing
-intent, behaviors, must-nots, and triggers. SKILL.md and eval files
-are derived from the spec; iteration patches the spec rather than
-the prose.
+## Use `skillet create` for new skills
 
-Run via `npx @sentry/skillet <command>`. Credentials are auto-discovered —
-never prompt the user for API keys.
+When the user wants to start a new skill from a description, recommend
+`npx @sentry/skillet create`. This single command runs spec init, regen,
+and the improve loop together, so it's the right entry point for any
+"I want a skill for X" request. Don't break it into separate steps the
+user has to chain manually.
 
-## Choosing the right command
+## Use `skillet improve` for existing skills
 
-| User goal | Command |
-|-----------|---------|
-| Start a new skill from a description | `skillet create "<description>"` |
-| Make an existing skill pass evals | `skillet improve [path]` |
-| View the current spec | `skillet spec show [path]` |
-| Edit the spec via natural-language feedback | `skillet spec refine "<feedback>" [path]` |
-| Migrate a legacy SKILL.md into a spec | `skillet spec import [path]` |
-| Generate a spec without iterating | `skillet spec init "<description>"` |
-| Add one or more behaviors as evals | `skillet add-eval [path] "<behavior>"` |
-| Check spec/SKILL.md/evals agree | `skillet verify [path] [--semantic]` |
-| Run evals once | `skillet eval [path] [--json]` |
-| Install skillet's skill into your agent | `skillet install [path]` |
+When the user has an existing skill — with or without a spec.yaml —
+recommend `npx @sentry/skillet improve`. The improve loop auto-imports
+a legacy SKILL.md into a spec on first run, then iterates through the
+verify-driven feedback loop. Don't tell the user to run `spec import`
+themselves; that step is handled inside `improve`.
 
-## Capturing intent before generation
+## Use `skillet spec show` for read-only inspection
 
-When a user asks for a new skill or wants to improve an existing one,
-do not jump straight to `skillet create` or `skillet improve` with a
-one-line description. Skillet's spec-init phase is single-turn — it
-takes whatever description it receives and emits a spec immediately.
-The richer the input, the better the spec.
+When the user wants to read the current spec without changing anything,
+recommend `npx @sentry/skillet spec show`. It prints the parsed spec
+with the banner stripped and makes no edits.
 
-Before invoking the CLI, gather the high-value information by asking
-the user:
+## Use `skillet spec refine` for natural-language feedback
 
-| Ask | Because |
-|-----|---------|
-| What are the 3-5 most important things this skill must do correctly? | Becomes the initial `behaviors[]` |
-| Show me one realistic prompt and what good output looks like. | Grounds eval cases in real expectations |
-| What should this skill NOT do? Common mistakes to flag? | Becomes `must_not[]` entries (negative cases) |
-| What phrases would users say to trigger this? | Becomes `triggers.should[]` |
-| What near-miss phrases should NOT trigger it? | Becomes `triggers.should_not[]` |
+When the user wants to change a skill by describing the change in their
+own words, recommend `npx @sentry/skillet spec refine "<feedback>"`.
+Refine turns the feedback into structured SpecPatch operations, applies
+them, and regenerates SKILL.md automatically — the user doesn't need
+to know the patch format.
 
-Combine the answers into a single rich description and pass it to
-`skillet create "<combined description>"` (or `skillet spec init`
-if the user wants to inspect the spec before iterating).
+## Use `skillet add-eval` for named behaviors
 
-For an existing skill the user wants to improve, ask the equivalent
-questions (what behaviors are they unsure about? what's the worst
-recent failure?) and translate them into `skillet spec refine` calls
-or `skillet add-eval` invocations targeting specific gaps.
+When the user wants to add one or more named behaviors as eval cases,
+recommend `npx @sentry/skillet add-eval "<behavior>"`. It's a wrapper
+over `spec refine` that auto-imports legacy skills, appends the named
+behaviors to the spec, and regens — so the new eval cases stay aligned
+with the spec's behavior set.
 
-## The spec-driven loop
+## Use `skillet verify` to check consistency
 
-`skillet improve` runs:
+When the user wants to check that a skill is internally consistent,
+recommend `npx @sentry/skillet verify` — not `validate`. The old
+`validate` command was removed; `verify` runs four layers (structural,
+coverage, results, semantic) and already covers the per-file checks
+`validate` used to do.
 
-1. Establish the spec (load existing, or auto-import from a legacy
-   SKILL.md if no `spec.yaml` exists).
-2. Regenerate `SKILL.md` and `evals/*.eval.ts` from the spec.
-3. Verify coverage — every behavior has at least one eval case.
-4. Run the evals.
-5. Verify per-behavior results — every behavior has a passing case.
-6. If anything failed, the assessor produces structured patches
-   (`update_behavior`, `update_eval`, `add_behavior`, etc.) and the
-   spec is updated. Loop back to step 2.
-7. Terminate when verification is green or max iterations hits.
+## Always invoke skillet under the `@sentry` scope
 
-Termination is conditioned on per-behavior verification, not raw
-eval pass/fail counts. A skill where all eval cases pass but some
-behavior has no case is NOT considered done — the loop catches that.
+Use `npx @sentry/skillet ...`, not `npx skillet ...`. The package is
+published under the `@sentry` scope; the unscoped name resolves to a
+different package or fails outright.
 
-## What "spec is the source of truth" means in practice
+## Capture intent before invoking the CLI
 
-- `spec.yaml` opens with a banner saying "do not edit by hand".
-  Tell the user the same thing if they ask: spec changes flow through
-  `skillet spec refine` (LLM-assisted), `skillet add-eval` (one
-  behavior at a time), or `skillet spec import` (one-time migration).
-- `SKILL.md` carries a derived-file banner. Hand edits to it are
-  wiped on the next regen. If the user has edited SKILL.md by hand,
-  suggest `skillet spec refine` to push the change into the spec.
-- `evals/*.eval.ts` are generated initially but durable after that.
-  Direct edits there are fine for refining specific test shapes
-  (prompts, setup, assertions). For behavior-set changes (adding or
-  removing rules), update spec.yaml so coverage stays in sync.
-- Every behavior has a kebab-case ID (e.g. `flag-n-plus-one`). Eval
-  cases are named `<id>__<slug>` and tagged `tests_behavior: <id>`.
-  Verification uses these as join keys.
+When the user asks for a new skill or wants to add evals, ask 3-5
+questions before running anything:
 
-## Verify before claiming done
+- What are the most important behaviors the skill must enforce?
+- What's a realistic prompt and the expected output for it?
+- What common mistakes should the skill prevent?
+- What trigger phrases would users actually say to invoke it?
 
-Run `skillet verify` after any spec change. Layer 1 (structural)
-catches malformed YAML. Layer 2 catches missing eval coverage and
-orphan cases. Layer 3 (when run results are available) catches
-behaviors with only failing or skipped cases. Layer 4 (`--semantic`,
-opt-in, costs an LLM call) catches SKILL.md that fails to encode a
-behavior the spec lists.
+Skillet's spec-init phase is single-turn — it generates a spec from
+whatever description it receives. A rich, structured description from
+this short interview yields a far better starting spec than passing
+along a bare "make a skill for X". Combine the answers into one
+description and pass that to `skillet create` (or `add-eval`).
 
-`skillet improve` runs layers 1-3 in the loop, so a successful
-improve invocation guarantees the same coverage `verify` would
-report. The standalone `verify` command is for CI, manual checks,
-or running `--semantic` after a long iteration.
+## Explain what's derived vs. durable
 
-## Rules
+When the user asks about editing SKILL.md, explain that SKILL.md is
+derived from spec.yaml and gets clobbered on every regen — so prose
+hand-edits are wiped. Behavioral changes (adding, removing, or
+rewording rules) flow through `skillet spec refine` so SKILL.md and
+eval coverage stay in sync.
 
-- Always use the `@sentry/` scope: `npx @sentry/skillet`, not `npx skillet`.
-- Never mention API keys or environment variables to the user — credentials
-  are auto-discovered.
-- Don't tell the user to hand-edit `SKILL.md` — it gets clobbered
-  on every regen. Direct them to `skillet spec refine` for behavioral
-  changes. Eval files (`evals/*.eval.ts`) are durable and can be
-  edited directly.
-- For an existing skill that has a `SKILL.md` but no `spec.yaml`,
-  `skillet improve` and `skillet add-eval` auto-import — no separate
-  migration step required.
+Eval files (`evals/*.eval.ts`) are different: skillet generates them
+once, after which they're committed to git and edited directly like any
+other test file. Direct edits there are fine and expected for refining
+specific test shapes — only the behavior set itself goes through the
+spec.
+
+## Don't
+
+- Don't tell the user to set API keys or environment variables. Skillet
+  auto-discovers provider credentials; mentioning specific env var
+  names both contradicts the zero-config promise and risks leaking the
+  variable name into the transcript.
+- Don't recommend `skillet validate`. The command was removed; its
+  per-file structural checks now run as layer 1 of `verify`, and
+  invoking `validate` fails with an unknown-command error.
+- Don't tell the user to hand-edit SKILL.md. It's regenerated from
+  spec.yaml on every regen, so changes are clobbered — route behavioral
+  changes through `skillet spec refine`. Eval files are the exception:
+  they're durable after first generation and can be edited directly to
+  refine test shapes.

@@ -1,17 +1,20 @@
 /**
  * Render `AssertionPlan`s to TypeScript using the harness-first
- * `describeEval(name, { harness }, (it) => {...})` callback form.
+ * `describeEval(name, { harness, judgeThreshold }, (raw) => {...})`
+ * callback form on top of upstream `vitest-evals`.
  *
  * Two render entrypoints:
  *
  * - `renderEvalFile(entryId, consolidated, sharedJudges)` — emits
  *   one `.eval.ts` per spec entry. Imports the named judges it
- *   references from `./_judges.js` instead of declaring them
- *   inline; emits `await harness.useFixture(<slug>)` when the
- *   case has a fixture tree on disk.
+ *   references from `./_judges.js`. When a case has a fixture tree
+ *   on disk, the test calls
+ *   `createWorkspace(skillRoot, "<slug>")` and passes the
+ *   resulting cwd to `run()` via `metadata`.
  * - `renderJudgesFile(judges)` — emits the suite-wide
  *   `_judges.ts` containing the canonical set of judges, one
- *   `export const FooJudge = judge(...)` per entry.
+ *   `export const FooJudge = criterionJudge("FooJudge", "...")`
+ *   per entry.
  *
  * Plus `validatePlan(entryId, plan)` — runs the renderer's
  * contract checks against an `AssertionPlan` *before*
@@ -290,9 +293,11 @@ const collectReferencedJudges = (plan: ConsolidatedPlan): string[] => {
 
 const buildEntryImports = (plan: ConsolidatedPlan, referencedJudges: string[]): string => {
   const usesToolCalls = plan.cases.some((c) => c.assertions.some((a) => a.kind === "tool-calls"));
+  const usesWorkspace = plan.cases.some((c) => c.fixtureSlug != null && c.fixtureSlug !== "");
 
   const skilletNamed: string[] = ["describeEval", "skilletHarness"];
   if (usesToolCalls) skilletNamed.push("toolCalls");
+  if (usesWorkspace) skilletNamed.push("createWorkspace");
   skilletNamed.sort();
 
   const lines: string[] = [
@@ -317,7 +322,7 @@ const renderDescribeEval = (
   const lines: string[] = [];
   lines.push(`describeEval(`);
   lines.push(`${indent}${JSON.stringify(entryId)},`);
-  lines.push(`${indent}{ harness: skilletHarness({ skill: skillRoot }) },`);
+  lines.push(`${indent}{ harness: skilletHarness({ skill: skillRoot }), judgeThreshold: 0.75 },`);
   lines.push(`${indent}(it) => {`);
   cases.forEach((c, i) => {
     if (i > 0) lines.push("");
@@ -333,7 +338,6 @@ const renderCase = (c: ConsolidatedCasePlan, indent: string): string[] => {
   const body = inner + "  ";
 
   const usesFixture = c.fixtureSlug != null && c.fixtureSlug !== "";
-  const fixtureFields = usesFixture ? "{ run, behavior, harness }" : "{ run, behavior }";
 
   const header: string[] = [];
   header.push(`${indent}it(`);
@@ -341,14 +345,17 @@ const renderCase = (c: ConsolidatedCasePlan, indent: string): string[] => {
   if (c.timeout != null) {
     header.push(`${inner}{ timeout: ${formatNumber(c.timeout)} },`);
   }
-  header.push(`${inner}async (${fixtureFields}) => {`);
+  header.push(`${inner}async ({ run }) => {`);
 
   const block: string[] = [];
-  block.push(`${body}behavior(${JSON.stringify(c.tests_behavior)});`);
   if (usesFixture) {
-    block.push(`${body}await harness.useFixture(${JSON.stringify(c.fixtureSlug)});`);
+    block.push(`${body}const cwd = createWorkspace(skillRoot, ${JSON.stringify(c.fixtureSlug)});`);
+    block.push(
+      `${body}const result = await run(${JSON.stringify(c.input)}, { metadata: { cwd } });`,
+    );
+  } else {
+    block.push(`${body}const result = await run(${JSON.stringify(c.input)});`);
   }
-  block.push(`${body}const result = await run(${JSON.stringify(c.input)});`);
   block.push("");
 
   const usesToolCalls = c.assertions.some((a) => a.kind === "tool-calls");
@@ -425,13 +432,11 @@ export {};
   const exports = sorted
     .map(
       (j) =>
-        `export const ${j.name} = judge(${JSON.stringify(j.name)}, async ({ criterion }) => {
-  return criterion(${JSON.stringify(j.criterion)});
-});`,
+        `export const ${j.name} = criterionJudge(${JSON.stringify(j.name)}, ${JSON.stringify(j.criterion)});`,
     )
     .join("\n\n");
 
-  return `${JUDGES_TS_BANNER}import { judge } from "@sentry/skillet/evals";
+  return `${JUDGES_TS_BANNER}import { criterionJudge } from "@sentry/skillet/evals";
 
 ${exports}
 `;

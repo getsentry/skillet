@@ -1,30 +1,27 @@
 /**
  * Skillet harness adapter for vitest-evals.
  *
- * `skilletHarness({ skill: "./path" })` returns a `Harness` that
- * runs the agent loop against a loaded skill. Generated
- * `.eval.ts` files use it like:
+ * `skilletHarness({ skill: "./path" })` returns a
+ * `Harness<string, { cwd?: string }>` that runs the agent loop
+ * against a loaded skill. Generated `.eval.ts` files use it like:
  *
  *   describeEval(
  *     "my-skill",
- *     { harness: skilletHarness({ skill: skillRoot }) },
- *     (it) => {
- *       it("...", async ({ run, behavior, harness }) => {
- *         behavior("my-skill");
- *         await harness.useFixture("my-skill__fixture");
- *         const result = await run("audit ...");
+ *     { harness: skilletHarness({ skill: skillRoot }), judgeThreshold: 0.75 },
+ *     (raw) => {
+ *       const it = withWorkspace(raw, { skillRoot });
+ *       it("...", async ({ run, workspace }) => {
+ *         const cwd = await workspace("my-skill__fixture");
+ *         const result = await run("audit ...", { metadata: { cwd } });
  *         await expect(result).toSatisfyJudge(MyJudge);
  *       });
  *     },
  *   );
  *
- * The harness reads `caseData.fixtureSlug` (set by the
- * callback-form fixture wrapper after the test calls
- * `harness.useFixture(slug)`) and copies
- * `<skill-root>/evals/fixtures/<slug>/` into the per-test
- * workspace before the agent runs. A legacy `caseData.setup`
- * shell-script field is still honored for the data-array
- * `describeEval` compat path.
+ * The vitest fixture (`withWorkspace`) creates the tempdir, copies
+ * the seed files in, and registers cleanup. The harness reads
+ * `ctx.metadata.cwd` for that path; if absent it creates its own
+ * empty tempdir (rare — only hand-edits that bypass `workspace`).
  *
  * After the agent runs, the harness captures any text files the
  * agent created or modified and exposes them on
@@ -32,55 +29,44 @@
  * directly (not just the chat transcript).
  */
 
-import { cpSync, existsSync, statSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { Harness, HarnessContext, HarnessRun, JsonValue } from "vitest-evals";
 import { resolveModels } from "../agent/provider.js";
 import { runAgent } from "../agent/loop.js";
 import { loadSkill } from "../skill/loader.js";
-import { createWorkspace } from "../eval/workspace.js";
-import type {
-  Harness,
-  HarnessCase,
-  HarnessContext,
-  HarnessRun,
-  JsonValue,
-} from "../vitest-evals/index.js";
 import { collectChangedArtifacts, snapshotWorkspace } from "./workspace-snapshot.js";
 
 export interface SkilletHarnessOptions {
   /** Path to the skill directory (containing SKILL.md). */
   skill: string;
-  /** Override timeout per case in ms. Default: 120000. */
+  /** Override timeout per case in ms. Default: 180000. */
   defaultTimeout?: number;
 }
 
-/** Per-case fields the harness reads from `caseData`. */
-interface SkilletCase extends HarnessCase<string> {
+/**
+ * Metadata the harness reads from `ctx.metadata`. Documented as a
+ * type alias so callers that pass `{ cwd, artifacts, timeout }` get
+ * checking, while still satisfying the upstream `HarnessMetadata`
+ * constraint structurally.
+ */
+export type SkilletHarnessMetadata = {
   /**
-   * Slug under `<skill-root>/evals/fixtures/<slug>/`. When set, the
-   * harness recursively copies that directory tree into the per-test
-   * workspace before running the agent. Preferred over `setup` for
-   * eval-gen-produced cases.
+   * Absolute path of the workspace directory the agent should run
+   * in. Set by the `workspace(slug?)` factory installed by
+   * `withWorkspace`. When absent, the harness creates an empty
+   * tempdir and cleans it up itself.
    */
-  fixtureSlug?: string;
-  /**
-   * Optional shell setup script run in the workspace before the agent.
-   * Legacy path for hand-authored cases without a fixture tree on
-   * disk; eval-gen produces `fixtureSlug` instead.
-   */
-  setup?: string;
-  /** Per-case timeout override (ms). */
-  timeout?: number;
+  cwd?: string;
   /**
    * Optional explicit list of relative paths to capture as artifacts
    * for the judge. When omitted, the harness captures any text file
-   * the agent created or modified relative to the post-setup state.
+   * the agent created or modified relative to the post-fixture state.
    */
   artifacts?: string[];
-}
-
-const isSkilletCase = (c: HarnessCase): c is SkilletCase => {
-  return typeof c.input === "string";
+  /** Per-case timeout override (ms). */
+  timeout?: number;
 };
 
 /**
@@ -91,28 +77,7 @@ const isSkilletCase = (c: HarnessCase): c is SkilletCase => {
  */
 export const COMPARE_SKILL_ENV = "SKILLET_COMPARE_SKILL";
 
-/**
- * Recursively copy `<skillPath>/evals/fixtures/<slug>/` into the
- * per-test workspace. Throws a clear error when the slug doesn't
- * resolve so authors find typos at test time, not silently.
- */
-const copyFixtureTree = (skillPath: string, slug: string, workspaceDir: string): void => {
-  const root = join(skillPath, "evals", "fixtures", slug);
-  if (!existsSync(root)) {
-    throw new Error(
-      `harness.useFixture("${slug}"): no such fixture (looked under ${root}). Generate or hand-write the fixture tree, or use a different slug.`,
-    );
-  }
-  const stat = statSync(root);
-  if (!stat.isDirectory()) {
-    throw new Error(
-      `harness.useFixture("${slug}"): expected a directory at ${root} but found a file.`,
-    );
-  }
-  cpSync(root, workspaceDir, { recursive: true });
-};
-
-export const skilletHarness = (opts: SkilletHarnessOptions): Harness<string, SkilletCase> => {
+export const skilletHarness = (opts: SkilletHarnessOptions): Harness<string> => {
   const override = process.env[COMPARE_SKILL_ENV];
   const skillPath = override != null && override !== "" ? override : opts.skill;
   const skill = loadSkill(skillPath);
@@ -120,40 +85,36 @@ export const skilletHarness = (opts: SkilletHarnessOptions): Harness<string, Ski
 
   return {
     name: "skillet",
-    run: async (input: string, ctx: HarnessContext<SkilletCase>): Promise<HarnessRun> => {
-      if (!isSkilletCase(ctx.caseData)) {
-        throw new Error("skilletHarness: case input must be a string");
-      }
-      const setup = ctx.caseData.setup;
-      const fixtureSlug = ctx.caseData.fixtureSlug;
-      const timeout = ctx.caseData.timeout ?? defaultTimeout;
-      const explicitArtifacts = ctx.caseData.artifacts;
+    run: async (input: string, ctx: HarnessContext): Promise<HarnessRun> => {
+      const meta = ctx.metadata as SkilletHarnessMetadata;
+      const timeout = meta.timeout ?? defaultTimeout;
+      const explicitArtifacts = meta.artifacts;
 
-      const workspace = createWorkspace(setup != null ? { setup } : undefined);
-
-      // Copy the per-case fixture tree into the workspace AFTER
-      // createWorkspace runs (so any legacy `setup` script ran first
-      // and the workspace dir exists). The fixture tree is a real
-      // directory at `<skillPath>/evals/fixtures/<slug>/`; we
-      // mirror it into `workspace.dir`.
-      if (fixtureSlug != null && fixtureSlug !== "") {
-        copyFixtureTree(skillPath, fixtureSlug, workspace.dir);
+      // Use the workspace cwd from `withWorkspace` when present;
+      // otherwise create a throwaway tempdir for this run.
+      let workspaceDir: string;
+      let ownedTempdir: string | null = null;
+      if (meta.cwd != null && meta.cwd !== "") {
+        workspaceDir = meta.cwd;
+      } else {
+        ownedTempdir = mkdtempSync(join(tmpdir(), "skillet-eval-"));
+        workspaceDir = ownedTempdir;
       }
 
       try {
-        // Snapshot AFTER setup so seeded fixtures aren't counted as
-        // the agent's deltas. Skipped when the case explicitly names
-        // its artifact paths — we already know what to capture.
+        // Snapshot before the agent runs so seeded fixture files
+        // aren't counted as the agent's deltas. Skip when the case
+        // explicitly names artifact paths.
         const baseline =
           explicitArtifacts == null || explicitArtifacts.length === 0
-            ? snapshotWorkspace(workspace.dir)
+            ? snapshotWorkspace(workspaceDir)
             : new Map();
 
         const model = resolveModels().agent;
         const result = await runAgent({
           model,
           skill,
-          workDir: workspace.dir,
+          workDir: workspaceDir,
           turns: [input],
           timeout,
         });
@@ -165,7 +126,7 @@ export const skilletHarness = (opts: SkilletHarnessOptions): Harness<string, Ski
 
         const captureOpts: Parameters<typeof collectChangedArtifacts>[2] = {};
         if (explicitArtifacts != null) captureOpts.explicitPaths = explicitArtifacts;
-        const captured = collectChangedArtifacts(baseline, workspace.dir, captureOpts);
+        const captured = collectChangedArtifacts(baseline, workspaceDir, captureOpts);
 
         const run: HarnessRun = {
           session,
@@ -182,7 +143,9 @@ export const skilletHarness = (opts: SkilletHarnessOptions): Harness<string, Ski
         }
         return run;
       } finally {
-        workspace.cleanup();
+        if (ownedTempdir != null) {
+          rmSync(ownedTempdir, { recursive: true, force: true });
+        }
       }
     },
   };

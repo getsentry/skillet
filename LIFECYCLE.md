@@ -99,7 +99,8 @@ skills/<skill>/
   audit,render,write,edits}` sub-modules)
 - Prompts: `src/authoring/prompts/` (shared contract:
   `_code-eval-contract.ts`)
-- Harness: `src/harness/index.ts`,
-  vitest-evals mirror: `src/vitest-evals/`
+- Harness: `src/harness/index.ts`
+- Public `@sentry/skillet/evals` surface: `src/evals.ts`
+  (re-exports `vitest-evals` + skillet helpers in `src/evals/`)
 - AI queue: `src/agent/queue.ts`
 - Spec parser/patcher: `src/spec/`

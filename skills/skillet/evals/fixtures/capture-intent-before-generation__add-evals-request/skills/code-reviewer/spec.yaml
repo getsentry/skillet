@@ -1,4 +1,0 @@
-name: code-reviewer
-behaviors:
-  - id: flag-bugs
-    statement: Flag obvious bugs in diffs.

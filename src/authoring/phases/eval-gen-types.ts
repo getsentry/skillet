@@ -39,8 +39,10 @@ export interface CasePlan {
   /**
    * Map of relative workspace path → file content. Skillet writes
    * these files under `evals/fixtures/<case-name>/<rel-path>` at
-   * consolidation time and renders the test body with a
-   * `await harness.useFixture(<case-name>)` call.
+   * consolidation time; the rendered test calls
+   * `await workspace(<case-name>)` (from `withWorkspace`) to copy
+   * the tree into a per-test temp dir and passes the cwd via
+   * `run(input, { metadata: { cwd } })`.
    */
   fixture?: Record<string, string>;
   /** Per-case timeout in milliseconds. */
@@ -58,7 +60,7 @@ export interface ConsolidatedCasePlan {
   name: string;
   tests_behavior: string;
   input: string;
-  /** Slug under `evals/fixtures/<slug>/`; rendered as `useFixture(slug)`. */
+  /** Slug under `evals/fixtures/<slug>/`; rendered as `await workspace(slug)`. */
   fixtureSlug?: string;
   timeout?: number;
   assertions: Assertion[];

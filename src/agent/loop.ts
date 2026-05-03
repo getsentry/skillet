@@ -1,7 +1,7 @@
 import type { Context } from "@mariozechner/pi-ai";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-import type { NormalizedMessage } from "../vitest-evals/types.js";
+import type { NormalizedMessage } from "vitest-evals";
 import type { Skill } from "../skill/loader.js";
 import type { AnyModel } from "./provider.js";
 import { submitAiJob } from "./queue.js";

@@ -20,14 +20,13 @@ const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, ""
 
 describeEval(
   "dont-recommend-validate",
-  { harness: skilletHarness({ skill: skillRoot }) },
+  { harness: skilletHarness({ skill: skillRoot }), judgeThreshold: 0.75 },
   (it) => {
     it(
       "dont-recommend-validate__how-to-check-skill",
       { timeout: 90_000 },
-      async ({ run, behavior }) => {
-        behavior("dont-recommend-validate");
-        const result = await run("I just edited my skill spec. How do I check that the skill files are structurally valid before running the full eval suite?");
+      async ({ run }) => {
+        const result = await run("I just edited my skill spec. What command should I run to check that the per-file structure is correct before committing?");
 
         await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
         await expect(result).toSatisfyJudge(RecommendsVerifyJudge);

@@ -71,11 +71,12 @@ Return ONLY a JSON object with two top-level fields:
 }
 \`\`\`
 
-The \`fixture\` map is preferred over a shell \`setup\` script.
-Each entry becomes a real file under
-\`evals/fixtures/<case-name>/<rel-path>\` after consolidation;
-the generated test calls \`harness.useFixture(<case-name>)\` to
-copy the tree into the workspace.
+Each \`fixture\` entry becomes a real file under
+\`evals/fixtures/<case-name>/<rel-path>\` after consolidation; the
+generated test pulls the tree into a per-test temp dir via
+\`const cwd = createWorkspace(skillRoot, "<case-name>")\` and passes
+it to the harness through \`run(input, { metadata: { cwd } })\`. There
+is no shell \`setup\` field.
 
 ## Assertion kinds (only three)
 
@@ -241,9 +242,8 @@ and one for "DID emit the right neutral framing."
    with the skill loaded.
 5. **\`fixture\` is a file map.** Relative paths only — they're
    written to a per-test workspace seeded fresh on every run.
-   Parent directories are auto-created. Both fixture and any
-   legacy \`setup\` are preflighted in a temp workspace before
-   the eval file is written.
+   Parent directories are auto-created. The map is preflighted
+   in a temp workspace before the eval file is written.
 
 ## Must-not awareness
 

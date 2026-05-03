@@ -1,3 +1,3 @@
 # Code Reviewer
 
-Reviews code changes for bugs and style issues.
+Reviews code for bugs and style issues.

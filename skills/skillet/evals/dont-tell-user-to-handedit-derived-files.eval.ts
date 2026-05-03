@@ -12,8 +12,9 @@ import {
   skilletHarness,
 } from "@sentry/skillet/evals";
 import {
-  DistinguishesEvalsAsDurableJudge,
-  DoesNotRecommendHandEditingDerivedFilesJudge,
+  DistinguishesEvalFilesAsDurableJudge,
+  DoesNotRecommendHandEditingSkillMdJudge,
+  IdentifiesSkillMdAsDerivedJudge,
   RecommendsSpecRefineJudge,
 } from "./_judges.js";
 
@@ -21,28 +22,27 @@ const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, ""
 
 describeEval(
   "dont-tell-user-to-handedit-derived-files",
-  { harness: skilletHarness({ skill: skillRoot }) },
+  { harness: skilletHarness({ skill: skillRoot }), judgeThreshold: 0.75 },
   (it) => {
     it(
-      "dont-tell-user-to-handedit-derived-files__tweak-skill-prose",
-      async ({ run, behavior }) => {
-        behavior("dont-tell-user-to-handedit-derived-files");
-        const result = await run("I want to tweak the wording in my skill's SKILL.md so the agent is more cautious when handling secrets. What's the right way to do that?");
+      "dont-tell-user-to-handedit-derived-files__change-skill-instructions",
+      { timeout: 90_000 },
+      async ({ run }) => {
+        const result = await run("I want to change the wording of one of the instructions my skill follows. Should I just open SKILL.md and edit that paragraph directly?");
 
-        await expect(result).toSatisfyJudge(DoesNotRecommendHandEditingDerivedFilesJudge);
+        await expect(result).toSatisfyJudge(DoesNotRecommendHandEditingSkillMdJudge);
         await expect(result).toSatisfyJudge(RecommendsSpecRefineJudge);
+        await expect(result).toSatisfyJudge(IdentifiesSkillMdAsDerivedJudge);
       },
     );
 
     it(
-      "dont-tell-user-to-handedit-derived-files__edit-eval-shape",
-      async ({ run, behavior }) => {
-        behavior("dont-tell-user-to-handedit-derived-files");
-        const result = await run("I want to refine one of my eval cases to assert on a more specific output shape, and also adjust how the skill phrases its summary. Where do I make each change?");
+      "dont-tell-user-to-handedit-derived-files__eval-file-edits-ok",
+      { timeout: 90_000 },
+      async ({ run }) => {
+        const result = await run("I want to tweak the assertions in one of my generated .eval.ts files to tighten a judge rubric. Is it safe to edit that file directly, or will it get clobbered?");
 
-        await expect(result).toSatisfyJudge(DoesNotRecommendHandEditingDerivedFilesJudge);
-        await expect(result).toSatisfyJudge(RecommendsSpecRefineJudge);
-        await expect(result).toSatisfyJudge(DistinguishesEvalsAsDurableJudge);
+        await expect(result).toSatisfyJudge(DistinguishesEvalFilesAsDurableJudge);
       },
     );
   },

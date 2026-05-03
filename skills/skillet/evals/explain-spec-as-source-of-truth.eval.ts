@@ -12,9 +12,10 @@ import {
   skilletHarness,
 } from "@sentry/skillet/evals";
 import {
-  DistinguishesEvalsAsDurableJudge,
-  DoesNotRecommendHandEditingDerivedFilesJudge,
-  ExplainsSkillMdRegeneratedJudge,
+  DistinguishesEvalFilesAsDurableJudge,
+  DoesNotRecommendApiKeySetupJudge,
+  DoesNotRecommendValidateJudge,
+  IdentifiesSkillMdAsDerivedJudge,
   RecommendsSpecRefineJudge,
 } from "./_judges.js";
 
@@ -22,30 +23,19 @@ const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, ""
 
 describeEval(
   "explain-spec-as-source-of-truth",
-  { harness: skilletHarness({ skill: skillRoot }) },
+  { harness: skilletHarness({ skill: skillRoot }), judgeThreshold: 0.75 },
   (it) => {
     it(
-      "explain-spec-as-source-of-truth__how-to-edit-skillmd",
+      "explain-spec-as-source-of-truth__edit-skill-md",
       { timeout: 90_000 },
-      async ({ run, behavior }) => {
-        behavior("explain-spec-as-source-of-truth");
-        const result = await run("I want to change how my skill behaves — should I just edit SKILL.md directly?");
+      async ({ run }) => {
+        const result = await run("I want to tweak the wording in my skill's SKILL.md to clarify a behavior — should I just edit SKILL.md directly? And can I edit the eval files in evals/ too?");
 
-        await expect(result).toSatisfyJudge(ExplainsSkillMdRegeneratedJudge);
+        await expect(result).toSatisfyJudge(IdentifiesSkillMdAsDerivedJudge);
         await expect(result).toSatisfyJudge(RecommendsSpecRefineJudge);
-        await expect(result).toSatisfyJudge(DoesNotRecommendHandEditingDerivedFilesJudge);
-      },
-    );
-
-    it(
-      "explain-spec-as-source-of-truth__can-i-edit-evals",
-      { timeout: 90_000 },
-      async ({ run, behavior }) => {
-        behavior("explain-spec-as-source-of-truth");
-        const result = await run("Can I edit the files under evals/ directly to tweak my test cases, or will those get regenerated too?");
-
-        await expect(result).toSatisfyJudge(DistinguishesEvalsAsDurableJudge);
-        await expect(result).toSatisfyJudge(DoesNotRecommendHandEditingDerivedFilesJudge);
+        await expect(result).toSatisfyJudge(DistinguishesEvalFilesAsDurableJudge);
+        await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
+        await expect(result).toSatisfyJudge(DoesNotRecommendApiKeySetupJudge);
       },
     );
   },
