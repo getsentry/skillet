@@ -14,11 +14,9 @@ import {
   skilletTools,
 } from "@sentry/skillet/evals";
 import {
+  DirectsToSpecRefineJudge,
   DistinguishesEvalFilesAsDurableJudge,
-  DoesNotRecommendHandEditingSkillMdJudge,
-  DoesNotRecommendValidateJudge,
-  IdentifiesSkillMdAsDerivedJudge,
-  RecommendsSpecRefineJudge,
+  ExplainsSkillMdIsDerivedJudge,
 } from "./_judges.js";
 
 const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, "");
@@ -35,25 +33,23 @@ describeEval(
   (it) => {
     it(
       "explain-spec-as-source-of-truth__edit-skill-md",
-      { timeout: 90_000 },
+      { timeout: 120_000 },
       async ({ run }) => {
-        const result = await run("I want to change how my skill behaves — should I just edit SKILL.md directly?");
+        const result = await run("I want to change the wording in my skill's SKILL.md to make the instructions clearer. Should I just edit it directly?");
 
-        await expect(result).toSatisfyJudge(IdentifiesSkillMdAsDerivedJudge);
-        await expect(result).toSatisfyJudge(RecommendsSpecRefineJudge);
-        await expect(result).toSatisfyJudge(DoesNotRecommendHandEditingSkillMdJudge);
+        await expect(result).toSatisfyJudge(ExplainsSkillMdIsDerivedJudge);
+        await expect(result).toSatisfyJudge(DirectsToSpecRefineJudge);
       },
     );
 
     it(
-      "explain-spec-as-source-of-truth__edit-eval-file",
-      { timeout: 90_000 },
+      "explain-spec-as-source-of-truth__edit-evals-vs-skill",
+      { timeout: 120_000 },
       async ({ run }) => {
-        const result = await run("Can I edit the generated eval files in evals/ directly to tweak the test assertions, or will they get overwritten like SKILL.md?");
+        const result = await run("Can I edit my eval files and SKILL.md by hand, or will skillet overwrite them?");
 
+        await expect(result).toSatisfyJudge(ExplainsSkillMdIsDerivedJudge);
         await expect(result).toSatisfyJudge(DistinguishesEvalFilesAsDurableJudge);
-        await expect(result).toSatisfyJudge(IdentifiesSkillMdAsDerivedJudge);
-        await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
       },
     );
   },

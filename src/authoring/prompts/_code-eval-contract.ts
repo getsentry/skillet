@@ -15,29 +15,40 @@
  */
 export const CODE_EVAL_CONTRACT = `## Code-eval contract
 
-Eval files are **code-evals**. Assertions test the agent through
-one of three first-class shapes:
+**Structural assertions are first-class. LLM-rubric judges are a
+last resort.** Default to code-shaped checks; only reach for a
+judge when nothing structural fits.
 
-1. **Structural — \`output-match-object\`.**
+Three first-class assertion shapes, in order of preference:
+
+1. **\`output-match-object\` — STRUCTURAL.**
    When the skill emits a structured finding block (JSON, YAML,
    or any parseable shape on \`result.output\`), pin properties
-   with \`expect(result.output).toMatchObject({ ... })\`. This
-   is how upstream vitest-evals demos work and the cleanest
-   assertion when output is structurable.
+   with \`expect(result.output).toMatchObject({ ... })\`. This is
+   the cleanest assertion when output is structurable.
 
-2. **Structural — \`tool-calls\`.**
-   When the rule constrains tool sequences or arguments, pin the
-   tool calls with \`expect(toolCalls(result.session).map(c => c.name)).toEqual([...])\`
-   (or \`arrayContaining\` / \`not.toContain\`).
+2. **\`tool-calls\` — STRUCTURAL.**
+   Two flavors:
 
-3. **Named LLM-rubric judges.**
-   When the deliverable is free-form text reasoning (an
-   explanation, a code review, a refusal), declare narrow named
-   judges with \`criterionJudge("Name", "…rubric…")\` and assert with
+   - **Names** (\`names-equal\` / \`names-include\` / \`names-exclude\`):
+     pin which tools were called.
+   - **Args** (\`any-call\` / \`no-call\`): pin a specific tool
+     call with matching arguments. **This is high-leverage and
+     underused.** "The agent must read \`.github/workflows/ci.yml\`
+     before flagging" → \`{ type: "any-call", name: "read_file",
+     argsMatch: { path: ".github/workflows/ci.yml" } }\`. Use
+     this to assert the agent traced the chain (read the file,
+     grepped the trigger, etc.) — that proves work that no
+     judge needs to LLM-call to verify.
+
+3. **\`judge\` — LAST RESORT.**
+   Only when the deliverable is free-form text reasoning that
+   can't be checked structurally. Declare narrow named judges
+   with \`criterionJudge("Name", "…rubric…")\` and assert with
    \`await expect(result).toSatisfyJudge(NameJudge)\`. Each judge
-   tests **one property**. Multiple judges per case is the normal
-   shape — split assertions across several single-property
-   judges, not one paragraph-long rubric.
+   tests **one property**. **Aim for ≤2 judges per case** — every
+   judge is an LLM call at test time; structural checks are
+   free.
 
 ### Banned
 
@@ -59,31 +70,36 @@ The plan's assertion kinds are limited to \`output-match-object\`,
 
 ### Caps
 
-1. **Multiple narrow judges encouraged.** Each judge tests ONE
-   property. Per-file cap: ≤5 judges (more than that means
-   you're not splitting properties cleanly).
-2. **Judge criteria ≤ 200 characters.** Tight, one-property
+1. **Per-file cap: ≤3 judges.** More than that almost always
+   means you're using judges where structural would work. Look
+   at every judge and ask: "could this be a tool-args check or
+   an output-match-object check instead?"
+2. **Aim for ≤2 judges per case.** Every additional judge is an
+   LLM call at test time. Structural checks are free.
+3. **Judge criteria ≤ 200 characters.** Tight, one-property
    rubric — 1-2 sentences. Renderer accepts up to 300 chars.
-3. **Every declared judge is referenced.** No dead judge
+4. **Every declared judge is referenced.** No dead judge
    declarations.
-4. **A case can be 100% judges.** No deterministic floor —
-   stacking 2-3 narrow \`toSatisfyJudge\` calls in one case is
-   the canonical shape for free-form rules.
+5. **Every case with tool-using behavior SHOULD have at least
+   one structural \`tool-calls\` assertion.** If the agent is
+   expected to read a file, call a specific helper, or avoid a
+   dangerous tool — pin that with \`any-call\`/\`no-call\`/
+   \`names-include\`/\`names-exclude\` BEFORE adding judges. This
+   is the single biggest lever on quality.
 
-### Judge-first vs structural-first
+### How to pick
 
-Reach for **structural** (\`output-match-object\`, \`tool-calls\`)
-when the skill emits a structured finding block — JSON, YAML,
-key:value pairs the eval can parse. Each property pinned by a
-structural assertion is a property you don't have to spend a
-judge LLM call on.
+- **Skill emits structured output?** → \`output-match-object\` for
+  every property you can pin (severity, trigger, file path,
+  status). Then a judge for the prose reasoning if any.
+- **Skill must trace a path through tools (read file → identify
+  pattern → flag)?** → \`tool-calls\` \`any-call\` to assert the
+  trace. Cheap, deterministic, proves real work.
+- **Free-form prose reasoning is THE deliverable, with no
+  structural surface?** → narrow judge per property.
 
-Reach for **named LLM-rubric judges** when the deliverable is
-free-form text reasoning. Split the rule into single-property
-judges — one for "did the agent identify the trigger?", another
-for "did it connect the exploit chain?", another for "did it
-rate severity correctly?". Each judge fails independently with
-a useful rationale.
+The order above is the priority. Judges are the fallback, not
+the default.
 
 ### Reuse judges across behaviors
 

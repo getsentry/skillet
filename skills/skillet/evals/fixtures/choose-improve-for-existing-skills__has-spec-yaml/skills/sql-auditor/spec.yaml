@@ -1,6 +1,0 @@
-name: sql-auditor
-description: Audits SQL queries for injection risks.
-behaviors:
-  - id: flag-string-concat
-    statement: Flag SQL built via string concatenation with user input.
-    rationale: Classic injection vector.

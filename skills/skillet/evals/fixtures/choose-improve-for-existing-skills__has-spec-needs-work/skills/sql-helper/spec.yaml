@@ -1,0 +1,5 @@
+name: sql-helper
+description: Helps write SQL queries
+behaviors:
+  - id: writes-valid-sql
+    statement: Produces syntactically valid SQL.

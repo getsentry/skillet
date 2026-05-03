@@ -112,7 +112,30 @@ export type ToolCallExpectation =
   /** Names that must appear (in any order). */
   | { type: "names-include"; names: string[] }
   /** Names that must NOT appear. */
-  | { type: "names-exclude"; names: string[] };
+  | { type: "names-exclude"; names: string[] }
+  /**
+   * At least one call to `name` whose arguments match
+   * `argsMatch` (via `toMatchObject` shape). Use this to assert
+   * the agent traced a specific path — e.g. "agent read
+   * `.github/workflows/ci.yml`" — before grading the prose
+   * deliverable. Strictly more useful than `names-include` for
+   * non-trivial cases.
+   */
+  | {
+      type: "any-call";
+      name: string;
+      argsMatch: Record<string, JsonValue>;
+    }
+  /**
+   * Negative form of `any-call` — assert the agent did NOT
+   * invoke `name` with arguments matching `argsMatch`.
+   * `argsMatch` may be `{}` to mean "never called at all".
+   */
+  | {
+      type: "no-call";
+      name: string;
+      argsMatch: Record<string, JsonValue>;
+    };
 
 /** LLM-judged check; references a judge declared in `plan.judges`. */
 export interface JudgeAssertion {

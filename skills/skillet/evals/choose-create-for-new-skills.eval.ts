@@ -16,7 +16,7 @@ import {
 import {
   DoesNotMentionApiKeysJudge,
   DoesNotRecommendValidateJudge,
-  RecommendsSkilletCreateJudge,
+  RecommendsCreateCommandJudge,
 } from "./_judges.js";
 
 const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, "");
@@ -35,10 +35,20 @@ describeEval(
       "choose-create-for-new-skills__new-skill-request",
       { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("I want to make a new skill that audits Dockerfiles for security issues. How do I start?");
+        const result = await run("I want to make a new skill that audits Terraform files for insecure S3 bucket configs. How do I start?");
 
-        await expect(result).toSatisfyJudge(RecommendsSkilletCreateJudge);
+        await expect(result).toSatisfyJudge(RecommendsCreateCommandJudge);
         await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
+      },
+    );
+
+    it(
+      "choose-create-for-new-skills__from-description",
+      { timeout: 90_000 },
+      async ({ run }) => {
+        const result = await run("Can you help me build a skill from scratch? I have a description of what it should do but no files yet.");
+
+        await expect(result).toSatisfyJudge(RecommendsCreateCommandJudge);
         await expect(result).toSatisfyJudge(DoesNotMentionApiKeysJudge);
       },
     );

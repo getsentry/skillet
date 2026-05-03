@@ -14,9 +14,9 @@ import {
   skilletTools,
 } from "@sentry/skillet/evals";
 import {
+  DirectsToSpecRefineJudge,
   DistinguishesEvalFilesAsDurableJudge,
   DoesNotRecommendHandEditingSkillMdJudge,
-  RecommendsSpecRefineJudge,
 } from "./_judges.js";
 
 const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, "");
@@ -32,21 +32,21 @@ describeEval(
   },
   (it) => {
     it(
-      "dont-tell-user-to-handedit-derived-files__change-behavior",
-      { timeout: 90_000 },
+      "dont-tell-user-to-handedit-derived-files__change-skill-behavior",
+      { timeout: 120_000 },
       async ({ run }) => {
-        const result = await run("I want to change how my skill behaves — it should refuse certain inputs. Should I just edit SKILL.md to add that instruction?");
+        const result = await run("I want to change how my skill responds when the user asks about severity ratings — it should always justify the rating. Where do I edit that? Should I just open SKILL.md and rewrite that section?");
 
         await expect(result).toSatisfyJudge(DoesNotRecommendHandEditingSkillMdJudge);
-        await expect(result).toSatisfyJudge(RecommendsSpecRefineJudge);
+        await expect(result).toSatisfyJudge(DirectsToSpecRefineJudge);
       },
     );
 
     it(
-      "dont-tell-user-to-handedit-derived-files__tweak-eval",
-      { timeout: 90_000 },
+      "dont-tell-user-to-handedit-derived-files__tweak-eval-assertion",
+      { timeout: 120_000 },
       async ({ run }) => {
-        const result = await run("One of my eval cases has the wrong assertion shape — I want to tighten the judge rubric. Do I need to regenerate, or can I just edit the .eval.ts file? And should I touch SKILL.md while I'm at it?");
+        const result = await run("One of my generated eval cases has an assertion that's too strict. Can I just edit the .eval.ts file directly, or do I need to regenerate? And while I'm at it, can I tweak the wording in SKILL.md the same way?");
 
         await expect(result).toSatisfyJudge(DoesNotRecommendHandEditingSkillMdJudge);
         await expect(result).toSatisfyJudge(DistinguishesEvalFilesAsDurableJudge);

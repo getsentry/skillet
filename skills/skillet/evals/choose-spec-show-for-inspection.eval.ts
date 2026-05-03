@@ -14,7 +14,6 @@ import {
   skilletTools,
 } from "@sentry/skillet/evals";
 import {
-  DoesNotMentionApiKeysJudge,
   DoesNotRecommendValidateJudge,
   RecommendsSpecShowJudge,
 } from "./_judges.js";
@@ -32,14 +31,13 @@ describeEval(
   },
   (it) => {
     it(
-      "choose-spec-show-for-inspection__read-only-view",
-      { timeout: 90_000 },
+      "choose-spec-show-for-inspection__just-view",
+      { timeout: 120_000 },
       async ({ run }) => {
-        const result = await run("I just want to look at my skill's current spec to see what's in it — I'm not changing anything yet. What command should I run?");
+        const result = await run("How do I view the current spec for my skill without editing it?");
 
         await expect(result).toSatisfyJudge(RecommendsSpecShowJudge);
         await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
-        await expect(result).toSatisfyJudge(DoesNotMentionApiKeysJudge);
       },
     );
   },

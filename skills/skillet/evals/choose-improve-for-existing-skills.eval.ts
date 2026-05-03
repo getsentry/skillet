@@ -15,10 +15,9 @@ import {
   skilletTools,
 } from "@sentry/skillet/evals";
 import {
-  DoesNotRecommendHandEditingSkillMdJudge,
   DoesNotRecommendManualSpecImportJudge,
   DoesNotRecommendValidateJudge,
-  RecommendsImproveJudge,
+  RecommendsImproveCommandJudge,
 } from "./_judges.js";
 
 const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, "");
@@ -34,28 +33,26 @@ describeEval(
   },
   (it) => {
     it(
-      "choose-improve-for-existing-skills__legacy-skill-md-only",
+      "choose-improve-for-existing-skills__legacy-skill-md",
       { timeout: 90_000 },
       async ({ run }) => {
-        const cwd = createWorkspace(skillRoot, "choose-improve-for-existing-skills__legacy-skill-md-only");
-        const result = await run("I have an existing skill at ./skills/code-reviewer with a SKILL.md but no spec.yaml. It's not working well — the agent keeps missing obvious bugs. How do I make it better?", { metadata: { cwd } });
+        const cwd = createWorkspace(skillRoot, "choose-improve-for-existing-skills__legacy-skill-md");
+        const result = await run("I have a skill at ./skills/code-reviewer with just a SKILL.md (no spec.yaml). It's been giving mediocre results and I want to make it better. What should I do?", { metadata: { cwd } });
 
-        await expect(result).toSatisfyJudge(RecommendsImproveJudge);
+        await expect(result).toSatisfyJudge(RecommendsImproveCommandJudge);
         await expect(result).toSatisfyJudge(DoesNotRecommendManualSpecImportJudge);
-        await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
       },
     );
 
     it(
-      "choose-improve-for-existing-skills__has-spec-yaml",
+      "choose-improve-for-existing-skills__has-spec-needs-work",
       { timeout: 90_000 },
       async ({ run }) => {
-        const cwd = createWorkspace(skillRoot, "choose-improve-for-existing-skills__has-spec-yaml");
-        const result = await run("My skill at ./skills/sql-auditor already has a spec.yaml and some evals, but a few cases are failing. What should I run to iterate on it?", { metadata: { cwd } });
+        const cwd = createWorkspace(skillRoot, "choose-improve-for-existing-skills__has-spec-needs-work");
+        const result = await run("My skill at ./skills/sql-helper has a spec.yaml and evals already, but the eval pass rate is low. How do I iterate on it?", { metadata: { cwd } });
 
-        await expect(result).toSatisfyJudge(RecommendsImproveJudge);
+        await expect(result).toSatisfyJudge(RecommendsImproveCommandJudge);
         await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
-        await expect(result).toSatisfyJudge(DoesNotRecommendHandEditingSkillMdJudge);
       },
     );
   },

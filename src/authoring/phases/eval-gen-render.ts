@@ -86,8 +86,14 @@ const JUDGE_NAME_RE = /^[A-Z][A-Za-z0-9]*Judge$/;
  */
 const MAX_CRITERION_CHARS = 300;
 
-/** Per-entry judge cap (cross-suite consolidation can have many more). */
-const MAX_JUDGES_PER_FILE = 5;
+/**
+ * Per-entry judge cap. Lowered from 5 to 3 to push the LLM
+ * toward structural assertions; the contract says "judges are a
+ * last resort." Cross-suite consolidation can have many more in
+ * `_judges.ts` total, but a single behavior should rarely need
+ * more than 3 narrow judges.
+ */
+const MAX_JUDGES_PER_FILE = 3;
 
 // ── Validation (pre-consolidation) ─────────────────────────────────────────
 
@@ -201,16 +207,41 @@ const validateAssertion = (caseName: string, a: Assertion, judgeNames: Set<strin
 
 const validateToolCallsAssertion = (caseName: string, a: ToolCallsAssertion): void => {
   const exp = a.expected;
-  if (!Array.isArray(exp.names) || exp.names.length === 0) {
-    throw new RenderError(
-      `case "${caseName}": tool-calls.expected.names must be a non-empty array`,
-    );
-  }
-  for (const n of exp.names) {
-    if (typeof n !== "string" || n === "") {
-      throw new RenderError(
-        `case "${caseName}": tool-calls.expected.names entries must be non-empty strings`,
-      );
+  switch (exp.type) {
+    case "names-equal":
+    case "names-include":
+    case "names-exclude": {
+      if (!Array.isArray(exp.names) || exp.names.length === 0) {
+        throw new RenderError(
+          `case "${caseName}": tool-calls.expected.names must be a non-empty array`,
+        );
+      }
+      for (const n of exp.names) {
+        if (typeof n !== "string" || n === "") {
+          throw new RenderError(
+            `case "${caseName}": tool-calls.expected.names entries must be non-empty strings`,
+          );
+        }
+      }
+      return;
+    }
+    case "any-call":
+    case "no-call": {
+      if (typeof exp.name !== "string" || exp.name === "") {
+        throw new RenderError(
+          `case "${caseName}": tool-calls.${exp.type}.name must be a non-empty string`,
+        );
+      }
+      if (exp.argsMatch == null || typeof exp.argsMatch !== "object") {
+        throw new RenderError(
+          `case "${caseName}": tool-calls.${exp.type}.argsMatch must be an object (use {} for "any args")`,
+        );
+      }
+      return;
+    }
+    default: {
+      const exhaustive: never = exp;
+      throw new RenderError(`unknown tool-calls expectation: ${JSON.stringify(exhaustive)}`);
     }
   }
 };
@@ -367,8 +398,16 @@ const renderCase = (c: ConsolidatedCasePlan, indent: string): string[] => {
   }
   block.push("");
 
-  const usesToolCalls = c.assertions.some((a) => a.kind === "tool-calls");
-  if (usesToolCalls) {
+  // `toolNames` is only used by names-equal/include/exclude; the
+  // any-call/no-call expectations call `toolCalls(...)` directly.
+  const usesToolNames = c.assertions.some(
+    (a) =>
+      a.kind === "tool-calls" &&
+      (a.expected.type === "names-equal" ||
+        a.expected.type === "names-include" ||
+        a.expected.type === "names-exclude"),
+  );
+  if (usesToolNames) {
     block.push(`${body}const toolNames = toolCalls(result.session).map((c) => c.name);`);
   }
 
@@ -411,6 +450,28 @@ const renderToolCalls = (a: ToolCallsAssertion, indent: string): string[] => {
       return exp.names.map(
         (n) => `${indent}expect(toolNames).not.toContain(${JSON.stringify(n)});`,
       );
+    case "any-call": {
+      const nameJson = JSON.stringify(exp.name);
+      const argsClause = renderArgsMatcher(exp.argsMatch);
+      return [
+        `${indent}expect(toolCalls(result.session)).toEqual(`,
+        `${indent}  expect.arrayContaining([`,
+        `${indent}    expect.objectContaining({ name: ${nameJson}${argsClause} }),`,
+        `${indent}  ]),`,
+        `${indent});`,
+      ];
+    }
+    case "no-call": {
+      const nameJson = JSON.stringify(exp.name);
+      const argsClause = renderArgsMatcher(exp.argsMatch);
+      return [
+        `${indent}expect(toolCalls(result.session)).not.toEqual(`,
+        `${indent}  expect.arrayContaining([`,
+        `${indent}    expect.objectContaining({ name: ${nameJson}${argsClause} }),`,
+        `${indent}  ]),`,
+        `${indent});`,
+      ];
+    }
     default: {
       const exhaustive: never = exp;
       throw new Error(`unknown tool-calls expectation: ${JSON.stringify(exhaustive)}`);
@@ -420,6 +481,17 @@ const renderToolCalls = (a: ToolCallsAssertion, indent: string): string[] => {
 
 const renderJudgeAssertion = (a: JudgeAssertion, indent: string): string => {
   return `${indent}await expect(result).toSatisfyJudge(${a.judgeName});`;
+};
+
+/**
+ * Render the `, arguments: expect.objectContaining({...})` clause for
+ * an `any-call`/`no-call` matcher. Returns "" when `argsMatch` is
+ * empty (the caller drops the arguments key entirely so any args
+ * match).
+ */
+const renderArgsMatcher = (argsMatch: Record<string, unknown>): string => {
+  if (Object.keys(argsMatch).length === 0) return "";
+  return `, arguments: expect.objectContaining(${JSON.stringify(argsMatch)})`;
 };
 
 // ── renderJudgesFile (suite-wide _judges.ts) ───────────────────────────────

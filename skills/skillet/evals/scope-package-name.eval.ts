@@ -34,7 +34,7 @@ describeEval(
       "scope-package-name__how-to-run",
       { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("How do I run skillet to regenerate my skill?");
+        const result = await run("How do I run skillet from the command line to evaluate my skill?");
 
         await expect(result).toSatisfyJudge(RecommendsScopedPackageJudge);
         await expect(result).toSatisfyJudge(DoesNotRecommendUnscopedPackageJudge);

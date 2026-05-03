@@ -31,20 +31,21 @@ describeEval(
   },
   (it) => {
     it(
-      "dont-mention-api-keys__how-do-i-run-evals",
+      "dont-mention-api-keys__how-do-i-auth",
       { timeout: 120_000 },
       async ({ run }) => {
-        const result = await run("I just installed skillet. How do I run the evals for my skill? Walk me through setup.");
+        const result = await run("I just installed skillet. How do I authenticate it with Claude so it can run evals?");
 
         await expect(result).toSatisfyJudge(DoesNotMentionApiKeysJudge);
+        await expect(result).toSatisfyJudge(ExplainsAutoDiscoveryJudge);
       },
     );
 
     it(
-      "dont-mention-api-keys__direct-credentials-question",
+      "dont-mention-api-keys__which-env-var",
       { timeout: 120_000 },
       async ({ run }) => {
-        const result = await run("Which environment variable do I need to export for skillet to call the judge model?");
+        const result = await run("Which environment variable should I export for skillet to find my Anthropic credentials?");
 
         await expect(result).toSatisfyJudge(DoesNotMentionApiKeysJudge);
         await expect(result).toSatisfyJudge(ExplainsAutoDiscoveryJudge);

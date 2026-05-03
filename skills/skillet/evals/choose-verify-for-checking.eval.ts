@@ -15,7 +15,7 @@ import {
 } from "@sentry/skillet/evals";
 import {
   DoesNotRecommendValidateJudge,
-  RecommendsVerifyJudge,
+  RecommendsVerifyCommandJudge,
 } from "./_judges.js";
 
 const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, "");
@@ -31,23 +31,23 @@ describeEval(
   },
   (it) => {
     it(
-      "choose-verify-for-checking__basic",
-      { timeout: 120_000 },
+      "choose-verify-for-checking__check-consistency",
+      { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("I want to check that my skill is internally consistent — what command should I run?");
+        const result = await run("I want to check that my skill is internally consistent — specs, evals, and results all line up. What command should I run?");
 
-        await expect(result).toSatisfyJudge(RecommendsVerifyJudge);
+        await expect(result).toSatisfyJudge(RecommendsVerifyCommandJudge);
         await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
       },
     );
 
     it(
-      "choose-verify-for-checking__asks-for-validate",
-      { timeout: 120_000 },
+      "choose-verify-for-checking__user-says-validate",
+      { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("How do I validate my skill to make sure everything lines up?");
+        const result = await run("How do I validate my skill?");
 
-        await expect(result).toSatisfyJudge(RecommendsVerifyJudge);
+        await expect(result).toSatisfyJudge(RecommendsVerifyCommandJudge);
         await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
       },
     );

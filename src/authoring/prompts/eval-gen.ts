@@ -105,7 +105,7 @@ renderer rejects plans that include them.
   property and reference each from the case. Multiple judges per
   case is the canonical shape for free-form rules.
 
-## Worked example — judge-first (free-form text rule)
+## Worked example — prose deliverable, structural + judge mix
 
 Input:
 \`\`\`json
@@ -120,21 +120,14 @@ Input:
 }
 \`\`\`
 
-Output:
+Output (mix of structural \`tool-calls\` proving the agent traced
+the chain, plus ONE judge for the prose verdict):
 \`\`\`json
 {
   "judges": [
     {
-      "name": "IdentifiesPrivilegedTriggerJudge",
-      "criterion": "Names pull_request_target or workflow_run as the privileged trigger."
-    },
-    {
       "name": "ConnectsExploitChainJudge",
-      "criterion": "Ties the trigger to checkout or execution of PR-controlled code with secrets available."
-    },
-    {
-      "name": "RatesHighSeverityJudge",
-      "criterion": "Rates the finding HIGH or CRITICAL severity."
+      "criterion": "Ties the privileged trigger to checkout or execution of PR-controlled code with secrets available, AND rates HIGH or CRITICAL severity."
     }
   ],
   "cases": [
@@ -147,17 +140,25 @@ Output:
       },
       "timeout": 120000,
       "assertions": [
-        { "kind": "judge", "judgeName": "IdentifiesPrivilegedTriggerJudge" },
-        { "kind": "judge", "judgeName": "ConnectsExploitChainJudge" },
-        { "kind": "judge", "judgeName": "RatesHighSeverityJudge" }
+        {
+          "kind": "tool-calls",
+          "expected": {
+            "type": "any-call",
+            "name": "read_file",
+            "argsMatch": { "path": ".github/workflows/ci.yml" }
+          }
+        },
+        { "kind": "judge", "judgeName": "ConnectsExploitChainJudge" }
       ]
     }
   ]
 }
 \`\`\`
 
-Three narrow judges, three \`toSatisfyJudge\` lines. Each fails
-independently with its own rationale. No regex on free-form text.
+The structural \`tool-calls\` assertion proves the agent ACTUALLY
+read the workflow file (not just paraphrased about it). The
+single judge then grades the prose verdict. Two assertions, one
+LLM call at test time instead of three or four.
 
 ## Worked example — structural-first (skill emits a finding shape)
 

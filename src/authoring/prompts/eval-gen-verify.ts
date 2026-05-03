@@ -73,11 +73,26 @@ Reject (return edits) if any of these are true:
   \`shorten-criterion\` with a tightened 1-2 sentence rubric.
 - A plan declares a judge that no case references. Return
   \`drop-judge\` to remove the dead declaration.
-- A judge could be replaced cleanly by a structural assertion
-  (the skill's output is structurable; you can pin the property
-  with \`output-match-object\`). Return
-  \`replace-judge-with-deterministic\` with the structural
-  replacement(s).
+- **A judge could be replaced cleanly by a structural assertion.**
+  This is the highest-impact edit. Look for:
+  - The skill emits structured output → use \`output-match-object\`
+    to pin the property.
+  - The judge tests "did the agent inspect X" or "did the agent
+    use Y tool" → use \`tool-calls\` with \`any-call\` /
+    \`names-include\` instead.
+  Return \`replace-judge-with-deterministic\` with the structural
+  replacement(s). Be aggressive here — judges are LLM calls at
+  test time; structural is free.
+- **A case has tool-using behavior but no structural \`tool-calls\`
+  assertion.** If the agent should read a specific file, call a
+  helper, or avoid a dangerous tool, that should be a structural
+  check. Return \`add-deterministic\` with a \`tool-calls\` entry
+  (\`any-call\` proving the trace, or \`names-exclude\` for the
+  forbidden tool).
+- **A case has 3+ judges and no structural assertions.** Almost
+  always a sign that some of the judges should collapse into
+  tool-arg or output-shape checks. Return one or more
+  \`replace-judge-with-deterministic\` edits.
 - A case has an assertion that doesn't really test the rule.
   Return \`drop-assertion\` to remove it.
 

@@ -16,7 +16,6 @@ import {
 } from "@sentry/skillet/evals";
 import {
   AsksIntentQuestionsJudge,
-  DoesNotInvokeSkilletPrematurelyJudge,
 } from "./_judges.js";
 
 const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, "");
@@ -32,26 +31,19 @@ describeEval(
   },
   (it) => {
     it(
-      "capture-intent-before-generation__new-skill-request",
-      { timeout: 120_000 },
+      "capture-intent-before-generation__vague-new-skill-request",
+      { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("I want to create a new skill for reviewing Terraform files for security issues. Can you set it up?");
+        const result = await run("I want to make a new skill for reviewing Terraform code for security issues.");
 
         const toolNames = toolCalls(result.session).map((c) => c.name);
-        await expect(result).toSatisfyJudge(AsksIntentQuestionsJudge);
-        await expect(result).toSatisfyJudge(DoesNotInvokeSkilletPrematurelyJudge);
         expect(toolNames).not.toContain("Bash");
-      },
-    );
-
-    it(
-      "capture-intent-before-generation__add-evals-request",
-      { timeout: 120_000 },
-      async ({ run }) => {
-        const result = await run("I'd like to add some evals to my existing skill. Help me out.");
-
         await expect(result).toSatisfyJudge(AsksIntentQuestionsJudge);
-        await expect(result).toSatisfyJudge(DoesNotInvokeSkilletPrematurelyJudge);
+        expect(toolCalls(result.session)).not.toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ name: "Bash", arguments: expect.objectContaining({"command":"skillet"}) }),
+          ]),
+        );
       },
     );
   },
