@@ -1,23 +1,20 @@
 /**
- * Pi-ai agent that runs a skillet skill end-to-end inside
+ * Skillet skill as a pi-ai agent for upstream
  * `@vitest-evals/harness-pi-ai`'s `piAiHarness`.
  *
  * Generated eval files do:
  *
  *   describeEval("foo", {
- *     harness: piAiHarness({
- *       createAgent: () => skilletAgent({ skillRoot }),
- *       tools: skilletTools(),
- *     }),
+ *     harness: piAiHarness({ agent: skilletAgent({ skillRoot }) }),
  *   }, (it) => { ... });
  *
- * `skilletAgent({ skillRoot })` returns an agent with a
- * `run(input, runtime)` method. The harness calls it; the agent
- * loads the skill (SKILL.md + references → system prompt),
- * drives the LLM-call-with-tools loop on top of pi-ai, and
- * dispatches tool calls through `runtime.tools.<name>(args)`
- * (upstream tracks them) and emits assistant text via
- * `runtime.events.assistant`.
+ * `skilletAgent({ skillRoot })` returns an object with both:
+ * - `run(input, runtime)` — drives the LLM-call-with-tools
+ *   loop on top of pi-ai, dispatching tool calls through
+ *   `runtime.tools.<name>(args)`.
+ * - `tools` — the agent's `PiAiToolset`. `piAiHarness`
+ *   auto-detects this off the agent and wires it into the
+ *   runtime, so the eval file doesn't pass `tools` separately.
  */
 
 import type { Context } from "@mariozechner/pi-ai";
@@ -29,6 +26,7 @@ import { submitAiJob } from "../agent/queue.js";
 import { runToolLoop } from "../agent/tool-loop.js";
 import { createToolDefs } from "../agent/tools.js";
 import { loadSkill, type Skill } from "../skill/loader.js";
+import { skilletTools } from "./skillet-tools.js";
 
 /**
  * Env var that overrides which skill the agent loads. Set by
@@ -47,6 +45,12 @@ export interface SkilletAgentOptions {
 export interface SkilletAgent {
   /** Skill root the agent runs against. */
   readonly skillRoot: string;
+  /**
+   * Tool definitions exposed to the agent. `piAiHarness`
+   * auto-detects this field off the agent and wires the toolset
+   * into the runtime; eval files don't pass `tools` separately.
+   */
+  readonly tools: PiAiToolset;
   /**
    * Drive the LLM loop for a single user input. Returns
    * `{ output, usage }`; `piAiHarness` consumes both into the
@@ -83,6 +87,7 @@ export const skilletAgent = (opts: SkilletAgentOptions): SkilletAgent => {
 
   return {
     skillRoot: skillPath,
+    tools: skilletTools({ skillRoot: skillPath }),
     run: async (input, runtime) => {
       const skill = loadSkill(skillPath);
       const model = resolveModels().agent;

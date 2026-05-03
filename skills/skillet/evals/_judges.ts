@@ -8,36 +8,36 @@
 // ──────────────────────────────────────────────────────────
 import { criterionJudge } from "@sentry/skillet/evals";
 
-export const AsksIntentQuestionsJudge = criterionJudge("AsksIntentQuestionsJudge", "Asks 3-5 clarifying questions covering intent areas like key behaviors, example prompt/output, common mistakes, or trigger phrases before generating anything.");
+export const AsksIntentQuestionsJudge = criterionJudge("AsksIntentQuestionsJudge", "Asks 3-5 clarifying questions covering intent areas like key behaviors, realistic prompts/expected outputs, common mistakes, or trigger phrases.");
 
-export const DirectsToSpecRefineJudge = criterionJudge("DirectsToSpecRefineJudge", "Directs the user to `skillet spec refine` (or editing spec.yaml) for behavioral changes to SKILL.md, rather than hand-editing SKILL.md.");
+export const DistinguishesEvalsAreDurableJudge = criterionJudge("DistinguishesEvalsAreDurableJudge", "Notes that eval files under evals/ are durable and can be edited directly to refine test shapes, unlike SKILL.md.");
 
-export const DistinguishesEvalFilesAsDurableJudge = criterionJudge("DistinguishesEvalFilesAsDurableJudge", "Notes that eval files (evals/*.eval.ts) are durable and may be edited directly, distinct from regenerated SKILL.md.");
+export const DoesNotInvokeCLIPrematurelyJudge = criterionJudge("DoesNotInvokeCLIPrematurelyJudge", "Does NOT run skillet CLI commands or generate a skill before getting answers to the intent questions.");
 
 export const DoesNotMentionApiKeysJudge = criterionJudge("DoesNotMentionApiKeysJudge", "Does NOT instruct the user to set API keys or environment variables for credentials.");
 
-export const DoesNotRecommendHandEditingSkillMdJudge = criterionJudge("DoesNotRecommendHandEditingSkillMdJudge", "Does NOT instruct the user to hand-edit SKILL.md or other regenerated/derived files.");
+export const DoesNotRecommendHandEditingDerivedFilesJudge = criterionJudge("DoesNotRecommendHandEditingDerivedFilesJudge", "Does NOT instruct the user to hand-edit SKILL.md or other regenerated/derived files; flow goes through the CLI.");
 
-export const DoesNotRecommendManualSpecImportJudge = criterionJudge("DoesNotRecommendManualSpecImportJudge", "Does NOT instruct the user to manually run `skillet spec import` first; the improve loop handles import automatically.");
+export const DoesNotRecommendManualSpecImportJudge = criterionJudge("DoesNotRecommendManualSpecImportJudge", "Does NOT instruct the user to manually run `skillet spec import` first; treats the import as automatic via the improve loop.");
 
-export const DoesNotRecommendUnscopedPackageJudge = criterionJudge("DoesNotRecommendUnscopedPackageJudge", "Does not instruct the user to run `npx skillet` (unscoped) as the way to invoke skillet.");
+export const DoesNotRecommendUnscopedPackageJudge = criterionJudge("DoesNotRecommendUnscopedPackageJudge", "Does NOT instruct the user to run `npx skillet` without the @sentry scope as the invocation command.");
 
-export const DoesNotRecommendValidateJudge = criterionJudge("DoesNotRecommendValidateJudge", "Does NOT recommend `skillet validate` or any `validate` subcommand — that command was removed.");
+export const DoesNotRecommendValidateJudge = criterionJudge("DoesNotRecommendValidateJudge", "Does NOT recommend `skillet validate` or any `validate` subcommand (that command was removed); pre-verify checks belong to `skillet verify`.");
 
-export const ExplainsAutoDiscoveryJudge = criterionJudge("ExplainsAutoDiscoveryJudge", "Explains or implies that credentials/providers are auto-discovered, with no manual env-var configuration required from the user.");
+export const ExplainsAutoDiscoveryJudge = criterionJudge("ExplainsAutoDiscoveryJudge", "If the user asks about credentials/auth setup, the response explains that credentials are auto-discovered and no manual env-var configuration is required.");
 
-export const ExplainsSkillMdIsDerivedJudge = criterionJudge("ExplainsSkillMdIsDerivedJudge", "Explains that SKILL.md is derived/generated from spec.yaml and gets clobbered or overwritten on regen.");
+export const ExplainsSkillMdRegeneratedJudge = criterionJudge("ExplainsSkillMdRegeneratedJudge", "Explains that SKILL.md is derived from spec.yaml and gets clobbered/regenerated, so hand-edits are lost.");
 
-export const RecommendsAddEvalCommandJudge = criterionJudge("RecommendsAddEvalCommandJudge", "Recommends `skillet add-eval \"<behavior>\"` (or equivalent quoted-behavior form) as the way to add named behaviors as eval cases.");
+export const RecommendsAddEvalCommandJudge = criterionJudge("RecommendsAddEvalCommandJudge", "Recommends `skillet add-eval \"<behavior>\"` (with the behavior name quoted) as the way to add the named behavior(s) as eval cases.");
 
-export const RecommendsCreateCommandJudge = criterionJudge("RecommendsCreateCommandJudge", "Recommends `skillet create` as the primary command for starting a new skill from a description.");
+export const RecommendsImproveCommandJudge = criterionJudge("RecommendsImproveCommandJudge", "Recommends running `skillet improve` as the primary next step for working on the existing skill.");
 
-export const RecommendsImproveCommandJudge = criterionJudge("RecommendsImproveCommandJudge", "Recommends running `skillet improve` as the primary path for working on the existing skill.");
+export const RecommendsSkilletCreateJudge = criterionJudge("RecommendsSkilletCreateJudge", "Recommends `skillet create` as the entry point for starting a new skill from a description.");
 
-export const RecommendsScopedPackageJudge = criterionJudge("RecommendsScopedPackageJudge", "Recommends invoking skillet as `npx @sentry/skillet` (with the @sentry scope), not as `npx skillet`.");
+export const RecommendsSpecRefineJudge = criterionJudge("RecommendsSpecRefineJudge", "Directs the user to `skillet spec refine` (with natural-language feedback) for behavioral or prose changes to the skill.");
 
-export const RecommendsSpecRefineJudge = criterionJudge("RecommendsSpecRefineJudge", "Recommends `skillet spec refine \"<feedback>\"` (or equivalent quoted-feedback form) as the primary path to apply natural-language changes to the skill.");
+export const RecommendsSpecShowJudge = criterionJudge("RecommendsSpecShowJudge", "Recommends `skillet spec show` as the way to read/inspect the current spec without modifying it.");
 
-export const RecommendsSpecShowJudge = criterionJudge("RecommendsSpecShowJudge", "Recommends `skillet spec show` as the way to read the current spec without modifying it.");
+export const RecommendsVerifyJudge = criterionJudge("RecommendsVerifyJudge", "Recommends `skillet verify` as the way to check a skill's internal consistency / structural integrity.");
 
-export const RecommendsVerifyCommandJudge = criterionJudge("RecommendsVerifyCommandJudge", "Recommends `skillet verify` as the command to check skill internal consistency.");
+export const UsesScopedPackageNameJudge = criterionJudge("UsesScopedPackageNameJudge", "Recommends invoking skillet via `npx @sentry/skillet` (scoped name), not the unscoped `npx skillet`.");

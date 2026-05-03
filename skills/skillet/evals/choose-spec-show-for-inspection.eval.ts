@@ -11,7 +11,6 @@ import {
   describeEval,
   piAiHarness,
   skilletAgent,
-  skilletTools,
 } from "@sentry/skillet/evals";
 import {
   DoesNotRecommendValidateJudge,
@@ -23,18 +22,15 @@ const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, ""
 describeEval(
   "choose-spec-show-for-inspection",
   {
-    harness: piAiHarness({
-      createAgent: () => skilletAgent({ skillRoot }),
-      tools: skilletTools({ skillRoot }),
-    }),
+    harness: piAiHarness({ agent: skilletAgent({ skillRoot }) }),
     judgeThreshold: 0.75,
   },
   (it) => {
     it(
-      "choose-spec-show-for-inspection__just-view",
+      "choose-spec-show-for-inspection__read-current-spec",
       { timeout: 120_000 },
       async ({ run }) => {
-        const result = await run("How do I view the current spec for my skill without editing it?");
+        const result = await run("How do I view the current spec for my skill without changing anything?");
 
         await expect(result).toSatisfyJudge(RecommendsSpecShowJudge);
         await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);

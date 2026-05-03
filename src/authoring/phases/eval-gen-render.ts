@@ -326,7 +326,7 @@ const buildEntryImports = (plan: ConsolidatedPlan, referencedJudges: string[]): 
   const usesToolCalls = plan.cases.some((c) => c.assertions.some((a) => a.kind === "tool-calls"));
   const usesWorkspace = plan.cases.some((c) => c.fixtureSlug != null && c.fixtureSlug !== "");
 
-  const skilletNamed: string[] = ["describeEval", "piAiHarness", "skilletAgent", "skilletTools"];
+  const skilletNamed: string[] = ["describeEval", "piAiHarness", "skilletAgent"];
   if (usesToolCalls) skilletNamed.push("toolCalls");
   if (usesWorkspace) skilletNamed.push("createWorkspace");
   skilletNamed.sort();
@@ -355,10 +355,7 @@ const renderDescribeEval = (
   lines.push(`describeEval(`);
   lines.push(`${indent}${JSON.stringify(entryId)},`);
   lines.push(`${indent}{`);
-  lines.push(`${inner}harness: piAiHarness({`);
-  lines.push(`${inner}${indent}createAgent: () => skilletAgent({ skillRoot }),`);
-  lines.push(`${inner}${indent}tools: skilletTools({ skillRoot }),`);
-  lines.push(`${inner}}),`);
+  lines.push(`${inner}harness: piAiHarness({ agent: skilletAgent({ skillRoot }) }),`);
   lines.push(`${inner}judgeThreshold: 0.75,`);
   lines.push(`${indent}},`);
   lines.push(`${indent}(it) => {`);

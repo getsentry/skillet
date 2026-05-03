@@ -11,12 +11,11 @@ import {
   describeEval,
   piAiHarness,
   skilletAgent,
-  skilletTools,
 } from "@sentry/skillet/evals";
 import {
-  DirectsToSpecRefineJudge,
-  DistinguishesEvalFilesAsDurableJudge,
-  ExplainsSkillMdIsDerivedJudge,
+  DistinguishesEvalsAreDurableJudge,
+  ExplainsSkillMdRegeneratedJudge,
+  RecommendsSpecRefineJudge,
 } from "./_judges.js";
 
 const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, "");
@@ -24,32 +23,28 @@ const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, ""
 describeEval(
   "explain-spec-as-source-of-truth",
   {
-    harness: piAiHarness({
-      createAgent: () => skilletAgent({ skillRoot }),
-      tools: skilletTools({ skillRoot }),
-    }),
+    harness: piAiHarness({ agent: skilletAgent({ skillRoot }) }),
     judgeThreshold: 0.75,
   },
   (it) => {
     it(
       "explain-spec-as-source-of-truth__edit-skill-md",
-      { timeout: 120_000 },
+      { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("I want to change the wording in my skill's SKILL.md to make the instructions clearer. Should I just edit it directly?");
+        const result = await run("I want to change some of the wording and rules in SKILL.md. Can I just edit the file directly?");
 
-        await expect(result).toSatisfyJudge(ExplainsSkillMdIsDerivedJudge);
-        await expect(result).toSatisfyJudge(DirectsToSpecRefineJudge);
+        await expect(result).toSatisfyJudge(ExplainsSkillMdRegeneratedJudge);
+        await expect(result).toSatisfyJudge(RecommendsSpecRefineJudge);
       },
     );
 
     it(
-      "explain-spec-as-source-of-truth__edit-evals-vs-skill",
-      { timeout: 120_000 },
+      "explain-spec-as-source-of-truth__edit-evals",
+      { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("Can I edit my eval files and SKILL.md by hand, or will skillet overwrite them?");
+        const result = await run("Can I edit the generated eval files in evals/ directly, or do those get clobbered like SKILL.md?");
 
-        await expect(result).toSatisfyJudge(ExplainsSkillMdIsDerivedJudge);
-        await expect(result).toSatisfyJudge(DistinguishesEvalFilesAsDurableJudge);
+        await expect(result).toSatisfyJudge(DistinguishesEvalsAreDurableJudge);
       },
     );
   },

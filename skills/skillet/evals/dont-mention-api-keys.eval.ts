@@ -11,7 +11,6 @@ import {
   describeEval,
   piAiHarness,
   skilletAgent,
-  skilletTools,
 } from "@sentry/skillet/evals";
 import {
   DoesNotMentionApiKeysJudge,
@@ -23,10 +22,7 @@ const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, ""
 describeEval(
   "dont-mention-api-keys",
   {
-    harness: piAiHarness({
-      createAgent: () => skilletAgent({ skillRoot }),
-      tools: skilletTools({ skillRoot }),
-    }),
+    harness: piAiHarness({ agent: skilletAgent({ skillRoot }) }),
     judgeThreshold: 0.75,
   },
   (it) => {
@@ -34,7 +30,7 @@ describeEval(
       "dont-mention-api-keys__how-do-i-auth",
       { timeout: 120_000 },
       async ({ run }) => {
-        const result = await run("I just installed skillet. How do I authenticate it with Claude so it can run evals?");
+        const result = await run("I just installed skillet. How do I configure authentication so it can call the model?");
 
         await expect(result).toSatisfyJudge(DoesNotMentionApiKeysJudge);
         await expect(result).toSatisfyJudge(ExplainsAutoDiscoveryJudge);
@@ -42,13 +38,12 @@ describeEval(
     );
 
     it(
-      "dont-mention-api-keys__which-env-var",
+      "dont-mention-api-keys__getting-started",
       { timeout: 120_000 },
       async ({ run }) => {
-        const result = await run("Which environment variable should I export for skillet to find my Anthropic credentials?");
+        const result = await run("Walk me through getting started running my first eval with skillet.");
 
         await expect(result).toSatisfyJudge(DoesNotMentionApiKeysJudge);
-        await expect(result).toSatisfyJudge(ExplainsAutoDiscoveryJudge);
       },
     );
   },

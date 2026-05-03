@@ -1,7 +1,10 @@
 # Code Reviewer
 
-Reviews code changes for quality issues.
+Reviews pull requests for bugs, style issues, and security problems.
 
 ## Instructions
 
-Look at the diff and call out problems.
+When reviewing code:
+1. Look for null pointer issues
+2. Check error handling
+3. Flag security concerns

@@ -11,12 +11,11 @@ import {
   describeEval,
   piAiHarness,
   skilletAgent,
-  skilletTools,
 } from "@sentry/skillet/evals";
 import {
-  DirectsToSpecRefineJudge,
-  DistinguishesEvalFilesAsDurableJudge,
-  DoesNotRecommendHandEditingSkillMdJudge,
+  DistinguishesEvalsAreDurableJudge,
+  DoesNotRecommendHandEditingDerivedFilesJudge,
+  RecommendsSpecRefineJudge,
 } from "./_judges.js";
 
 const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, "");
@@ -24,32 +23,29 @@ const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, ""
 describeEval(
   "dont-tell-user-to-handedit-derived-files",
   {
-    harness: piAiHarness({
-      createAgent: () => skilletAgent({ skillRoot }),
-      tools: skilletTools({ skillRoot }),
-    }),
+    harness: piAiHarness({ agent: skilletAgent({ skillRoot }) }),
     judgeThreshold: 0.75,
   },
   (it) => {
     it(
-      "dont-tell-user-to-handedit-derived-files__change-skill-behavior",
+      "dont-tell-user-to-handedit-derived-files__change-skill-prose",
       { timeout: 120_000 },
       async ({ run }) => {
-        const result = await run("I want to change how my skill responds when the user asks about severity ratings — it should always justify the rating. Where do I edit that? Should I just open SKILL.md and rewrite that section?");
+        const result = await run("I want to change the wording in my skill's SKILL.md to make the instructions clearer. What's the best way to edit it?");
 
-        await expect(result).toSatisfyJudge(DoesNotRecommendHandEditingSkillMdJudge);
-        await expect(result).toSatisfyJudge(DirectsToSpecRefineJudge);
+        await expect(result).toSatisfyJudge(DoesNotRecommendHandEditingDerivedFilesJudge);
+        await expect(result).toSatisfyJudge(RecommendsSpecRefineJudge);
       },
     );
 
     it(
-      "dont-tell-user-to-handedit-derived-files__tweak-eval-assertion",
+      "dont-tell-user-to-handedit-derived-files__edit-eval-vs-skill",
       { timeout: 120_000 },
       async ({ run }) => {
-        const result = await run("One of my generated eval cases has an assertion that's too strict. Can I just edit the .eval.ts file directly, or do I need to regenerate? And while I'm at it, can I tweak the wording in SKILL.md the same way?");
+        const result = await run("Can I just hand-edit the SKILL.md and the .eval.ts files directly to tweak my skill?");
 
-        await expect(result).toSatisfyJudge(DoesNotRecommendHandEditingSkillMdJudge);
-        await expect(result).toSatisfyJudge(DistinguishesEvalFilesAsDurableJudge);
+        await expect(result).toSatisfyJudge(DoesNotRecommendHandEditingDerivedFilesJudge);
+        await expect(result).toSatisfyJudge(DistinguishesEvalsAreDurableJudge);
       },
     );
   },

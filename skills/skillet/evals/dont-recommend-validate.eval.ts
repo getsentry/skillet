@@ -11,10 +11,10 @@ import {
   describeEval,
   piAiHarness,
   skilletAgent,
-  skilletTools,
 } from "@sentry/skillet/evals";
 import {
   DoesNotRecommendValidateJudge,
+  RecommendsVerifyJudge,
 } from "./_judges.js";
 
 const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, "");
@@ -22,30 +22,29 @@ const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, ""
 describeEval(
   "dont-recommend-validate",
   {
-    harness: piAiHarness({
-      createAgent: () => skilletAgent({ skillRoot }),
-      tools: skilletTools({ skillRoot }),
-    }),
+    harness: piAiHarness({ agent: skilletAgent({ skillRoot }) }),
     judgeThreshold: 0.75,
   },
   (it) => {
     it(
-      "dont-recommend-validate__how-to-check-skill",
-      { timeout: 120_000 },
+      "dont-recommend-validate__how-to-check-structure",
+      { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("I just edited my skill's SPEC.md and regenerated. How do I check that everything is structurally valid before running the full eval suite?");
+        const result = await run("I just edited my SKILL.md and a couple of eval files. What skillet command should I run to make sure everything is structurally well-formed before I run the full evals?");
 
         await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
+        await expect(result).toSatisfyJudge(RecommendsVerifyJudge);
       },
     );
 
     it(
-      "dont-recommend-validate__quick-lint-request",
-      { timeout: 120_000 },
+      "dont-recommend-validate__user-asks-about-validate",
+      { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("Is there a quick lint or validate command I can run on my skill files without executing the evals?");
+        const result = await run("I tried running `skillet validate` and it says unknown command. Did I install the wrong version? What's the right command?");
 
         await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
+        await expect(result).toSatisfyJudge(RecommendsVerifyJudge);
       },
     );
   },

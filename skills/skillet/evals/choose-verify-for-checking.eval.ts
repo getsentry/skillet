@@ -11,11 +11,10 @@ import {
   describeEval,
   piAiHarness,
   skilletAgent,
-  skilletTools,
 } from "@sentry/skillet/evals";
 import {
   DoesNotRecommendValidateJudge,
-  RecommendsVerifyCommandJudge,
+  RecommendsVerifyJudge,
 } from "./_judges.js";
 
 const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, "");
@@ -23,31 +22,28 @@ const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, ""
 describeEval(
   "choose-verify-for-checking",
   {
-    harness: piAiHarness({
-      createAgent: () => skilletAgent({ skillRoot }),
-      tools: skilletTools({ skillRoot }),
-    }),
+    harness: piAiHarness({ agent: skilletAgent({ skillRoot }) }),
     judgeThreshold: 0.75,
   },
   (it) => {
     it(
-      "choose-verify-for-checking__check-consistency",
-      { timeout: 90_000 },
+      "choose-verify-for-checking__internal-consistency",
+      { timeout: 120_000 },
       async ({ run }) => {
-        const result = await run("I want to check that my skill is internally consistent — specs, evals, and results all line up. What command should I run?");
+        const result = await run("How do I check that my skill is internally consistent — that the spec, evals, and results all line up?");
 
-        await expect(result).toSatisfyJudge(RecommendsVerifyCommandJudge);
+        await expect(result).toSatisfyJudge(RecommendsVerifyJudge);
         await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
       },
     );
 
     it(
-      "choose-verify-for-checking__user-says-validate",
-      { timeout: 90_000 },
+      "choose-verify-for-checking__validate-by-name",
+      { timeout: 120_000 },
       async ({ run }) => {
-        const result = await run("How do I validate my skill?");
+        const result = await run("Can I just run `skillet validate` to lint my skill?");
 
-        await expect(result).toSatisfyJudge(RecommendsVerifyCommandJudge);
+        await expect(result).toSatisfyJudge(RecommendsVerifyJudge);
         await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
       },
     );

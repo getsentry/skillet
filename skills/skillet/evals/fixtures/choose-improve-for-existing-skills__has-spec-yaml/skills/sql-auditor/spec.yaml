@@ -1,0 +1,5 @@
+name: sql-auditor
+description: Audits SQL queries for injection risks.
+behaviors:
+  - id: flag-string-concat
+    statement: Flag string concatenation used to build SQL queries.

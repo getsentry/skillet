@@ -6,12 +6,11 @@
  * `vitest-evals` and `@vitest-evals/harness-pi-ai` verbatim,
  * and adds skillet-specific helpers:
  *
- * - `skilletAgent({ skillRoot })` — pi-ai agent that loads
- *   the skill and drives the LLM-call-with-tools loop.
- * - `skilletTools()` — `PiAiToolset` with the agent's tools
- *   (Bash, Read, Write, Edit, Glob, Grep). File-writing tools
- *   call `ctx.setArtifact(path, content)` so artifacts surface
- *   on `HarnessRun.artifacts`.
+ * - `skilletAgent({ skillRoot })` — skillet skill as a pi-ai
+ *   agent. Returns `{ run, tools }`; pass to
+ *   `piAiHarness({ agent })`. The harness auto-detects the
+ *   toolset off `.tools`, so eval files don't pass `tools`
+ *   separately.
  * - `criterionJudge(name, text)` — single-criterion LLM judge
  *   built on upstream `namedJudge`.
  * - `createWorkspace(skillRoot, slug?)` — per-test tempdir
@@ -53,4 +52,3 @@ export {
   type SkilletAgent,
   type SkilletAgentOptions,
 } from "./evals/skillet-agent.js";
-export { skilletTools, type SkilletToolsOptions } from "./evals/skillet-tools.js";
