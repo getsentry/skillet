@@ -23,7 +23,8 @@
     "check": "npm run typecheck && npm run lint && npm run format"
   },
   "dependencies": {
-    "@mariozechner/pi-ai": "^0.68.1",
+    "@mariozechner/pi-agent-core": "^0.70.6",
+    "@mariozechner/pi-ai": "^0.72.1",
     "@vitest-evals/harness-pi-ai": "0.9.0-beta.0",
     "vitest": "4.1.5",
     "vitest-evals": "0.9.0-beta.0",

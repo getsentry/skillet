@@ -8,22 +8,22 @@
  *     harness: piAiHarness({ agent: skilletAgent({ skillRoot }) }),
  *   }, (it) => { ... });
  *
- * `skilletAgent({ skillRoot })` returns an object with both:
- * - `run(input, runtime)` — drives the LLM-call-with-tools
- *   loop on top of pi-ai, dispatching tool calls through
- *   `runtime.tools.<name>(args)`.
- * - `tools` — the agent's `PiAiToolset`. `piAiHarness`
- *   auto-detects this off the agent and wires it into the
- *   runtime, so the eval file doesn't pass `tools` separately.
+ * Implementation: thin wrapper around upstream `pi-agent-core`'s
+ * `runAgentLoop`. We bring three skillet-specific things to the
+ * table — load the skill (Anthropic Agent Skills format → system
+ * prompt), expose our agent's tools, and bridge tool dispatch to
+ * `piAiHarness`'s runtime so upstream's session/toolCalls
+ * tracking fires. Everything else (LLM calls, retries, tool
+ * loop, message normalization) belongs to the upstream loop.
  */
 
-import type { Context } from "@mariozechner/pi-ai";
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import type { Message } from "@mariozechner/pi-ai";
+import { runAgentLoop, type AgentEvent, type AgentTool } from "@mariozechner/pi-agent-core";
 import type { PiAiRuntime, PiAiToolset } from "@vitest-evals/harness-pi-ai";
+import type { JsonValue } from "vitest-evals";
 import { resolveModels } from "../agent/provider.js";
-import { submitAiJob } from "../agent/queue.js";
-import { runToolLoop } from "../agent/tool-loop.js";
 import { createToolDefs } from "../agent/tools.js";
 import { loadSkill, type Skill } from "../skill/loader.js";
 import { skilletTools } from "./skillet-tools.js";
@@ -59,11 +59,10 @@ export interface SkilletAgent {
   run: (
     input: string,
     runtime: PiAiRuntime<PiAiToolset>,
-  ) => Promise<{ output: string; usage: { totalTokens?: number; toolCalls: number } }>;
+  ) => Promise<{ output: string; usage: { toolCalls: number } }>;
 }
 
 const DEFAULT_TIMEOUT_MS = 180_000;
-const MAX_TOOL_CALLS_PER_TURN = 50;
 
 const stringify = (value: unknown): string => {
   if (typeof value === "string") return value;
@@ -84,68 +83,104 @@ export const skilletAgent = (opts: SkilletAgentOptions): SkilletAgent => {
   const override = process.env[COMPARE_SKILL_ENV];
   const skillPath = override != null && override !== "" ? override : opts.skillRoot;
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const tools = skilletTools({ skillRoot: skillPath });
 
   return {
     skillRoot: skillPath,
-    tools: skilletTools({ skillRoot: skillPath }),
+    tools,
     run: async (input, runtime) => {
       const skill = loadSkill(skillPath);
       const model = resolveModels().agent;
-      const tools = createToolDefs();
       const systemPrompt = buildSystemPrompt(skill);
 
-      const context: Context = {
-        systemPrompt,
-        messages: [
+      // Bridge: each pi-ai Tool schema (createToolDefs) becomes
+      // an AgentTool whose execute delegates to runtime.tools so
+      // piAiHarness tracks the call on result.session.toolCalls.
+      const agentTools: AgentTool[] = createToolDefs().map((piTool) => ({
+        ...piTool,
+        label: piTool.name,
+        execute: async (_toolCallId, params) => {
+          const dispatch = runtime.tools[piTool.name];
+          if (typeof dispatch !== "function") {
+            throw new Error(`unknown tool "${piTool.name}"`);
+          }
+          // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion
+          const out = await (dispatch as (a: Record<string, unknown>) => Promise<unknown>)(
+            // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion
+            params as Record<string, unknown>,
+          );
+          return {
+            content: [{ type: "text", text: stringify(out) }],
+            // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion
+            details: out as JsonValue,
+          };
+        },
+      }));
+
+      // Vitest's per-test timeout already caps the run; we add an
+      // AbortSignal so a stuck LLM call cancels at our deadline.
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+      const allText: string[] = [];
+      let toolCallCount = 0;
+
+      try {
+        await runAgentLoop(
+          [{ role: "user", content: input, timestamp: Date.now() }],
           {
-            role: "user",
-            content: input,
-            timestamp: Date.now(),
+            systemPrompt,
+            messages: [],
+            tools: agentTools,
           },
-        ],
-        tools,
-      };
-
-      const deadline = Date.now() + timeoutMs;
-      const result = await submitAiJob({
-        name: `eval-case:${skill.meta.name}`,
-        timeoutMs,
-        run: (signal) =>
-          runToolLoop({
+          {
             model,
-            context,
-            executeTool: async (name, args) => {
-              const dispatch = runtime.tools[name];
-              if (typeof dispatch !== "function") {
-                return `Error: unknown tool "${name}"`;
+            // We don't introduce custom AgentMessage types; the
+            // identity passthrough satisfies the contract.
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+            convertToLlm: (msgs) => msgs as Message[],
+          },
+          (event: AgentEvent) => {
+            if (event.type === "message_end" && event.message.role === "assistant") {
+              const text = assistantText(event.message);
+              if (text !== "") {
+                runtime.events.assistant(text);
+                allText.push(text);
               }
-              // Upstream's runtime.tools<TTool> dispatcher is typed as
-              // taking ToolArgs<TTool> (Record<string, JsonValue>) and
-              // returning Promise<ToolResult<TTool>>. validateToolCall
-              // already JSON-shaped the args; cast via unknown so the
-              // safer assertion lint accepts the transition.
-              // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion
-              const out = await (
-                dispatch as unknown as (a: Record<string, unknown>) => Promise<unknown>
-              )(args);
-              return stringify(out);
-            },
-            deadline,
-            maxToolCalls: MAX_TOOL_CALLS_PER_TURN,
-            signal,
-          }),
-      });
-
-      if (result.allText !== "") {
-        runtime.events.assistant(result.allText);
+              toolCallCount += countToolCalls(event.message);
+            }
+          },
+          controller.signal,
+        );
+      } finally {
+        clearTimeout(timer);
       }
 
       return {
-        output: result.allText,
-        usage: { toolCalls: result.toolCallCount },
+        output: allText.join("\n\n"),
+        usage: { toolCalls: toolCallCount },
       };
     },
   };
+};
+
+const assistantText = (message: Message): string => {
+  if (message.role !== "assistant") return "";
+  const blocks = Array.isArray(message.content) ? message.content : [];
+  return blocks
+    .filter((b): b is { type: "text"; text: string } => {
+      return typeof b === "object" && b != null && (b as { type?: unknown }).type === "text";
+    })
+    .map((b) => b.text)
+    .join("");
+};
+
+const countToolCalls = (message: Message): number => {
+  if (message.role !== "assistant") return 0;
+  const blocks = Array.isArray(message.content) ? message.content : [];
+  return blocks.filter((b) => {
+    return typeof b === "object" && b != null && (b as { type?: unknown }).type === "toolCall";
+  }).length;
 };
 
 const buildSystemPrompt = (skill: Skill): string => {
