@@ -23,7 +23,7 @@ import { judge as runJudgeLLM, type JudgeArtifact } from "../eval/judge.js";
  * fn is wrapped with `namedJudge(name, ...)` so the upstream
  * matcher and reporter pick up the stable display name.
  */
-export const criterionJudge = (name: string, criterionText: string): JudgeFn<JudgeContext> => {
+export const criterionJudge = (name: string, criterionText: string): JudgeFn => {
   const fn = async (ctx: JudgeContext) => {
     const transcript = formatTranscript(ctx);
     const artifacts = collectArtifacts(ctx);

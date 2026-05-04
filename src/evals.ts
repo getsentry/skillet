@@ -23,11 +23,11 @@ export {
   describeEval,
   namedJudge,
   toolCalls,
-  type BaseJudgeOptions,
   type DescribeEvalOptions,
   type Harness,
   type HarnessContext,
   type HarnessMetadata,
+  type HarnessPrompt,
   type HarnessRun,
   type JsonValue,
   type JudgeContext,
@@ -39,11 +39,12 @@ export {
 } from "vitest-evals";
 
 export {
-  piAiHarness,
   type PiAiRuntime,
   type PiAiToolDefinition,
   type PiAiToolset,
 } from "@vitest-evals/harness-pi-ai";
+
+export { piAiHarness } from "./evals/pi-ai-harness.js";
 
 export { criterionJudge } from "./evals/criterion-judge.js";
 export { createWorkspace } from "./evals/with-workspace.js";
