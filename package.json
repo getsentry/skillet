@@ -42,6 +42,7 @@
     "node": ">=20.0.0"
   },
   "files": [
+    "agents",
     "dist",
     "references",
     "skills"

@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { authorSkillViaOrchestrator } from "../agents/author.js";
 import { authorSkill } from "../authoring/loop.js";
 import { findSkillRoot } from "../skill/loader.js";
 import { specFileName } from "../spec/index.js";
@@ -44,6 +45,14 @@ export const improveCommand = async (args: string[]): Promise<number> => {
   }
 
   try {
+    const useOrchestrator = process.env.SKILLET_ORCHESTRATOR === "1";
+    if (useOrchestrator) {
+      const result = await authorSkillViaOrchestrator({
+        mode: "improve",
+        path: skillRoot,
+      });
+      return result.success ? 0 : 1;
+    }
     const result = await authorSkill({
       mode: "improve",
       path: skillRoot,

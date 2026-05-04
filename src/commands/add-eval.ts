@@ -132,7 +132,8 @@ export const addEvalCommand = async (args: string[]): Promise<number> => {
   return commitSpecAndRegenerate({
     skillRoot,
     spec: updated,
-    regenLabel: "Regenerating SKILL.md and evals from updated spec...",
+    regenLabel: "Regenerating evals from updated spec...",
     errorTrailer: "Original skill is unchanged.",
+    orchestratorMode: "add-eval",
   });
 };
