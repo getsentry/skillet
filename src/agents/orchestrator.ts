@@ -14,6 +14,7 @@
  * that contract; the orchestrator does not enforce it).
  */
 
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { AnyModel } from "../agent/provider.js";
 import type { EvalRunResult } from "../eval/index.js";
@@ -181,13 +182,11 @@ export const orchestrate = async (opts: OrchestratorOptions): Promise<Orchestrat
   // (Cheap pre-flight — the writer agents will discover any
   // structural issues themselves.)
   const specPath = join(opts.skillRoot, "spec.yaml");
-  await import("node:fs").then((fs) => {
-    if (!fs.existsSync(specPath)) {
-      throw new Error(
-        `orchestrator: spec.yaml missing at ${specPath}. Run \`skillet create\` (which runs spec-author first) instead of invoking the orchestrator directly.`,
-      );
-    }
-  });
+  if (!existsSync(specPath)) {
+    throw new Error(
+      `orchestrator: spec.yaml missing at ${specPath}. Run \`skillet create\` (which runs spec-author first) instead of invoking the orchestrator directly.`,
+    );
+  }
 
   if (opts.mode === "add-eval") {
     // add-eval: only the evals pair runs. SKILL.md and existing

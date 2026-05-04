@@ -13,7 +13,7 @@ import type { Context, Tool } from "@mariozechner/pi-ai";
 import { resolve } from "node:path";
 import type { AnyModel } from "../agent/provider.js";
 import { submitAiJob } from "../agent/queue.js";
-import { isInScope, type ResearchScope } from "../agent/scope.js";
+import { buildScope, isInScope, type ResearchScope } from "../agent/scope.js";
 import { runToolLoop } from "../agent/tool-loop.js";
 import { createToolDefs, executeTool } from "../agent/tools.js";
 import { loadSkill } from "../skill/loader.js";
@@ -165,21 +165,26 @@ export const runAgent = async (
   // caller wants to expose. Agent bundle is included so
   // `read_file path=references/foo.md` (which resolves against the
   // bundle inside executeTool) doesn't trip the scope check.
-  const readRoots = uniq([ctx.skillRoot, def.bundleRoot, ...(ctx.readScope ?? [])]);
-  const readScope: ResearchScope = {
-    roots: readRoots,
-    defaultBase: ctx.skillRoot,
-  };
+  // Use buildScope so roots are canonicalized via realpath — on
+  // macOS /tmp → /private/tmp and a non-canonical root would
+  // reject every read against that path.
+  const readScope = buildScope(
+    uniq([ctx.skillRoot, def.bundleRoot, ...(ctx.readScope ?? [])]),
+  );
   // Write scope: caller-specified only. Empty for validators.
-  const writeRoots = uniq(ctx.writeScope);
-  const writeScope: ResearchScope = {
-    roots: writeRoots,
-    defaultBase: ctx.skillRoot,
-  };
+  const writeScope: ResearchScope =
+    ctx.writeScope.length > 0
+      ? buildScope(uniq(ctx.writeScope))
+      : { roots: [], defaultBase: ctx.skillRoot };
 
   const tools = buildAllowedTools(def);
   const executor = buildScopedExecutor(def, ctx, readScope, writeScope);
-  const systemPrompt = buildSystemPrompt(agentBody, ctx, readRoots, writeRoots);
+  const systemPrompt = buildSystemPrompt(
+    agentBody,
+    ctx,
+    readScope.roots,
+    writeScope.roots,
+  );
 
   const context: Context = {
     systemPrompt,
