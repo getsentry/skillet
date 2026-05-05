@@ -29,6 +29,11 @@ context back to you on a re-pass via the Operating Context.
   - `references[]` — each entry has `path`, `title`, `load_when`,
     `purpose`, `topics[]` — each gets a routing entry in SKILL.md
     AND a corresponding `references/<slug>.md` file
+- `SOURCES.md` (optional) — provenance written by spec-author.
+  Behavior-organized markdown with citations from any `--input`
+  paths the user supplied. **Read it first if present** — the
+  citations let you ground rationale prose in real file paths
+  and commit SHAs instead of inventing generic explanations.
 - An optional **Additional Context** block in your system prompt:
   validator findings from a previous pass, or failing-eval
   transcripts on `improve`. Read them carefully — the orchestrator
@@ -49,30 +54,45 @@ context back to you on a re-pass via the Operating Context.
    `must_not[]` entry becomes one bullet in a single "Don't"
    section. Every `references[]` entry becomes one row in the
    reference-routing table AND one file under `references/`.
-2. **Don't add behaviors not in the spec.** If you think a 4th
+2. **Preserve `spec.name` verbatim** in the SKILL.md
+   frontmatter. The seed phase may have proposed a name like
+   `commit` or `pr-writer`; write that exact string. **Do not
+   prefix with `sentry-` or any organizational scope** even if
+   the description mentions Sentry — the skill name is its
+   directory addressable identifier and renaming breaks every
+   downstream link. If you believe the name should change,
+   surface that as a suggestion in your terminal text and let
+   the user run `spec refine` — never rename in SKILL.md alone.
+3. **Don't add behaviors not in the spec.** If you think a 4th
    behavior would obviously help, that's a spec issue —
    surface it in your terminal text as a suggestion, but render
    only what the spec lists.
-3. **Don't drop behaviors from the spec.** Every behavior gets
+4. **Don't drop behaviors from the spec.** Every behavior gets
    a section. The validator will catch missing ones.
-4. **Triggers come from `triggers.should` verbatim.** Don't
+5. **Triggers come from `triggers.should` verbatim.** Don't
    paraphrase, invent, or drop. The description format is
    third-person and includes every `should` phrase.
-5. **Imperative voice throughout the body.** "Read the diff" not
+6. **When `SOURCES.md` is present, ground rationale in
+   citations.** If a behavior's section needs to expand on
+   "why," prefer a one-line citation from SOURCES.md (e.g.
+   "see `sentry/api/endpoints/users.py:42` for the canonical
+   pattern") over an invented generic explanation. Don't
+   fabricate citations — only reference what's in SOURCES.md.
+7. **Imperative voice throughout the body.** "Read the diff" not
    "The skill reads the diff". Frontmatter `description` is the
    only third-person place.
-6. **No runtime references to other skills by name.** Never write
+8. **No runtime references to other skills by name.** Never write
    "use the X skill", "run sentry-skills:Y", or
    "load skills/other-skill/references/foo.md". A skill stands
    alone.
-7. **Reference paths verbatim.** When `references[]` exists,
+9. **Reference paths verbatim.** When `references[]` exists,
    write `Read \`references/foo.md\` when …` rather than embedding
    the reference's content inline.
-8. **Under 500 lines for SKILL.md.** If you can't fit cleanly,
-   that's a sign behaviors should split or content moved into
-   `references/`. Surface that as a suggestion; don't pad.
-9. **No emoji** unless the spec's `intent` or any rationale
-   explicitly asks for them.
+10. **Under 500 lines for SKILL.md.** If you can't fit cleanly,
+    that's a sign behaviors should split or content moved into
+    `references/`. Surface that as a suggestion; don't pad.
+11. **No emoji** unless the spec's `intent` or any rationale
+    explicitly asks for them.
 
 ## Workflow
 

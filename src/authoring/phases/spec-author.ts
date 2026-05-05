@@ -87,6 +87,13 @@ interface TurnOutput {
   patches: SpecPatch[];
   questions: string[];
   commitRequest: boolean;
+  /**
+   * Optional FULL SOURCES.md markdown. Present when the agent has
+   * read user-supplied --input paths and is grounding behaviors in
+   * citations. Null/undefined means "no source updates this turn"
+   * (the previous SOURCES.md content, if any, is preserved).
+   */
+  sourcesUpdate?: string;
 }
 
 const parseTurnOutput = (raw: string): TurnOutput => {
@@ -115,7 +122,11 @@ const parseTurnOutput = (raw: string): TurnOutput => {
     questions = rawQuestions.filter((q): q is string => typeof q === "string" && q.trim() !== "");
   }
   const commitRequest = parsed.commit_request === true;
-  return { patches, questions, commitRequest };
+  const out: TurnOutput = { patches, questions, commitRequest };
+  if (typeof parsed.sources_update === "string" && parsed.sources_update.trim() !== "") {
+    out.sourcesUpdate = parsed.sources_update;
+  }
+  return out;
 };
 
 // ── Loop ──────────────────────────────────────────────────
@@ -176,6 +187,13 @@ export interface SpecAuthorResult {
   spec: SkillSpec;
   turns: number;
   accepted: boolean;
+  /**
+   * Latest SOURCES.md content the agent emitted. Undefined when
+   * the agent never wrote one (e.g. no --input paths were
+   * supplied, so the agent had nothing to ground from). When
+   * present, callers should write it alongside spec.yaml.
+   */
+  sources?: string;
 }
 
 /**
@@ -190,6 +208,7 @@ export const runSpecAuthor = async (opts: SpecAuthorOptions): Promise<SpecAuthor
   const maxTurns = opts.maxTurns ?? DEFAULT_MAX_TURNS;
   const maxToolCallsPerTurn = opts.maxToolCallsPerTurn ?? DEFAULT_MAX_TOOL_CALLS_PER_TURN;
   let current = opts.baseline;
+  let latestSources: string | undefined;
   const messages: Message[] = opts.resume != null ? [...opts.resume.messages] : [];
 
   if (opts.resume != null) {
@@ -310,6 +329,10 @@ export const runSpecAuthor = async (opts: SpecAuthorOptions): Promise<SpecAuthor
       continue;
     }
 
+    if (turn.sourcesUpdate != null) {
+      latestSources = turn.sourcesUpdate;
+    }
+
     if (turn.patches.length > 0) {
       const candidate = applyPatches(current, turn.patches);
       const validation = validateSpecObject(candidate, "spec-author candidate");
@@ -383,7 +406,7 @@ export const runSpecAuthor = async (opts: SpecAuthorOptions): Promise<SpecAuthor
         throw err;
       }
       if (decision === "accept") {
-        return { spec: current, turns: iteration, accepted: true };
+        return makeResult(current, iteration, true, latestSources);
       }
       messages.push({
         role: "user",
@@ -402,7 +425,18 @@ export const runSpecAuthor = async (opts: SpecAuthorOptions): Promise<SpecAuthor
     });
   }
 
-  return { spec: current, turns: maxTurns, accepted: false };
+  return makeResult(current, maxTurns, false, latestSources);
+};
+
+const makeResult = (
+  spec: SkillSpec,
+  turns: number,
+  accepted: boolean,
+  sources: string | undefined,
+): SpecAuthorResult => {
+  const result: SpecAuthorResult = { spec, turns, accepted };
+  if (sources != null) result.sources = sources;
+  return result;
 };
 
 // ── Helpers ───────────────────────────────────────────────

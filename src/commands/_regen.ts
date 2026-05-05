@@ -6,6 +6,7 @@
  * sites don't drift.
  */
 
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { resolveModels } from "../agent/provider.js";
 import { orchestrate, type OrchestratorMode } from "../agents/orchestrator.js";
@@ -51,6 +52,17 @@ export const commitSpecAndRegenerate = async (opts: CommitSpecOptions): Promise<
   try {
     await withStaging(opts.skillRoot, async (stagingDir) => {
       writeSpec(join(stagingDir, specFileName()), opts.spec);
+      // Carry SOURCES.md through if the live skill has one — the
+      // writer agents read it for citation grounding. Spec-refine
+      // and add-eval don't regenerate sources themselves.
+      const liveSourcesPath = join(opts.skillRoot, "SOURCES.md");
+      if (existsSync(liveSourcesPath)) {
+        writeFileSync(
+          join(stagingDir, "SOURCES.md"),
+          readFileSync(liveSourcesPath, "utf-8"),
+          "utf-8",
+        );
+      }
       console.log(`✓ Staged ${specFileName()}`);
       console.log(regenLabel);
       const orchestratorResult = await orchestrate({
