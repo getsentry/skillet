@@ -66,7 +66,14 @@ export interface OrchestratorResult {
   success: boolean;
 }
 
-const DEFAULT_MAX_REPASSES = 1;
+// Eval-writer's bundled SKILL.md documents a multi-pass batching
+// strategy for large suites: pass 1 writes _judges.ts, subsequent
+// passes write eval files in batches. The orchestrator must allow
+// enough re-passes for that to converge; with the default re-pass
+// count of 1, large specs (>~25 entries) couldn't finish before the
+// orchestrator gave up. We stop early when findings stop decreasing,
+// so a stuck loop doesn't burn through all 4.
+const DEFAULT_MAX_REPASSES = 4;
 
 /** Append a CLI-readable progress line if a sink is provided. */
 const tick = (opts: OrchestratorOptions, msg: string): void => {
@@ -150,6 +157,7 @@ const runPair = async (
 
   const maxRePasses = opts.maxRePassesPerWriter ?? DEFAULT_MAX_REPASSES;
   let pass = 1;
+  let prevErrorCount = countErrors(diag);
   while (hasErrors(diag) && pass <= maxRePasses) {
     pass += 1;
     const findingsContext = formatDiagnostics(
@@ -162,9 +170,23 @@ const runPair = async (
         : findingsContext;
     runs.push(await runWriter(opts, writerName, pass, extra));
     diag = await runValidator(opts, validatorName);
+    const nextErrorCount = countErrors(diag);
+    // Stop early when the writer made no progress — keeps a stuck
+    // pair from burning through the full re-pass budget.
+    if (nextErrorCount >= prevErrorCount && nextErrorCount > 0) {
+      tick(
+        opts,
+        `[orchestrator] ${writerName}: no progress (errors ${prevErrorCount}→${nextErrorCount}); stopping re-passes`,
+      );
+      break;
+    }
+    prevErrorCount = nextErrorCount;
   }
   return { runs, diag };
 };
+
+const countErrors = (diag: Diagnostics): number =>
+  diag.findings.filter((f) => f.severity === "error").length;
 
 /**
  * Orchestrate one skill-authoring cycle. Assumes spec.yaml exists

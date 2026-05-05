@@ -19,7 +19,12 @@ import { createToolDefs, executeTool } from "../agent/tools.js";
 import { loadSkill } from "../skill/loader.js";
 import type { AgentDefinition, AgentRunContext, AgentRunResult } from "./types.js";
 
-const DEFAULT_MAX_TOOL_CALLS = 40;
+// Sized for ~25 spec entries with ~2 tool calls each (read template +
+// write file) plus orientation reads (spec, list dir, judges file).
+// Truly large suites (>~25 entries) hit eval-writer's multi-pass
+// batching strategy via the orchestrator's re-pass loop instead of
+// burning budget in one turn.
+const DEFAULT_MAX_TOOL_CALLS = 60;
 const PER_TURN_DEADLINE_MS = 15 * 60_000;
 const SESSION_DEADLINE_MS = 30 * 60_000;
 
