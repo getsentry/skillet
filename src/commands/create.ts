@@ -1,7 +1,6 @@
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { authorSkillViaOrchestrator } from "../agents/author.js";
-import { authorSkill } from "../authoring/loop.js";
 import { SpecAuthorPaused } from "../authoring/phases/spec-author.js";
 import { sessionExists } from "../authoring/session.js";
 import { handleSpecAuthorPause } from "../cli/pause.js";
@@ -171,27 +170,14 @@ export const createCommand = async (args: string[]): Promise<number> => {
   }
 
   try {
-    const useOrchestrator = process.env.SKILLET_ORCHESTRATOR === "1";
-    if (useOrchestrator) {
-      const authorOpts: Parameters<typeof authorSkillViaOrchestrator>[0] = {
-        mode: "create",
-        description: opts.description,
-        path: targetDir,
-      };
-      if (allowedTools != null) authorOpts.allowedTools = allowedTools;
-      if (inputAbsolutes.length > 0) authorOpts.inputPaths = inputAbsolutes;
-      const result = await authorSkillViaOrchestrator(authorOpts);
-      return result.success ? 0 : 1;
-    }
-    const authorOpts: Parameters<typeof authorSkill>[0] = {
+    const authorOpts: Parameters<typeof authorSkillViaOrchestrator>[0] = {
       mode: "create",
       description: opts.description,
       path: targetDir,
     };
-    if (opts.maxIterations != null) authorOpts.maxIterations = opts.maxIterations;
     if (allowedTools != null) authorOpts.allowedTools = allowedTools;
     if (inputAbsolutes.length > 0) authorOpts.inputPaths = inputAbsolutes;
-    const result = await authorSkill(authorOpts);
+    const result = await authorSkillViaOrchestrator(authorOpts);
     return result.success ? 0 : 1;
   } catch (err: unknown) {
     if (err instanceof SpecAuthorPaused) {

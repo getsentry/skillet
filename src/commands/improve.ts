@@ -1,36 +1,33 @@
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { authorSkillViaOrchestrator } from "../agents/author.js";
-import { authorSkill } from "../authoring/loop.js";
 import { findSkillRoot } from "../skill/loader.js";
 import { specFileName } from "../spec/index.js";
-import { findIntFlag, findPositional } from "./_args.js";
+import { findPositional } from "./_args.js";
 
 export interface ImproveOptions {
   path?: string;
-  maxIterations?: number;
 }
 
 const parseImproveArgs = (args: string[]): ImproveOptions => {
-  const positional = findPositional(args, ["max-iterations"]);
+  const positional = findPositional(args, []);
   const opts: ImproveOptions = {};
   if (positional[0] != null) opts.path = positional[0];
-  const maxIterations = findIntFlag(args, "max-iterations");
-  if (maxIterations != null) opts.maxIterations = maxIterations;
   return opts;
 };
 
-export const IMPROVE_USAGE = `Usage: skillet improve [path] [--max-iterations N]
+export const IMPROVE_USAGE = `Usage: skillet improve [path]
 
-Iterate on an existing skill until per-behavior evals pass. Auto-imports
-legacy skills (SKILL.md without spec.yaml).`;
+Run the orchestrator (skill-writer + eval-writer + validators) against
+an existing skill. Auto-imports legacy skills (SKILL.md without
+spec.yaml). After re-rendering, runs vitest; if cases fail, runs the
+orchestrator once more with the failing-eval transcripts threaded into
+skill-writer's context.`;
 
 export const improveCommand = async (args: string[]): Promise<number> => {
   const opts = parseImproveArgs(args);
   const startPath = resolve(opts.path ?? ".");
 
-  // Find the skill root by walking up looking for either spec.yaml or
-  // SKILL.md. The loop handles auto-import when only SKILL.md exists.
   let skillRoot: string;
   if (existsSync(join(startPath, specFileName()))) {
     skillRoot = startPath;
@@ -45,20 +42,10 @@ export const improveCommand = async (args: string[]): Promise<number> => {
   }
 
   try {
-    const useOrchestrator = process.env.SKILLET_ORCHESTRATOR === "1";
-    if (useOrchestrator) {
-      const result = await authorSkillViaOrchestrator({
-        mode: "improve",
-        path: skillRoot,
-      });
-      return result.success ? 0 : 1;
-    }
-    const result = await authorSkill({
+    const result = await authorSkillViaOrchestrator({
       mode: "improve",
       path: skillRoot,
-      ...(opts.maxIterations != null ? { maxIterations: opts.maxIterations } : {}),
     });
-
     return result.success ? 0 : 1;
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);

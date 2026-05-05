@@ -1,10 +1,9 @@
 /**
- * Shared "stage spec → regen → coverage" helper used by every
- * command that mutates spec.yaml: `spec init`, `spec refine`,
- * `spec import`, `add-eval`, `resume`. Each call site previously
- * inlined the same withStaging + regenerate + printCoverageReport
- * sequence with subtle drift (one site dropped withElapsed; error
- * messages diverged).
+ * Shared "stage spec → run orchestrator → coverage" helper. Used by
+ * commands that mutate `spec.yaml`: `spec init`, `spec refine`,
+ * `spec import`, `add-eval`, `resume`. Centralizes the
+ * withStaging + orchestrate + printCoverageReport sequence so call
+ * sites don't drift.
  */
 
 import { join } from "node:path";
@@ -13,7 +12,6 @@ import { orchestrate, type OrchestratorMode } from "../agents/orchestrator.js";
 import { hasErrors } from "../agents/types.js";
 import { withElapsed } from "../cli/progress.js";
 import { specFileName, type SkillSpec, writeSpec } from "../spec/index.js";
-import { regenerate } from "../spec/regen.js";
 import { withStaging } from "../staging/index.js";
 import { printCoverageReport } from "./coverage-report.js";
 
@@ -32,57 +30,42 @@ export interface CommitSpecOptions {
   regenLabel?: string;
   /** Suffix on the error block (e.g. "Original skill is unchanged."). */
   errorTrailer?: string;
-  /** Skip the coverage report at the end (some callers want to defer it). */
+  /** Skip the coverage report at the end. */
   skipCoverage?: boolean;
   /**
-   * Orchestrator mode when `SKILLET_ORCHESTRATOR=1`. add-eval skips
-   * the skill-writer pass; create/improve run both writers.
-   * Default: "create".
+   * Orchestrator mode. `add-eval` runs only the eval-writer +
+   * evals-validator pair (SKILL.md untouched); `create` and
+   * `improve` run both pairs. Default: `create`.
    */
   orchestratorMode?: OrchestratorMode;
 }
 
 /**
- * Write `spec` atomically into `skillRoot`, regenerate derived
- * artifacts (SKILL.md, evals/), and print a coverage report.
- * Returns 0 on success, 1 on failure (caller's exit code).
+ * Write `spec` atomically into `skillRoot`, run the orchestrator,
+ * and print a coverage report. Returns 0 on success, 1 on failure
+ * (caller's exit code).
  */
 export const commitSpecAndRegenerate = async (opts: CommitSpecOptions): Promise<number> => {
   const models = resolveModels();
-  const regenLabel = opts.regenLabel ?? "Regenerating SKILL.md and evals...";
-  const useOrchestrator = process.env.SKILLET_ORCHESTRATOR === "1";
+  const regenLabel = opts.regenLabel ?? "Running orchestrator (writers + validators)...";
   try {
     await withStaging(opts.skillRoot, async (stagingDir) => {
       writeSpec(join(stagingDir, specFileName()), opts.spec);
       console.log(`✓ Staged ${specFileName()}`);
       console.log(regenLabel);
-      if (useOrchestrator) {
-        const orchestratorResult = await orchestrate({
-          skillRoot: stagingDir,
-          mode: opts.orchestratorMode ?? "create",
-          model: models.agent,
-          onProgress: withElapsed((msg) => {
-            console.log(`  ${msg}`);
-          }),
-        });
-        if (hasErrors(orchestratorResult.diagnostics.skill)) {
-          console.error(
-            "  skill-validator returned errors; staged output preserved for inspection.",
-          );
-        }
-        if (hasErrors(orchestratorResult.diagnostics.evals)) {
-          console.error(
-            "  evals-validator returned errors; staged output preserved for inspection.",
-          );
-        }
-      } else {
-        await regenerate(stagingDir, {
-          model: models.agent,
-          evalGenModel: models.evalGen,
-          onProgress: withElapsed((msg) => {
-            console.log(`  ${msg}`);
-          }),
-        });
+      const orchestratorResult = await orchestrate({
+        skillRoot: stagingDir,
+        mode: opts.orchestratorMode ?? "create",
+        model: models.agent,
+        onProgress: withElapsed((msg) => {
+          console.log(`  ${msg}`);
+        }),
+      });
+      if (hasErrors(orchestratorResult.diagnostics.skill)) {
+        console.error("  skill-validator returned errors; staged output preserved for inspection.");
+      }
+      if (hasErrors(orchestratorResult.diagnostics.evals)) {
+        console.error("  evals-validator returned errors; staged output preserved for inspection.");
       }
     });
   } catch (err: unknown) {

@@ -73,10 +73,11 @@ see `policies/skill-creation-lifecycle.md`.
 ## Architecture Discipline
 
 - `src/agent/` owns LLM call lifecycle (queue, backoff, tool-loop). Phases and commands submit jobs through `submitAiJob`; they do not call pi-ai's `complete` directly.
-- `src/authoring/phases/` are the spec-author / eval-gen / skill-gen / skill-improve / spec-refine / reference-gen phases. Each phase is one file. Each LLM call in a phase is wrapped in `submitAiJob` with a name like `<phase>:<key>`.
+- `src/agents/` (plural) is the orchestration layer for bundled authoring agents. `runner.ts` drives one agent through `runToolLoop` with scoped read/write policy; `orchestrator.ts` runs writers + validators in parallel with one re-pass on errors; `author.ts` is the entry point that `skillet create` and `skillet improve` call. Bundled agent skills live under `agents/<name>/` and ship via `package.json`'s `files` array.
+- `src/authoring/phases/` is now scoped to the interactive spec-author + spec-refine paths and shared text helpers — the eval-gen / skill-gen / skill-improve / reference-gen phases moved into bundled agents and no longer exist as TypeScript.
 - `src/spec/` is the source-of-truth schema and parser/validator. Patches go through `applyPatch` / `applyPatches` in `patcher.ts`; the parser and structural validator are independent so spec edits round-trip cleanly.
-- `src/evals.ts` is the public entry for generated `.eval.ts` files. It re-exports upstream `vitest-evals` (`describeEval`, `toSatisfyJudge`, `Harness*`, …) and adds three skillet-specific helpers: `criterionJudge(name, text)`, `createWorkspace(skillRoot, slug?)`, and `skilletHarness({ skill })`. The import path `@sentry/skillet/evals` is the contract.
-- `src/eval/vitest-runner.ts` is the only place that spawns vitest. The custom YAML runner is gone.
+- `src/evals.ts` is the public entry for generated `.eval.ts` files. It re-exports upstream `vitest-evals` (`describeEval`, `toSatisfyJudge`, `Harness*`, …) and adds skillet-specific helpers: `criterionJudge(name, text)`, `createWorkspace(skillRoot, slug?)`, `skilletAgent({ skillRoot })`, and a wrapped `piAiHarness`. The import path `@sentry/skillet/evals` is the contract.
+- `src/eval/vitest-runner.ts` is the only place that spawns vitest.
 - `src/cli.ts` parses global flags (queue config, --verbose) and dispatches to `src/commands/*`. Each command exports its `*_USAGE` constant; the dispatcher routes `--help`/`-h` to print usage before invoking the command body.
 - Use `openspec/specs/<capability>/spec.md` as the canonical capability description; change deltas live under `openspec/changes/`. Don't duplicate spec content into AGENTS.md.
 
@@ -99,7 +100,8 @@ Run `ls openspec/specs/` for the current list. As of writing:
 - `eval-linter` — eval file structural validation
 - `judge` — LLM judge prompt + grade parsing
 - `provider-autodiscovery` — env-based provider/model selection
-- `skill-authoring` — spec-author / eval-gen / skill-gen / improve loop phases
+- `agent-orchestration` — bundled authoring agents, runner, orchestrator, diagnostic schema
+- `skill-authoring` — interactive spec-author + orchestrator-driven write/validate cycle
 - `skill-loader` — loading SKILL.md + references at runtime
 - `structured-output` — JSON-output retry harness
 - `validation` — spec.yaml structural validation
