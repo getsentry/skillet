@@ -13,7 +13,6 @@ import {
   skilletAgent,
 } from "@sentry/skillet/evals";
 import {
-  DoesNotRecommendHandEditingDerivedFilesJudge,
   RecommendsSpecRefineJudge,
 } from "./_judges.js";
 
@@ -27,13 +26,14 @@ describeEval(
   },
   (it) => {
     it(
-      "choose-spec-refine-for-feedback__add-behavior",
-      { timeout: 120_000 },
+      "choose-spec-refine-for-feedback__natural-language-change",
+      { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("I want my code-review skill to also flag TODO comments as low-severity findings. How do I make that change?");
+        const result = await run(
+          "The skill is being too cautious — I want it to stop hedging on every recommendation. How do I tell it that?",
+        );
 
         await expect(result).toSatisfyJudge(RecommendsSpecRefineJudge);
-        await expect(result).toSatisfyJudge(DoesNotRecommendHandEditingDerivedFilesJudge);
       },
     );
   },

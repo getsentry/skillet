@@ -13,8 +13,8 @@ import {
   skilletAgent,
 } from "@sentry/skillet/evals";
 import {
-  DistinguishesEvalsAreDurableJudge,
-  ExplainsSkillMdRegeneratedJudge,
+  ExplainsEvalsAreDurableJudge,
+  ExplainsSpecAsSourceOfTruthJudge,
   RecommendsSpecRefineJudge,
 } from "./_judges.js";
 
@@ -28,23 +28,27 @@ describeEval(
   },
   (it) => {
     it(
-      "explain-spec-as-source-of-truth__edit-skill-md",
+      "explain-spec-as-source-of-truth__editing-skill-md",
       { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("I want to change some of the wording and rules in SKILL.md. Can I just edit the file directly?");
+        const result = await run(
+          "I want to tweak the wording in SKILL.md to make it clearer. Can I just open it and edit?",
+        );
 
-        await expect(result).toSatisfyJudge(ExplainsSkillMdRegeneratedJudge);
+        await expect(result).toSatisfyJudge(ExplainsSpecAsSourceOfTruthJudge);
         await expect(result).toSatisfyJudge(RecommendsSpecRefineJudge);
       },
     );
 
     it(
-      "explain-spec-as-source-of-truth__edit-evals",
+      "explain-spec-as-source-of-truth__editing-eval-files",
       { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("Can I edit the generated eval files in evals/ directly, or do those get clobbered like SKILL.md?");
+        const result = await run(
+          "Can I hand-edit the files under evals/ to tighten up the assertions, or will skillet overwrite them?",
+        );
 
-        await expect(result).toSatisfyJudge(DistinguishesEvalsAreDurableJudge);
+        await expect(result).toSatisfyJudge(ExplainsEvalsAreDurableJudge);
       },
     );
   },

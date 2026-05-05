@@ -1,3 +1,0 @@
-# My Skill
-
-Does things.

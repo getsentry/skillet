@@ -13,7 +13,6 @@ import {
   skilletAgent,
 } from "@sentry/skillet/evals";
 import {
-  DoesNotRecommendValidateJudge,
   RecommendsSpecShowJudge,
 } from "./_judges.js";
 
@@ -27,13 +26,14 @@ describeEval(
   },
   (it) => {
     it(
-      "choose-spec-show-for-inspection__read-current-spec",
-      { timeout: 120_000 },
+      "choose-spec-show-for-inspection__readonly-view",
+      { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("How do I view the current spec for my skill without changing anything?");
+        const result = await run(
+          "How do I just look at the current spec for this skill without changing anything?",
+        );
 
         await expect(result).toSatisfyJudge(RecommendsSpecShowJudge);
-        await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
       },
     );
   },

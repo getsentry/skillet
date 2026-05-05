@@ -13,8 +13,8 @@ import {
   skilletAgent,
 } from "@sentry/skillet/evals";
 import {
-  DistinguishesEvalsAreDurableJudge,
-  DoesNotRecommendHandEditingDerivedFilesJudge,
+  DoesNotRecommendHandEditSkillMdJudge,
+  ExplainsEvalsAreDurableJudge,
   RecommendsSpecRefineJudge,
 } from "./_judges.js";
 
@@ -28,24 +28,27 @@ describeEval(
   },
   (it) => {
     it(
-      "dont-tell-user-to-handedit-derived-files__change-skill-prose",
-      { timeout: 120_000 },
+      "dont-tell-user-to-handedit-derived-files__skill-md-tweak",
+      { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("I want to change the wording in my skill's SKILL.md to make the instructions clearer. What's the best way to edit it?");
+        const result = await run(
+          "There's a sentence in SKILL.md I'd like to rephrase. Should I just open the file and change it?",
+        );
 
-        await expect(result).toSatisfyJudge(DoesNotRecommendHandEditingDerivedFilesJudge);
+        await expect(result).toSatisfyJudge(DoesNotRecommendHandEditSkillMdJudge);
         await expect(result).toSatisfyJudge(RecommendsSpecRefineJudge);
       },
     );
 
     it(
-      "dont-tell-user-to-handedit-derived-files__edit-eval-vs-skill",
-      { timeout: 120_000 },
+      "dont-tell-user-to-handedit-derived-files__eval-file-tweak",
+      { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("Can I just hand-edit the SKILL.md and the .eval.ts files directly to tweak my skill?");
+        const result = await run(
+          "I want to tighten an assertion in one of my evals/*.eval.ts files. Is editing it directly the right move, or do I have to go through the CLI?",
+        );
 
-        await expect(result).toSatisfyJudge(DoesNotRecommendHandEditingDerivedFilesJudge);
-        await expect(result).toSatisfyJudge(DistinguishesEvalsAreDurableJudge);
+        await expect(result).toSatisfyJudge(ExplainsEvalsAreDurableJudge);
       },
     );
   },

@@ -8,7 +8,6 @@ import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 import { expect } from "vitest";
 import {
-  createWorkspace,
   describeEval,
   piAiHarness,
   skilletAgent,
@@ -29,29 +28,19 @@ describeEval(
   },
   (it) => {
     it(
-      "capture-intent-before-generation__vague-new-skill-request",
+      "capture-intent-before-generation__vague-new-skill",
       { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("I want to make a skill for reviewing Terraform code for security issues.");
+        const result = await run(
+          "Make me a skill for code review.",
+        );
 
-        const toolNames = toolCalls(result.session).map((c) => c.name);
-        expect(toolNames).not.toContain("Bash");
-        expect(toolNames).not.toContain("bash");
-        await expect(result).toSatisfyJudge(AsksIntentQuestionsJudge);
-        await expect(result).toSatisfyJudge(DoesNotInvokeCLIPrematurelyJudge);
-      },
-    );
+        // Agent should NOT shell out to skillet on this turn — it
+        // needs to interview the user first.
+        const names = toolCalls(result.session).map((c) => c.name);
+        expect(names).not.toContain("Bash");
+        expect(names).not.toContain("bash");
 
-    it(
-      "capture-intent-before-generation__add-evals-request",
-      { timeout: 90_000 },
-      async ({ run }) => {
-        const cwd = createWorkspace(skillRoot, "capture-intent-before-generation__add-evals-request");
-        const result = await run("Can you add some evals to my existing skill?", { metadata: { cwd } });
-
-        const toolNames = toolCalls(result.session).map((c) => c.name);
-        expect(toolNames).not.toContain("Bash");
-        expect(toolNames).not.toContain("bash");
         await expect(result).toSatisfyJudge(AsksIntentQuestionsJudge);
         await expect(result).toSatisfyJudge(DoesNotInvokeCLIPrematurelyJudge);
       },

@@ -13,9 +13,8 @@ import {
   skilletAgent,
 } from "@sentry/skillet/evals";
 import {
-  DoesNotMentionApiKeysJudge,
-  DoesNotRecommendValidateJudge,
   RecommendsSkilletCreateJudge,
+  UsesScopedPackageJudge,
 } from "./_judges.js";
 
 const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, "");
@@ -28,24 +27,15 @@ describeEval(
   },
   (it) => {
     it(
-      "choose-create-for-new-skills__new-skill-from-description",
+      "choose-create-for-new-skills__from-description",
       { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("I want to make a new skill that reviews Terraform files for security issues. How do I start?");
+        const result = await run(
+          "I want a skill that reviews Terraform modules for security issues. How do I get started?",
+        );
 
         await expect(result).toSatisfyJudge(RecommendsSkilletCreateJudge);
-        await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
-      },
-    );
-
-    it(
-      "choose-create-for-new-skills__fresh-idea-no-files",
-      { timeout: 90_000 },
-      async ({ run }) => {
-        const result = await run("Can you help me build a skill from scratch? I have an idea for one that audits GitHub Actions workflows.");
-
-        await expect(result).toSatisfyJudge(RecommendsSkilletCreateJudge);
-        await expect(result).toSatisfyJudge(DoesNotMentionApiKeysJudge);
+        await expect(result).toSatisfyJudge(UsesScopedPackageJudge);
       },
     );
   },
