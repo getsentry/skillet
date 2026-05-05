@@ -14,7 +14,6 @@ import {
 } from "@sentry/skillet/evals";
 import {
   DoesNotMentionApiKeysJudge,
-  ExplainsAutoDiscoveryJudge,
 } from "./_judges.js";
 
 const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, "");
@@ -27,21 +26,12 @@ describeEval(
   },
   (it) => {
     it(
-      "dont-mention-api-keys__how-do-i-auth",
-      { timeout: 120_000 },
+      "dont-mention-api-keys__setup-question",
+      { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("I just installed skillet. How do I configure authentication so it can call the model?");
-
-        await expect(result).toSatisfyJudge(DoesNotMentionApiKeysJudge);
-        await expect(result).toSatisfyJudge(ExplainsAutoDiscoveryJudge);
-      },
-    );
-
-    it(
-      "dont-mention-api-keys__getting-started",
-      { timeout: 120_000 },
-      async ({ run }) => {
-        const result = await run("Walk me through getting started running my first eval with skillet.");
+        const result = await run(
+          "What do I need to set up before I can run skillet for the first time?",
+        );
 
         await expect(result).toSatisfyJudge(DoesNotMentionApiKeysJudge);
       },

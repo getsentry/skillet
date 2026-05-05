@@ -8,14 +8,13 @@ import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 import { expect } from "vitest";
 import {
-  createWorkspace,
   describeEval,
   piAiHarness,
   skilletAgent,
 } from "@sentry/skillet/evals";
 import {
-  DoesNotRecommendManualSpecImportJudge,
-  RecommendsImproveCommandJudge,
+  RecommendsSkilletImproveJudge,
+  UsesScopedPackageJudge,
 } from "./_judges.js";
 
 const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, "");
@@ -29,24 +28,14 @@ describeEval(
   (it) => {
     it(
       "choose-improve-for-existing-skills__legacy-skill-md",
-      { timeout: 120_000 },
+      { timeout: 90_000 },
       async ({ run }) => {
-        const cwd = createWorkspace(skillRoot, "choose-improve-for-existing-skills__legacy-skill-md");
-        const result = await run("I have an existing skill at skills/code-reviewer with a SKILL.md but no spec.yaml. It's not catching bugs reliably. How do I make it better?", { metadata: { cwd } });
+        const result = await run(
+          "I have a SKILL.md file from another project but no spec.yaml. I want to clean it up and add a couple of missing behaviors. What's the workflow?",
+        );
 
-        await expect(result).toSatisfyJudge(RecommendsImproveCommandJudge);
-        await expect(result).toSatisfyJudge(DoesNotRecommendManualSpecImportJudge);
-      },
-    );
-
-    it(
-      "choose-improve-for-existing-skills__has-spec-yaml",
-      { timeout: 120_000 },
-      async ({ run }) => {
-        const cwd = createWorkspace(skillRoot, "choose-improve-for-existing-skills__has-spec-yaml");
-        const result = await run("My skill at skills/sql-auditor already has a spec.yaml and evals. Some evals are failing. What do I run?", { metadata: { cwd } });
-
-        await expect(result).toSatisfyJudge(RecommendsImproveCommandJudge);
+        await expect(result).toSatisfyJudge(RecommendsSkilletImproveJudge);
+        await expect(result).toSatisfyJudge(UsesScopedPackageJudge);
       },
     );
   },

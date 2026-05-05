@@ -13,8 +13,7 @@ import {
   skilletAgent,
 } from "@sentry/skillet/evals";
 import {
-  DoesNotRecommendUnscopedPackageJudge,
-  UsesScopedPackageNameJudge,
+  UsesScopedPackageJudge,
 } from "./_judges.js";
 
 const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, "");
@@ -27,24 +26,14 @@ describeEval(
   },
   (it) => {
     it(
-      "scope-package-name__how-to-run",
+      "scope-package-name__one-liner-install",
       { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("How do I run skillet to regenerate my skill? Give me the exact command.");
+        const result = await run(
+          "Give me the one-liner to run skillet via npx so I can try it without installing globally.",
+        );
 
-        await expect(result).toSatisfyJudge(UsesScopedPackageNameJudge);
-        await expect(result).toSatisfyJudge(DoesNotRecommendUnscopedPackageJudge);
-      },
-    );
-
-    it(
-      "scope-package-name__getting-started",
-      { timeout: 90_000 },
-      async ({ run }) => {
-        const result = await run("I'm new to skillet. What's the npx command to get started?");
-
-        await expect(result).toSatisfyJudge(UsesScopedPackageNameJudge);
-        await expect(result).toSatisfyJudge(DoesNotRecommendUnscopedPackageJudge);
+        await expect(result).toSatisfyJudge(UsesScopedPackageJudge);
       },
     );
   },

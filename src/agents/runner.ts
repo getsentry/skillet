@@ -168,9 +168,7 @@ export const runAgent = async (
   // Use buildScope so roots are canonicalized via realpath — on
   // macOS /tmp → /private/tmp and a non-canonical root would
   // reject every read against that path.
-  const readScope = buildScope(
-    uniq([ctx.skillRoot, def.bundleRoot, ...(ctx.readScope ?? [])]),
-  );
+  const readScope = buildScope(uniq([ctx.skillRoot, def.bundleRoot, ...(ctx.readScope ?? [])]));
   // Write scope: caller-specified only. Empty for validators.
   const writeScope: ResearchScope =
     ctx.writeScope.length > 0
@@ -179,12 +177,7 @@ export const runAgent = async (
 
   const tools = buildAllowedTools(def);
   const executor = buildScopedExecutor(def, ctx, readScope, writeScope);
-  const systemPrompt = buildSystemPrompt(
-    agentBody,
-    ctx,
-    readScope.roots,
-    writeScope.roots,
-  );
+  const systemPrompt = buildSystemPrompt(agentBody, ctx, readScope.roots, writeScope.roots);
 
   const context: Context = {
     systemPrompt,

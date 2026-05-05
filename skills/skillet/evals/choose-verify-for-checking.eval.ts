@@ -27,21 +27,12 @@ describeEval(
   },
   (it) => {
     it(
-      "choose-verify-for-checking__internal-consistency",
-      { timeout: 120_000 },
+      "choose-verify-for-checking__consistency-check",
+      { timeout: 90_000 },
       async ({ run }) => {
-        const result = await run("How do I check that my skill is internally consistent — that the spec, evals, and results all line up?");
-
-        await expect(result).toSatisfyJudge(RecommendsVerifyJudge);
-        await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);
-      },
-    );
-
-    it(
-      "choose-verify-for-checking__validate-by-name",
-      { timeout: 120_000 },
-      async ({ run }) => {
-        const result = await run("Can I just run `skillet validate` to lint my skill?");
+        const result = await run(
+          "How do I check that my skill is internally consistent before I commit?",
+        );
 
         await expect(result).toSatisfyJudge(RecommendsVerifyJudge);
         await expect(result).toSatisfyJudge(DoesNotRecommendValidateJudge);

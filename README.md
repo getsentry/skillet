@@ -1,9 +1,9 @@
 # Skillet
 
 Spec-driven authoring of agent skills. Define a structured `spec.yaml`
-that captures intent, behaviors, and triggers; skillet generates
-`SKILL.md` and eval cases from it, runs them, and iterates by patching
-the spec until coverage and per-behavior results pass.
+that captures intent, behaviors, and triggers; a small set of bundled
+authoring agents render `SKILL.md` and eval cases from it, validate the
+output, and iterate against eval failures.
 
 ## Install
 
@@ -23,9 +23,10 @@ to create or improve skills.
 npx @sentry/skillet create "Django N+1 query reviewer"
 ```
 
-Generates `spec.yaml` from the description, derives `SKILL.md` and
-eval cases, runs the verify-driven iteration loop until per-behavior
-checks pass.
+Generates `spec.yaml` from the description (interactive
+spec-author dialogue), then runs the orchestrator: skill-writer
+and eval-writer in parallel, then skill-validator and
+evals-validator. Validator errors trigger one writer re-pass.
 
 ### Improve an existing skill
 
@@ -98,8 +99,8 @@ regenerate — that happens automatically on spec mutations.
 
 | Command | Purpose |
 |---------|---------|
-| `create "<description>" [--input <dir>]...` | New skill: agentic spec-author loop (read-only tools over `--input` paths + bundled refs) + regen + improve loop |
-| `improve [path]` | Iterate until per-behavior evals pass; auto-imports legacy |
+| `create "<description>" [--input <dir>]...` | New skill: spec-author dialogue + orchestrator (writers + validators) |
+| `improve [path]` | Re-render via orchestrator, run evals, re-pass against failures; auto-imports legacy |
 | `spec init "<description>"` | Run interactive spec-author loop without the improve loop |
 | `spec show [path]` | Pretty-print the spec (banner stripped) |
 | `spec refine "<feedback>" [path]` | Natural-language patch; auto-regens |

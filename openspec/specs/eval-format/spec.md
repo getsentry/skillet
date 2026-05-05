@@ -41,10 +41,10 @@ A skill's `evals/` directory SHALL contain three kinds of artifact:
   `await harness.useFixture(<case-slug>)` to seed the workspace.
 
 #### Scenario: Suite-wide _judges.ts deduped across behaviors
-- **WHEN** eval-gen produces plans for 30 behaviors and 10 declare
-  the canonical judge `IdentifiesPrivilegedTriggerJudge`
+- **WHEN** the eval-writer agent produces files for 30 behaviors
+  and 10 share the canonical judge `IdentifiesPrivilegedTriggerJudge`
 - **THEN** `evals/_judges.ts` contains exactly one
-  `export const IdentifiesPrivilegedTriggerJudge = judge(...)`
+  `export const IdentifiesPrivilegedTriggerJudge = criterionJudge(...)`
 - **AND** every behavior's `.eval.ts` imports it from
   `./_judges.js` and references it via `toSatisfyJudge`
 
@@ -110,34 +110,32 @@ transcript + workspace artifacts and return
 
 ### Requirement: Per-test fixture API
 
-Each `it()` body SHALL receive a fixture exposing `run`,
-`behavior`, and `harness`. The fixture members provide:
+Each `it()` body SHALL receive a fixture exposing `run` from
+the upstream `vitest-evals` harness API, plus skillet's
+`createWorkspace` helper available as a barrel import.
 
 - `run(input, opts?): Promise<HarnessRun>` — invokes the harness
   exactly once; populates `task.meta.harness.run` for reporter
   consumption.
-- `behavior(id: string): void` — sets `task.meta.tests_behavior`
-  so the runner can map results back to spec entries.
-- `harness.useFixture(slug: string): Promise<void>` — recursively
-  copies `<skill-root>/evals/fixtures/<slug>/` into the per-test
-  workspace before `run` is invoked.
-- `harness.setup(script: string): Promise<void>` — legacy shell
-  fallback for hand-authored cases without a fixture tree on
-  disk; eval-gen does not produce it.
+- `createWorkspace(skillRoot, slug?): string` — copies
+  `<skill-root>/evals/fixtures/<slug>/` into a fresh tempdir and
+  registers cleanup via vitest's `onTestFinished`. Returns the
+  tempdir path; pass it via `metadata.cwd` to `run`.
 
-#### Scenario: useFixture seeds workspace before run
-- **WHEN** an `it()` body calls `await harness.useFixture("foo")`
-  followed by `await run("audit ...")`
+#### Scenario: createWorkspace seeds workspace before run
+- **WHEN** an `it()` body calls
+  `const cwd = createWorkspace(skillRoot, "foo")` followed by
+  `await run("audit ...", { metadata: { cwd } })`
 - **AND** `evals/fixtures/foo/.github/workflows/ci.yml` exists
-- **THEN** the agent observes that file at the workspace root
+- **THEN** the agent observes that file at its workspace root
   with the correct content
 
 ### Requirement: Discovery and `tests_behavior` metadata
 
 Skillet SHALL discover eval files by globbing
-`evals/**/*.eval.ts` under the skill root. Each generated `it()`
-body calls `behavior(<entry-id>)` to record the behavior id on
-the test's `task.meta.tests_behavior`. The runner reads this
+`evals/**/*.eval.ts` under the skill root. The behavior id is
+read from each test's enclosing `describeEval(name, …)` suite
+name (which equals the spec entry id). The runner reads this
 when normalizing vitest's JSON output into `EvalCaseResult`.
 
 #### Scenario: Reporter maps cases back to spec entries
@@ -147,29 +145,13 @@ when normalizing vitest's JSON output into `EvalCaseResult`.
 - **AND** verify-coverage uses this mapping to report behaviors
   with no eval coverage
 
-### Requirement: Compat — legacy data-array describeEval
-
-For one release after the harness-first migration, skillet SHALL
-continue to load `describeEval(name, { data: [...], judges: [...] })`
-files generated before the migration. The legacy form runs
-through a separate code path inside `describeEval`; new
-generation never produces it. The legacy form SHALL be removed
-in the release that follows the self-skill regeneration.
-
-#### Scenario: Legacy file still runs
-- **GIVEN** an eval file using the data-array form with
-  `judges: [SubstringJudge(), CriterionJudge()]`
-- **WHEN** `skillet eval` runs against the skill
-- **THEN** the file loads, the legacy `runDataArrayForm` path
-  fires, and results are reported normally
-
 ## Output layout
 
 ```
 skills/<skill>/
-├── SKILL.md                     ← skill body (skill-gen output)
+├── SKILL.md                     ← skill body (skill-writer output)
 ├── spec.yaml                    ← source of truth
-├── references/                  ← reference-gen output
+├── references/                  ← skill-writer output
 │   └── <topic>.md
 └── evals/
     ├── _judges.ts               ← canonical deduped judges

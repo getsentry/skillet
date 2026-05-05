@@ -54,6 +54,3 @@ export { slugify, uniqueSlug } from "./slug.js";
 
 // Normalization (auto-fix LLM-produced specs before validation)
 export { normalizeSpec } from "./normalize.js";
-
-// Regenerate (spec → derived SKILL.md + eval files)
-export { regenerate, type RegenerateOptions, type RegenerateResult } from "./regen.js";

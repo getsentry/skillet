@@ -11,13 +11,15 @@ Load-bearing: keep current as the flow changes. See
 ## Commands
 
 - **`skillet create <description>`** — spec-author (interactive) →
-  skill-gen → eval-gen → improve loop. Full from-scratch path.
-- **`skillet improve [path]`** — spec-refine on an existing or
-  legacy-imported skill, then re-run skill-gen + eval-gen +
-  improve loop for changed entries.
+  orchestrator (writers + validators). Full from-scratch path.
+- **`skillet improve [path]`** — orchestrator runs against the
+  current spec.yaml, then vitest. If cases fail, orchestrator runs
+  once more with the failing-eval transcripts threaded into
+  `skill-writer`'s context.
 - **`skillet add-eval [path] "behavior"`** — append one
-  behavior/must_not via spec-refine, regen evals across the whole
-  suite (consolidation always runs full-suite).
+  behavior/must_not via spec-refine, then orchestrator in
+  `add-eval` mode (eval-writer + evals-validator only; SKILL.md
+  untouched).
 - **`skillet eval [path]`** — vitest run, no generation.
 - **`skillet compare <a> <b>`** — run A's evals against A's and
   B's SKILL.md side-by-side.
@@ -30,48 +32,66 @@ evals all derive from it.
 
 ---
 
-## Eval-gen pipeline
-
-The most elaborate phase. Five stages, three LLM-bound:
+## Pipeline
 
 ```
-spec.yaml + SKILL.md
+spec.yaml
         │
         ▼
-  1. Per-entry fan-out (LLM, parallel, throttled by AI queue)
-       a. Generate plan        ← LLM
-       b. Verify plan          ← LLM (in same queue slot)
-       c. Apply plan-edits     ← in-process, falls back on failure
+1. Writer fan-out (parallel)
+       │
+       ├─ skill-writer  → SKILL.md, references/*.md
+       └─ eval-writer   → evals/_judges.ts, evals/<id>.eval.ts, evals/fixtures/<slug>/
         │
         ▼
-  2. Consolidate (deterministic)
-       - dedupe judges by exact name (first criterion wins)
-       - extract per-case fixtures into fixtures/<slug>/
+2. Validator fan-out (parallel, read-only)
+       │
+       ├─ skill-validator  → diagnostics JSON
+       └─ evals-validator  → diagnostics JSON
         │
         ▼
-  3. Audit (LLM, single pass over the full deduped suite)
-       - propose merge-judges edits to collapse semantic duplicates
-       - non-fatal: bad parses approve as-is
+3. Per-pair re-pass on errors (max 1 re-pass per writer)
+       │
+       ├─ skill-validator returned errors? → skill-writer pass 2 → skill-validator
+       └─ evals-validator returned errors? → eval-writer pass 2 → evals-validator
         │
         ▼
-  4. Render (deterministic)
-       - evals/_judges.ts (canonical judge set)
-       - evals/<entry-id>.eval.ts (per-behavior file)
-        │
-        ▼
-  5. Write (idempotent file I/O)
+4. Done — writers and validators surface findings; user runs
+   `skillet eval` for actual test execution.
 ```
 
-Existing `<entry-id>.eval.ts` files are skipped at stage 1 and
-excluded from consolidation; `_judges.ts` is overwritten if any
-entry changes.
+For `skillet improve` after a vitest failure, step 1 re-runs with
+`failingEvals` populated; the orchestrator threads the failing
+transcripts into `skill-writer`'s `extraContext`. `eval-writer`
+does NOT receive failing evals — it leaves existing eval files
+untouched (idempotency rule).
 
-The generator and verifier share a single contract string —
-`CODE_EVAL_CONTRACT` in
-`src/authoring/prompts/_code-eval-contract.ts` — defining the
-three first-class assertion shapes (`output-match-object`,
-`tool-calls`, `judge`), the regex/substring ban, per-file caps,
-and canonical judge naming stems.
+`add-eval` runs only the eval-writer + evals-validator pair —
+adding an eval doesn't need SKILL.md re-rendered.
+
+---
+
+## Bundled Agents
+
+Skillet ships four Anthropic Agent Skills under `agents/`. Each
+is a standard `SKILL.md` + `references/` bundle.
+
+| Agent | Reads | Writes | Returns |
+|-------|-------|--------|---------|
+| `skill-writer` | spec.yaml, optional validator findings | SKILL.md, references/*.md | terminal text (summary) |
+| `eval-writer` | spec.yaml, optional validator findings | evals/_judges.ts, evals/<id>.eval.ts, evals/fixtures/<slug>/ | terminal text (summary) |
+| `skill-validator` | spec.yaml, SKILL.md, references/ | nothing | diagnostics JSON |
+| `evals-validator` | spec.yaml, evals/ | nothing | diagnostics JSON |
+
+Writers may write under the skill root. Validators are
+read-only. No agent gets `bash`. The runner enforces tool
+policy and path scoping; out-of-scope reads/writes return tool
+errors rather than crashing.
+
+Agents are iterable — edit `agents/<name>/SKILL.md` and the
+files in `agents/<name>/references/` to tune authoring quality.
+The bundles ship with the npm package via `package.json`'s
+`files` array.
 
 ---
 
@@ -79,13 +99,13 @@ and canonical judge naming stems.
 
 ```
 skills/<skill>/
-├── SKILL.md                  ← skill-gen output
-├── spec.yaml                 ← source of truth
-├── references/<topic>.md     ← reference-gen output
+├── SKILL.md              ← skill-writer output
+├── spec.yaml             ← source of truth (spec-author / spec-refine only)
+├── references/<topic>.md ← skill-writer output (when spec.references[] is non-empty)
 └── evals/
-    ├── _judges.ts            ← canonical deduped judges
-    ├── fixtures/<slug>/…     ← per-case workspace seeds
-    └── <entry-id>.eval.ts    ← per-behavior eval
+    ├── _judges.ts        ← eval-writer output, canonical deduped judges
+    ├── fixtures/<slug>/… ← eval-writer output, per-case workspace seeds
+    └── <entry-id>.eval.ts ← eval-writer output, one per spec entry
 ```
 
 ---
@@ -93,14 +113,14 @@ skills/<skill>/
 ## Pointers
 
 - Commands: `src/commands/`
-- Phases: `src/authoring/phases/`
-  (`spec-author`, `skill-gen`, `skill-improve`, `spec-refine`,
-  `reference-gen`, `eval-gen` + its `eval-gen-{types,consolidate,
-  audit,render,write,edits}` sub-modules)
-- Prompts: `src/authoring/prompts/` (shared contract:
-  `_code-eval-contract.ts`)
-- Harness: `src/harness/index.ts`
+- Bundled agents: `agents/`
+- Orchestrator: `src/agents/orchestrator.ts`
+- Agent runner: `src/agents/runner.ts`
+- Diagnostic schema + parser: `src/agents/diagnostics.ts`
+- Bundled-agent author entry: `src/agents/author.ts`
+  (drives `skillet create` and `skillet improve`)
+- Spec-author (interactive, unchanged from prior pipeline):
+  `src/authoring/phases/spec-author.ts`
 - Public `@sentry/skillet/evals` surface: `src/evals.ts`
-  (re-exports `vitest-evals` + skillet helpers in `src/evals/`)
 - AI queue: `src/agent/queue.ts`
 - Spec parser/patcher: `src/spec/`
