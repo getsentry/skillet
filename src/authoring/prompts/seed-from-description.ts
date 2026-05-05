@@ -128,35 +128,45 @@ ${SPEC_JSON_RATIONALE}
      per format if the rules differ materially.
 
    When in doubt, prefer adding a reference over inflating
-   \`behaviors[]\` past the class's recommended count. References
-   load conditionally; behaviors are always loaded.
+   \`behaviors[]\`. References load conditionally; behaviors are
+   always loaded.
 
 3. **Behaviors are imperative one-liners.** "Flag N+1 queries in loops"
    not "The skill should detect performance regressions". Each behavior
    becomes one section in SKILL.md and one eval case.
 
-4. **Match behavior count to the class:**
-   - workflow-process: 5-10 behaviors/must_nots
-   - integration-documentation: 10-20 behaviors/must_nots
-   - security-review: 18-40 behaviors/must_nots spanning detection,
-     investigation, false-positive traps, severity calibration, and
-     neighboring classes to avoid
-   - skill-authoring: 12-25 behaviors/must_nots
-   - generic: justified by the request
+4. **Let granularity follow what's worth testing.** Each behavior
+   should encode a rule whose presence or absence in the agent's
+   output is meaningfully observable — something an eval could
+   plausibly catch a regression on. Cover the class's required
+   dimensions and the genuinely distinct decisions the skill makes;
+   stop there. Don't enumerate every nuance as its own behavior, and
+   don't pad to feel thorough. A small set of high-signal behaviors
+   beats a large set of overlapping ones. Push depth into rationale,
+   references, and SKILL.md prose rather than into more entries.
 
-5. **Each behavior gets a kebab-case id** derived from the action verb +
+5. **Merge behaviors that test the same observable.** If two behaviors
+   would produce the same expected output, route to the same SKILL.md
+   section, or be exercised by the same eval case, they are one
+   behavior — write a single entry that covers the union, with the
+   variants captured inside its statement and rationale. Prefer fewer
+   behaviors that each test something distinct over many that overlap.
+   Granularity in the spec drives granularity in evals; redundant
+   entries produce redundant eval files without adding signal.
+
+6. **Each behavior gets a kebab-case id** derived from the action verb +
    object (\`flag-n-plus-one\`, \`recommend-prefetch-related\`). IDs must
    be unique across behaviors AND must_nots.
 
-6. **Triggers are real phrases.** Include 5+ \`should\` phrases users
+7. **Triggers are real phrases.** Include 5+ \`should\` phrases users
    would actually say (formal and casual, with and without keywords).
    Include 1-3 \`should_not\` near-miss phrases that share keywords but
    need a different skill.
 
-7. **Must-nots are explicit refusals or anti-patterns.** "Don't flag
+8. **Must-nots are explicit refusals or anti-patterns.** "Don't flag
    single .get() calls as N+1" is a must-not.
 
-8. **It is fine to leave gaps.** This is a baseline draft — the author
+9. **It is fine to leave gaps.** This is a baseline draft — the author
    loop will dialogue with the user to fill in anything ambiguous. Do
    not invent details that require user judgment.
 
