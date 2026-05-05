@@ -75,6 +75,16 @@ export interface AgentRunResult {
   terminalText: string;
   /** How many tool calls the agent issued. */
   toolCallCount: number;
+  /**
+   * True when the run ended because the tool-call cap was reached
+   * before the agent emitted terminal text. For writer agents this
+   * is recoverable — whatever got written to disk is real, and the
+   * orchestrator's re-pass loop continues against the validator's
+   * coverage findings. For validators it's surfaced as a hard
+   * error in the runner because their entire output is the
+   * terminal-text JSON block.
+   */
+  capExhausted: boolean;
 }
 
 // ── Diagnostic schema (validators only) ───────────────────

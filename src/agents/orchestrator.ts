@@ -53,6 +53,13 @@ export interface AgentRunRecord {
   agent: string;
   passNumber: number;
   toolCallCount: number;
+  /**
+   * True when the writer hit its tool-call cap mid-stream. The
+   * orchestrator treats this as a continuation signal: even if
+   * the validator's error count plateaus, another re-pass is
+   * justified because the writer wasn't done.
+   */
+  capExhausted: boolean;
 }
 
 export interface OrchestratorResult {
@@ -120,7 +127,18 @@ const runWriter = async (
   };
   tick(opts, `[orchestrator] ${agentName} pass ${passNumber}…`);
   const result = await runAgent(opts.model, def, ctx);
-  return { agent: agentName, passNumber, toolCallCount: result.toolCallCount };
+  if (result.capExhausted) {
+    tick(
+      opts,
+      `[orchestrator] ${agentName}: tool budget exhausted on pass ${passNumber} — partial output, will re-pass`,
+    );
+  }
+  return {
+    agent: agentName,
+    passNumber,
+    toolCallCount: result.toolCallCount,
+    capExhausted: result.capExhausted,
+  };
 };
 
 /** Run a single validator agent pass, return the parsed diagnostics. */
@@ -171,9 +189,13 @@ const runPair = async (
     runs.push(await runWriter(opts, writerName, pass, extra));
     diag = await runValidator(opts, validatorName);
     const nextErrorCount = countErrors(diag);
-    // Stop early when the writer made no progress — keeps a stuck
-    // pair from burning through the full re-pass budget.
-    if (nextErrorCount >= prevErrorCount && nextErrorCount > 0) {
+    // Stop early when the writer made no progress AND wasn't cap-
+    // exhausted — keeps a stuck pair from burning through the full
+    // re-pass budget. If the previous writer hit its tool-call cap
+    // mid-stream, plateauing findings are expected (the writer
+    // wasn't done) and we keep going.
+    const lastWriterCapped = runs.at(-1)?.capExhausted === true;
+    if (nextErrorCount >= prevErrorCount && nextErrorCount > 0 && !lastWriterCapped) {
       tick(
         opts,
         `[orchestrator] ${writerName}: no progress (errors ${prevErrorCount}→${nextErrorCount}); stopping re-passes`,

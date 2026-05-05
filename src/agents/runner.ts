@@ -214,15 +214,31 @@ export const runAgent = async (
   if (result.endReason === "error") {
     throw new Error(`agent ${def.name}: LLM returned error: ${result.errorMessage ?? "unknown"}`);
   }
+  // Tool-budget exhaustion is a hard failure for validators (their
+  // entire work product is the JSON terminal-output block), but for
+  // writers it's a soft signal: the work that fits got written to
+  // disk via write_file/edit_file, the validator will catch what's
+  // missing on the next pass, and the orchestrator's re-pass loop
+  // will keep going as long as findings are decreasing. Throwing
+  // here would defeat eval-writer's documented multi-pass batching
+  // strategy on large suites.
   if (result.endReason === "max-tool-calls") {
-    throw new Error(
-      `agent ${def.name}: tool budget (${def.maxToolCalls ?? DEFAULT_MAX_TOOL_CALLS}) exhausted before terminal output`,
-    );
+    if (!def.tools.canWrite) {
+      throw new Error(
+        `agent ${def.name}: tool budget (${def.maxToolCalls ?? DEFAULT_MAX_TOOL_CALLS}) exhausted before terminal output`,
+      );
+    }
+    return {
+      terminalText: result.finalText,
+      toolCallCount: result.toolCallCount,
+      capExhausted: true,
+    };
   }
 
   return {
     terminalText: result.finalText,
     toolCallCount: result.toolCallCount,
+    capExhausted: false,
   };
 };
 
