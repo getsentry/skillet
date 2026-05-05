@@ -150,7 +150,7 @@ Environment:
     COPILOT_GITHUB_TOKEN / GH_TOKEN / GITHUB_TOKEN
     GEMINI_API_KEY / OPENROUTER_API_KEY / GROQ_API_KEY / and more
 
-  SKILLET_MODEL              Override agent model (e.g. anthropic/claude-opus-4-7)
+  SKILLET_MODEL              Override agent model (e.g. anthropic/claude-opus-4-6)
   SKILLET_JUDGE_MODEL        Override judge model separately
   SKILLET_EVAL_GEN_MODEL     Override the model used for per-behavior eval generation
   SKILLET_AI_CONCURRENCY=N   Max concurrent AI jobs in flight (same as --ai-concurrency, default 4)

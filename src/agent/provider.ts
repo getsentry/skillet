@@ -41,7 +41,7 @@ const PROVIDER_AUTODISCOVERY: Array<{
 }> = [
   {
     provider: "anthropic",
-    defaultModel: "claude-opus-4-7",
+    defaultModel: "claude-opus-4-6",
     // Claude Code sets these for OAuth/subscription users
     extraEnvVars: ["ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN"],
   },
@@ -341,7 +341,7 @@ const tryAutoDiscoverOnce = (): DiscoveryAttempt => {
   const keychain = readClaudeCodeKeychainToken();
   if (keychain.kind === "found") {
     process.env.ANTHROPIC_API_KEY = keychain.token;
-    return { model: getModelLoose("anthropic", "claude-opus-4-7"), transientErrors };
+    return { model: getModelLoose("anthropic", "claude-opus-4-6"), transientErrors };
   }
   if (keychain.kind === "error") {
     transientErrors.push({ source: keychain.source, reason: keychain.reason });
@@ -350,7 +350,7 @@ const tryAutoDiscoverOnce = (): DiscoveryAttempt => {
   const credFile = readClaudeCodeCredentialsFile();
   if (credFile.kind === "found") {
     process.env.ANTHROPIC_API_KEY = credFile.token;
-    return { model: getModelLoose("anthropic", "claude-opus-4-7"), transientErrors };
+    return { model: getModelLoose("anthropic", "claude-opus-4-6"), transientErrors };
   }
   if (credFile.kind === "error") {
     transientErrors.push({ source: credFile.source, reason: credFile.reason });
