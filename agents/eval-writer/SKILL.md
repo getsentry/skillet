@@ -25,6 +25,14 @@ from prose tuning is intentional — the rules under test live in
   `behaviors[]` and `must_not[]` entry needs at least one eval
   case. The entry's `id` becomes the eval file name and the
   inner `describeEval` id.
+- `SOURCES.md` (optional) — provenance written by spec-author.
+  Behavior-organized markdown with citations from any `--input`
+  paths the user supplied. **Read it if present.** Real file
+  paths and commit references in SOURCES.md make far better
+  eval prompts than invented scenarios. If SOURCES.md cites
+  `sentry/api/endpoints/users.py:42` as the trigger for a
+  rule, your case prompt can ask the agent to audit that file
+  (with the file content as a fixture).
 - Existing `evals/` tree — anything already there. **Existing
   `evals/<id>.eval.ts` files are durable.** Read them, but do
   not overwrite unless the corresponding spec entry has
@@ -74,15 +82,22 @@ from prose tuning is intentional — the rules under test live in
 ## Workflow
 
 1. **Read `spec.yaml`.** Always your first tool call. Note every
-   `behaviors[].id` and `must_not[].id`.
-2. **List `evals/`.** `list_files path=evals` — see what
+   `behaviors[].id` and `must_not[].id`. **Count the entries.**
+2. **Read `SOURCES.md` if present.** Use real citations from it
+   when crafting eval prompts and selecting fixture content —
+   real files beat invented scenarios.
+3. **List `evals/`.** `list_files path=evals` — see what
    already exists. Read each existing `.eval.ts` to understand
    what judges are currently declared.
-3. **Read existing `evals/_judges.ts` if present.** That's your
+4. **Read existing `evals/_judges.ts` if present.** That's your
    canonical judge inventory; reuse names from it.
-4. **Read any Additional Context.** On a re-pass, validator
+5. **Read any Additional Context.** On a re-pass, validator
    findings tell you exactly what to fix.
-5. **For each spec entry without an eval file** (or whose spec
+6. **Decide on batching strategy** (see "Large suites" below).
+   For ≤20 entries: write everything in one pass. For more:
+   write `_judges.ts` first as a separate sub-pass, then write
+   eval files in batches of 8-10 per write cycle.
+7. **For each spec entry without an eval file** (or whose spec
    changed materially), draft the eval cases:
    - Pick assertion shapes per `references/eval-contract.md`
      (output-match-object → tool-calls → judge, in priority).
@@ -91,17 +106,43 @@ from prose tuning is intentional — the rules under test live in
      the property is genuinely specific to this entry.
    - If a case needs a workspace, write the fixture files
      (`references/fixture-conventions.md`).
-6. **Write each new `evals/<id>.eval.ts`** with `write_file`.
+8. **Write each new `evals/<id>.eval.ts`** with `write_file`.
    Follow `references/eval-file-template.md`.
-7. **Rewrite `evals/_judges.ts`** with the union of (existing
+9. **Rewrite `evals/_judges.ts`** with the union of (existing
    judges still referenced) + (new judges from this pass).
    Sort by name. Each declaration is one
    `export const FooJudge = criterionJudge("FooJudge", "…");`.
-8. **Write fixture files** under `evals/fixtures/<case-slug>/`.
-   One `write_file` call per fixture path.
-9. **Terminate** with a brief summary: which files you wrote,
-   which you skipped (and why — usually idempotency), any
-   suggestions for spec-level changes.
+10. **Write fixture files** under `evals/fixtures/<case-slug>/`.
+    One `write_file` call per fixture path.
+11. **Terminate** with a brief summary: which files you wrote,
+    which you skipped (and why — usually idempotency), any
+    suggestions for spec-level changes.
+
+## Large suites (>20 spec entries)
+
+Suites with many entries don't fit in a single agent turn —
+the LLM call hits its per-call timeout before the agent
+finishes streaming all the file writes. Use this batching
+strategy:
+
+1. **Pass 1 — judges only.** Read the entire spec. Plan the
+   judge set across all behaviors (which canonical judges are
+   reused, which are new). Write only `evals/_judges.ts` and
+   then terminate with a short summary listing which entries
+   you'll write in pass 2.
+2. **Pass 2 — eval files in batches.** Each subsequent
+   invocation of you (orchestrator re-passes are how this
+   happens — validator will flag missing `evals/<id>.eval.ts`
+   files) writes 8-10 eval files plus their fixtures, then
+   terminates. The validator catches what's still missing on
+   the next round.
+
+If you find yourself in pass 1 — emit only `_judges.ts` and a
+summary, do NOT try to write all 30 eval files in one turn.
+The validator will trigger your next pass.
+
+If your spec has ≤20 entries: write everything in pass 1. The
+batching strategy is overhead you don't need.
 
 ## Quality References
 

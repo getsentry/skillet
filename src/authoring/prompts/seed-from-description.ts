@@ -99,6 +99,38 @@ ${SPEC_JSON_RATIONALE}
    must be one-level files under \`references/\`, e.g.
    \`references/false-positive-traps.md\`.
 
+   Beyond class-required topics, **enumerate references when the
+   description signals branched depth**:
+
+   - **CLI tool mentioned by name** (e.g. "git", "gh", "docker",
+     "kubectl", "npm", "skillet"): add one reference per major
+     subcommand surface the skill needs to cover, e.g.
+     \`references/gh-pr-commands.md\` for \`gh pr ...\` ops or
+     \`references/git-recovery.md\` for the rollback/reset family.
+     The skill-writer agent will then route to those refs in
+     SKILL.md instead of inlining every subcommand.
+
+   - **Multiple LLM providers / model families** (e.g. "OpenAI,
+     Claude, Gemini" or "GPT-4, Sonnet, …"): add one reference per
+     provider whose prompt-shape conventions the skill must
+     respect, e.g. \`references/claude-prompt-shapes.md\` (XML
+     tags, role markers), \`references/openai-prompt-shapes.md\`
+     (system / developer / user hierarchy), etc. Don't bake
+     model-specific prompt syntax into core behaviors — the
+     references load conditionally based on the target model.
+
+   - **Multiple stacks / frameworks** (e.g. "Django and Rails",
+     "Python and Go"): add one reference per stack with its
+     framework-specific patterns and idioms.
+
+   - **Multiple deliverable formats** (e.g. "blog post or
+     announcement, deep-dive, postmortem"): consider one reference
+     per format if the rules differ materially.
+
+   When in doubt, prefer adding a reference over inflating
+   \`behaviors[]\` past the class's recommended count. References
+   load conditionally; behaviors are always loaded.
+
 3. **Behaviors are imperative one-liners.** "Flag N+1 queries in loops"
    not "The skill should detect performance regressions". Each behavior
    becomes one section in SKILL.md and one eval case.

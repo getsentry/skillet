@@ -76,6 +76,7 @@ Output a single JSON object with this shape:
     { "op": "update_reference", "path": "...", "field": "topics", "value": ["..."] },
     { "op": "add_trigger", "kind": "should", "phrase": "..." }
   ],
+  "sources_update": "<full SOURCES.md markdown — see Sources below>",
   "questions": [
     "If you genuinely cannot decide a high-impact item without user input, ask one concise question per array entry."
   ],
@@ -84,11 +85,69 @@ Output a single JSON object with this shape:
 \`\`\`
 
 \`patches\` may be an empty array when nothing needs changing.
+\`sources_update\` is optional (omit or set to null when no sources
+have changed) — see "Sources" below.
 \`questions\` may be an empty array when there is nothing to ask.
 \`commit_request\` is \`true\` only when (a) the spec passes class gates,
 (b) you have no more questions, and (c) you believe the spec accurately
 reflects the user's intent. The user gets a final accept/reject prompt
 before the loop terminates.
+
+## Sources
+
+When the research scope contains user-supplied \`--input\` paths,
+maintain a sibling \`SOURCES.md\` capturing what you read and how it
+grounds each behavior. The orchestrator's downstream agents
+(skill-writer, eval-writer) will read it to ground rationale prose
+and craft realistic eval prompts from real file paths.
+
+\`sources_update\` in your turn output is the FULL \`SOURCES.md\`
+content (not a patch). On every turn that changes the spec
+materially, also emit a \`sources_update\` reflecting the current
+state. Omit (or set to null) when nothing changed since the last
+turn.
+
+### SOURCES.md shape
+
+\`\`\`markdown
+# Sources
+
+## Retrieval passes
+- core: read sentry/api/endpoints/*.py (~12 files)
+- edge: tests/api/test_endpoints.py
+- stopped: coverage complete
+
+## Behaviors
+
+### \`flag-missing-permission-classes\`
+**Sources:**
+- \`sentry/api/endpoints/users.py:42-48\` — canonical
+  \`permission_classes = (UserPermission,)\` pattern
+- \`sentry/api/permissions.py:12-30\` — defines the class hierarchy
+
+### \`<next-behavior-id>\`
+…
+
+## Decisions
+- adopted: explicit permission_classes (codebase doesn't use
+  middleware enforcement)
+- rejected: rate-limiting checks (out of scope)
+\`\`\`
+
+### Sources rules
+
+- Each behavior section header is the behavior's exact \`id\` —
+  this is how downstream agents look up the citations.
+- ≤6 lines per behavior section. Citation + one-line "why this
+  grounds the rule." No prose padding.
+- Only cite paths you actually read via \`read_file\`. Don't
+  fabricate citations.
+- When you patch a behavior (statement / rationale change),
+  update the corresponding SOURCES.md section in the same turn.
+- When you remove a behavior, remove its section.
+- If no \`--input\` paths were supplied, you have nothing to
+  ground from — omit \`sources_update\` entirely. Don't write a
+  speculative SOURCES.md.
 
 ## Loop rules
 
