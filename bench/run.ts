@@ -1,22 +1,23 @@
 /**
  * Cleanroom benchmark runner. Reads `bench/manifest.json`, runs
  * skillet's pipeline against each skill's frontmatter description
- * (no `--input` paths; pure description-only cleanroom), and saves
+ * (no `--input` paths; pure description-only cleanroom), runs the
+ * generated eval suite against the generated SKILL.md, and saves
  * artifacts + per-skill stats to `.skillet-bench/<label>/`.
  *
  * Usage:
  *
- *   tsx bench/run.ts [--label <name>] [--only <skill-id>]
+ *   tsx bench/run.ts [--label <name>] [--only <skill-id>] [--no-eval]
  *
- * --label: subdirectory name under .skillet-bench/. Defaults to the
- *          ISO-date-time so successive runs accumulate without
- *          clobbering. Pass a meaningful label like "after-name-fix"
- *          when you want to compare specific runs.
- * --only:  filter to one skill from the manifest (run a single
- *          target while iterating).
+ * --label:    subdirectory name under .skillet-bench/. Defaults to
+ *             the ISO-date-time so successive runs accumulate.
+ * --only:     filter to one skill from the manifest.
+ * --no-eval:  skip running vitest evals after generation. Useful
+ *             when iterating on the spec/generation layers and you
+ *             only want artifact stats.
  *
  * Skills are run sequentially in one process so the AI queue can
- * throttle parallelism cleanly without 6 separate node processes
+ * throttle parallelism cleanly without N separate node processes
  * each spawning their own queue and stampeding the API.
  *
  * Exit code: 0 if every skill produced artifacts, 1 if any failed.
@@ -27,6 +28,8 @@ import { fileURLToPath } from "node:url";
 import { resolveModels } from "../src/agent/provider.ts";
 import { orchestrate, type OrchestratorResult } from "../src/agents/orchestrator.ts";
 import { seedFromDescription } from "../src/authoring/seed/index.ts";
+import { runVitestEvals } from "../src/eval/vitest-runner.ts";
+import type { EvalRunResult } from "../src/eval/types.ts";
 import { specFileName, writeSpec } from "../src/spec/index.ts";
 
 interface ManifestSkill {
@@ -76,6 +79,22 @@ interface SkillStats {
     behaviorsExpectedInSkillMd: number;
     evalCoverageRatio: number;
   };
+  /**
+   * Eval run results. Absent when generation failed or `--no-eval`
+   * was passed. Per-case detail lives in `<skillDir>/_eval-result.json`
+   * so this stats object stays compact.
+   */
+  evalRun?: {
+    total: number;
+    pass: number;
+    fail: number;
+    skip: number;
+    error: number;
+    passRate: number;
+    durationMs: number;
+    failingCases: string[];
+  };
+  evalRunError?: string;
 }
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -83,9 +102,17 @@ const REPO_ROOT = resolve(HERE, "..");
 const MANIFEST_PATH = join(HERE, "manifest.json");
 const BENCH_OUT_DIR = join(REPO_ROOT, ".skillet-bench");
 
-const parseArgs = (argv: string[]): { label: string; only?: string } => {
-  const out: { label: string; only?: string } = {
+interface BenchArgs {
+  label: string;
+  only?: string;
+  /** When false, skip running vitest evals after generation. */
+  runEvals: boolean;
+}
+
+const parseArgs = (argv: string[]): BenchArgs => {
+  const out: BenchArgs = {
     label: new Date().toISOString().replace(/[:.]/g, "-"),
+    runEvals: true,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -95,6 +122,8 @@ const parseArgs = (argv: string[]): { label: string; only?: string } => {
     } else if (a === "--only" && argv[i + 1] != null) {
       out.only = argv[i + 1] ?? "";
       i++;
+    } else if (a === "--no-eval") {
+      out.runEvals = false;
     }
   }
   return out;
@@ -153,6 +182,8 @@ const collectStats = (
   result: OrchestratorResult | undefined,
   errorMessage: string | undefined,
   elapsedMs: number,
+  evalRun: EvalRunResult | undefined,
+  evalRunError: string | undefined,
 ): SkillStats => {
   const skillMdPath = join(outDir, "SKILL.md");
   const skillMd = existsSync(skillMdPath) ? readFileSync(skillMdPath, "utf-8") : null;
@@ -224,10 +255,30 @@ const collectStats = (
     },
   };
   if (errorMessage != null) stats.errorMessage = errorMessage;
+  if (evalRun != null) {
+    const total = evalRun.summary.total;
+    stats.evalRun = {
+      total,
+      pass: evalRun.summary.pass,
+      fail: evalRun.summary.fail,
+      skip: evalRun.summary.skip,
+      error: evalRun.summary.error,
+      passRate: total > 0 ? evalRun.summary.pass / total : 0,
+      durationMs: evalRun.summary.durationMs,
+      failingCases: evalRun.cases
+        .filter((c) => c.status === "fail" || c.status === "error")
+        .map((c) => c.name),
+    };
+  }
+  if (evalRunError != null) stats.evalRunError = evalRunError;
   return stats;
 };
 
-const runOne = async (skill: ManifestSkill, runDir: string): Promise<SkillStats> => {
+const runOne = async (
+  skill: ManifestSkill,
+  runDir: string,
+  runEvals: boolean,
+): Promise<SkillStats> => {
   const outDir = join(runDir, skill.id);
   mkdirSync(outDir, { recursive: true });
 
@@ -278,8 +329,31 @@ const runOne = async (skill: ManifestSkill, runDir: string): Promise<SkillStats>
     console.log(`[${skill.id}] FAILED: ${errorMessage}`);
   }
 
+  // Run the generated eval suite against the generated SKILL.md so
+  // the bench can report whether skillet's evals actually pass on
+  // skillet's own output. Only when generation succeeded — running
+  // evals on a partial/failed skill is wasted spend.
+  let evalRun: EvalRunResult | undefined;
+  let evalRunError: string | undefined;
+  if (runEvals && result?.success === true && existsSync(join(outDir, "evals"))) {
+    console.log(`[${skill.id}] eval: running vitest suite…`);
+    const evalStart = Date.now();
+    try {
+      evalRun = await runVitestEvals({ skillRoot: outDir, streamProgress: false });
+      writeFileSync(join(outDir, "_eval-result.json"), JSON.stringify(evalRun, null, 2));
+      console.log(
+        `[${skill.id}] eval: ${evalRun.summary.pass}/${evalRun.summary.total} pass (${(((Date.now() - evalStart) / 1000)).toFixed(1)}s)`,
+      );
+    } catch (err: unknown) {
+      evalRunError = err instanceof Error ? err.message : String(err);
+      console.log(`[${skill.id}] eval: FAILED — ${evalRunError}`);
+    }
+  } else if (runEvals && result?.success !== true) {
+    console.log(`[${skill.id}] eval: skipped (generation did not succeed)`);
+  }
+
   const elapsedMs = Date.now() - start;
-  const stats = collectStats(skill, outDir, specSummary, result, errorMessage, elapsedMs);
+  const stats = collectStats(skill, outDir, specSummary, result, errorMessage, elapsedMs, evalRun, evalRunError);
   writeFileSync(join(outDir, "_stats.json"), JSON.stringify(stats, null, 2));
   console.log(`[${skill.id}] done in ${(elapsedMs / 1000).toFixed(1)}s`);
   return stats;
@@ -302,27 +376,67 @@ const writeSummary = (
   lines.push("## Per-skill summary");
   lines.push("");
   lines.push(
-    "| skill | ok | name preserved | spec | SKILL.md lines | eval files / expected | judges | sk-find err | ev-find err | secs |",
+    "| skill | gen | spec | SKILL.md | evals | eval pass | sk-find err | ev-find err | secs |",
   );
   lines.push(
-    "|-------|----|----------------|------|----------------|------------------------|--------|-------------|-------------|------|",
+    "|-------|-----|------|----------|-------|-----------|-------------|-------------|------|",
   );
   for (const s of stats) {
     const expected = s.spec.behaviors + s.spec.must_nots;
+    const evalPass = formatEvalPassCell(s);
     lines.push(
-      `| ${s.id} | ${s.ok ? "✓" : "✗"} | ${s.checks.namePreserved == null ? "?" : s.checks.namePreserved ? "✓" : `✗ → ${s.spec.name}`} | ${s.spec.behaviors}b/${s.spec.must_nots}mn/${s.spec.references}r | ${s.artifacts.skillMdLines ?? "—"} | ${s.artifacts.evalFiles}/${expected} | ${s.artifacts.judges} | ${s.diagnostics.skill.errors} (${s.diagnostics.skill.findings}) | ${s.diagnostics.evals.errors} (${s.diagnostics.evals.findings}) | ${(s.elapsedMs / 1000).toFixed(0)} |`,
+      `| ${s.id} | ${s.ok ? "✓" : "✗"} | ${s.spec.behaviors}b/${s.spec.must_nots}mn/${s.spec.references}r | ${s.artifacts.skillMdLines ?? "—"} | ${s.artifacts.evalFiles}/${expected} | ${evalPass} | ${s.diagnostics.skill.errors} (${s.diagnostics.skill.findings}) | ${s.diagnostics.evals.errors} (${s.diagnostics.evals.findings}) | ${(s.elapsedMs / 1000).toFixed(0)} |`,
+    );
+  }
+  // Aggregate eval pass-rate across skills that produced one.
+  const skillsWithEvals = stats.filter((s) => s.evalRun != null);
+  if (skillsWithEvals.length > 0) {
+    const totalCases = skillsWithEvals.reduce((a, s) => a + (s.evalRun?.total ?? 0), 0);
+    const totalPass = skillsWithEvals.reduce((a, s) => a + (s.evalRun?.pass ?? 0), 0);
+    const aggregateRate = totalCases > 0 ? (totalPass / totalCases) * 100 : 0;
+    lines.push("");
+    lines.push(
+      `**Aggregate eval pass-rate:** ${totalPass}/${totalCases} (${aggregateRate.toFixed(1)}%) across ${skillsWithEvals.length} skill(s)`,
     );
   }
   lines.push("");
   const failed = stats.filter((s) => !s.ok || s.errorMessage != null);
   if (failed.length > 0) {
-    lines.push("## Failures");
+    lines.push("## Generation failures");
     lines.push("");
     for (const s of failed) {
       lines.push(`- **${s.id}**: ${s.errorMessage ?? "validator errors"}`);
     }
+    lines.push("");
+  }
+  // Surface per-skill failing eval cases so a glance at the summary
+  // tells you which behaviors regressed without opening _eval-result.json.
+  const withFailingEvals = stats.filter(
+    (s) => (s.evalRun?.failingCases.length ?? 0) > 0 || s.evalRunError != null,
+  );
+  if (withFailingEvals.length > 0) {
+    lines.push("## Eval failures");
+    lines.push("");
+    for (const s of withFailingEvals) {
+      if (s.evalRunError != null) {
+        lines.push(`- **${s.id}**: eval suite failed to run — ${s.evalRunError}`);
+        continue;
+      }
+      const cases = s.evalRun?.failingCases ?? [];
+      lines.push(`- **${s.id}** (${cases.length} failing):`);
+      for (const c of cases) lines.push(`  - ${c}`);
+    }
   }
   writeFileSync(join(runDir, "_summary.md"), lines.join("\n"));
+};
+
+const formatEvalPassCell = (s: SkillStats): string => {
+  if (s.evalRunError != null) return "ERR";
+  if (s.evalRun == null) return "—";
+  const { pass, total } = s.evalRun;
+  if (total === 0) return "0/0";
+  const pct = Math.round((pass / total) * 100);
+  return `${pass}/${total} (${pct}%)`;
 };
 
 async function main(): Promise<void> {
@@ -348,13 +462,14 @@ async function main(): Promise<void> {
 
   console.log(`bench: label=${args.label} model=${models.agent.id} skills=${skills.map((s) => s.id).join(",")}`);
   console.log(`bench: output → ${runDir}`);
+  if (!args.runEvals) console.log(`bench: --no-eval — skipping eval execution`);
 
   // Run sequentially. Each clean-room internally parallelizes via the
   // AI queue (writers + validators); running multiple in parallel
   // here would just stampede the rate limit.
   const stats: SkillStats[] = [];
   for (const skill of skills) {
-    const s = await runOne(skill, runDir);
+    const s = await runOne(skill, runDir, args.runEvals);
     stats.push(s);
   }
 
