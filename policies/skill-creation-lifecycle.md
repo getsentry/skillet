@@ -9,15 +9,17 @@ repo root is that reference.
 
 ## Policy
 
-- `LIFECYCLE.md` is authoritative for what stages exist, what
+- `LIFECYCLE.md` is authoritative for what agents exist, what
   they produce, and how they interact. Keep it **concise** — a
-  short command list, the eval-gen pipeline diagram, the output
-  layout, and pointers. No source-line citations, no per-stage
-  prose; that lives in code.
-- When you change the flow — adding/splitting a stage, changing
-  artifact layout, swapping a prompt, removing a step — update
-  `LIFECYCLE.md` in the same change. A flow change without a
-  `LIFECYCLE.md` update is incomplete.
+  short command list, the orchestrator pipeline diagram, the
+  agent roster, the output layout, and pointers. No source-line
+  citations, no per-agent prose; that lives in code or in the
+  agent's own bundled `SKILL.md`.
+- When you change the flow — adding/removing an agent, changing
+  the writer/validator routing, changing artifact layout,
+  swapping a bundled agent's contract — update `LIFECYCLE.md`
+  in the same change. A flow change without a `LIFECYCLE.md`
+  update is incomplete.
 - Don't duplicate content from `openspec/` or code comments.
 
 ## Exceptions
