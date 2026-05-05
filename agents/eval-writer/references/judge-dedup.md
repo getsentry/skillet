@@ -68,7 +68,7 @@ import { criterionJudge } from "@sentry/skillet/evals";
 
 export const ConnectsExploitChainJudge = criterionJudge(
   "ConnectsExploitChainJudge",
-  "Ties the privileged trigger to checkout or execution of PR-controlled code with secrets available, AND rates HIGH or CRITICAL severity.",
+  "Ties the privileged trigger to checkout or execution of PR-controlled code with secrets available.",
 );
 
 export const IdentifiesPrivilegedTriggerJudge = criterionJudge(
@@ -86,10 +86,44 @@ the LLM judge call uses it for telemetry and dedup.
 
 - ≤200 characters.
 - 1-2 sentences.
-- Tests ONE property. If you find yourself writing "AND" three
-  times, split into multiple judges.
+- Tests ONE property. **The word "AND" in a criterion is a
+  smell.** If a criterion conjoins two properties (e.g.
+  "identifies the trigger AND rates severity"), split into two
+  narrow judges.
 - Doesn't bake the case scenario into the wording — judges are
   shared across cases, so keep the text general.
+
+### Splitting bundled criteria
+
+When you catch a criterion bundling properties — even one "AND"
+— split it. Each property gets its own canonical-stem judge,
+and the case references both. The cost is one extra judge call
+at test time; the benefit is two independent signals when one
+fails (you know whether the agent missed the trigger, missed
+the severity, or both).
+
+**Before (bundled — one judge, two properties):**
+```ts
+ConnectsExploitChainJudge: "Ties the privileged trigger to
+checkout of PR-controlled code AND rates HIGH or CRITICAL
+severity."
+```
+
+**After (split — two judges, one property each):**
+```ts
+ConnectsExploitChainJudge: "Ties the privileged trigger to
+checkout or execution of PR-controlled code with secrets
+available."
+
+RatesHighSeverityJudge: "Rates the finding HIGH or CRITICAL
+severity."
+```
+
+The case references both:
+```ts
+await expect(result).toSatisfyJudge(ConnectsExploitChainJudge);
+await expect(result).toSatisfyJudge(RatesHighSeverityJudge);
+```
 
 **Good criteria:**
 - "Names the privileged trigger (pull_request_target, workflow_run, etc.) in its analysis."

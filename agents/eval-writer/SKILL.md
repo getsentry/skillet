@@ -114,7 +114,29 @@ from prose tuning is intentional — the rules under test live in
    `export const FooJudge = criterionJudge("FooJudge", "…");`.
 10. **Write fixture files** under `evals/fixtures/<case-slug>/`.
     One `write_file` call per fixture path.
-11. **Terminate** with a brief summary: which files you wrote,
+11. **Self-check each file you wrote against the contract.** For
+    every `.eval.ts` you just emitted, walk this list before
+    moving on:
+    - Does every case have at least one structural assertion
+      (`toMatchObject` on `result.output`, or `toContainEqual`
+      on `toolCalls(result.session)`)? If a case is judges-only
+      and the agent does *any* tool work for that behavior, add
+      a `toolCalls` assertion for the file it must read or the
+      reference it must consult. **Pure-judge cases are
+      almost always under-specified.**
+    - Are there ≤2 judges per case and ≤3 across the file?
+    - Does every judge criterion test exactly one property? If
+      a criterion contains "AND" between properties, split into
+      two narrow judges and reference both.
+    - Are judge names canonical stems (Identifies… / Rates… /
+      Connects… / Recommends… / Includes… / DoesNotFlag… etc.)
+      with no `Correctly`/`Properly`/`Successfully` modifiers?
+    - Is the case prompt realistic — what a real user would
+      type — without previewing the answer or padding with
+      "please carefully analyze"?
+    - No regex / `toMatch` / `toContain` against
+      `result.session.outputText`. Banned, no exceptions.
+12. **Terminate** with a brief summary: which files you wrote,
     which you skipped (and why — usually idempotency), any
     suggestions for spec-level changes.
 

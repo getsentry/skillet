@@ -93,12 +93,18 @@ structured output. If it isn't, write a narrow named judge.
    rubric — 1-2 sentences.
 4. **Every declared judge in `_judges.ts` is referenced.** No
    dead judge declarations. The validator flags orphans.
-5. **Every case with tool-using behavior SHOULD have at least
+5. **Every case with tool-using behavior MUST have at least
    one structural tool-call assertion.** If the agent is
    expected to read a file, call a specific helper, or avoid a
    dangerous tool — pin that with `toContain` / `toContainEqual`
    BEFORE adding judges. This is the single biggest lever on
-   eval quality.
+   eval quality. **No exceptions for prose-output skills.** A
+   skill that produces free-form prose still does work — reads
+   files, runs greps, follows references — and that work is
+   structurally checkable. A case that only has judges and no
+   tool-call assertion is almost always under-specified: ask
+   what the agent must DO before what it says, and pin the
+   doing.
 
 ## How to pick
 
@@ -106,7 +112,7 @@ structured output. If it isn't, write a narrow named judge.
 |----------------------|-----|
 | emits structured output (JSON/YAML/keyed shape on `result.output`) | `toMatchObject` for every property you can pin (severity, trigger, file path, status), then a judge for the prose reasoning if any |
 | traces a path through tools (read file → identify pattern → flag) | `toolCalls` `toContainEqual` to assert the trace. Cheap, deterministic, proves real work |
-| produces free-form prose reasoning as THE deliverable | narrow judge per property (one judge per property — don't bundle "identifies trigger AND rates severity AND recommends fix" into one judge) |
+| produces free-form prose reasoning as THE deliverable | First, pin the work the agent had to do — `toolCalls` `toContainEqual` for any file the agent must read, any reference it must consult, any helper it must invoke. THEN add ≤1 narrow judge for the prose verdict. One property per judge — don't bundle "identifies trigger AND rates severity AND recommends fix" into one judge |
 
 The order above is the priority. Judges are the fallback, not
 the default.
