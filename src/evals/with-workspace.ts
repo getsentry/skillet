@@ -16,10 +16,13 @@
  * fighting its override chain.
  */
 
-import { cpSync, existsSync, mkdtempSync, rmSync, statSync } from "node:fs";
+import { execSync } from "node:child_process";
+import { chmodSync, cpSync, existsSync, mkdtempSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { onTestFinished } from "vitest";
+
+const SETUP_SCRIPT_NAME = "_setup.sh";
 
 /**
  * Create a per-test workspace tempdir, optionally seeded from
@@ -45,6 +48,39 @@ export const createWorkspace = (skillRoot: string, slug?: string): string => {
       );
     }
     cpSync(root, dir, { recursive: true });
+
+    // If the fixture ships a `_setup.sh`, run it inside the
+    // workspace and remove it before the agent sees the dir. This
+    // is how shell-workflow fixtures (e.g. `commit` evals needing
+    // a real git repo with staged changes) bootstrap state that
+    // doesn't copy cleanly via cpSync — a `.git/` directory's
+    // internals, file modes, etc.
+    //
+    // Convention is declarative: drop a `_setup.sh` in the
+    // fixture root, the harness runs it, then the file is
+    // deleted so the agent only sees the seeded files plus
+    // whatever the script produced.
+    const setupPath = join(dir, SETUP_SCRIPT_NAME);
+    if (existsSync(setupPath)) {
+      try {
+        chmodSync(setupPath, 0o755);
+      } catch {
+        // best-effort — execSync below will surface real errors
+      }
+      try {
+        execSync(`./${SETUP_SCRIPT_NAME}`, {
+          cwd: dir,
+          stdio: ["ignore", "pipe", "pipe"],
+          timeout: 30_000,
+        });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        throw new Error(
+          `createWorkspace("${slug}"): _setup.sh exited non-zero or timed out: ${msg.slice(0, 240)}`,
+        );
+      }
+      rmSync(setupPath, { force: true });
+    }
   }
   return dir;
 };

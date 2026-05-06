@@ -58,12 +58,64 @@ it(
 Pass that path through `metadata: { cwd }` to `run(...)`. The
 agent under test will see those files at its workspace root.
 
-## When NOT to seed a fixture
+## When NOT to seed fixture *files*
 
 When the case is purely a chat-style prompt with no workspace
-interaction expected, don't seed anything. `run(input)` runs
-the agent against an empty workspace. Adding an unused fixture
-is dead weight.
+interaction expected, don't seed any files in the fixture
+directory. But you **still** call `createWorkspace(skillRoot)`
+in the test body and pass `metadata: { cwd }` — the agent's
+tool runtime requires `metadata.cwd` for every tool call.
+Empty workspaces are fine; missing `metadata.cwd` is not.
+
+## Workspaces that need shell bootstrap (`_setup.sh`)
+
+Some skills need workspace state that doesn't copy cleanly via
+file-tree seeding. The canonical example is a **`commit` skill
+needing a real `.git/` directory with staged changes** —
+`.git/` internals (object store, locks, file modes) don't
+survive `cpSync` reliably, and an agent that runs `git status`
+against an uninitialized directory has nothing to commit.
+
+For these cases, drop a `_setup.sh` script in the fixture
+root. The harness:
+
+1. Copies the whole fixture (including `_setup.sh`) into a
+   tempdir.
+2. Runs `_setup.sh` with `cwd` set to the tempdir, 30-second
+   timeout.
+3. Removes `_setup.sh` so the agent only sees the seeded files
+   plus whatever the script produced.
+4. Hands the workspace path to the agent via `metadata.cwd`.
+
+Example for a `commit` eval:
+
+```
+evals/fixtures/include-issue-reference__with-issue/
+├── _setup.sh
+└── src/
+    └── auth/
+        └── session.py
+```
+
+`_setup.sh`:
+
+```sh
+#!/bin/sh
+set -e
+git init -q
+git config user.email "test@example.com"
+git config user.name "test"
+git add .
+```
+
+After setup, the workspace has:
+- A real `.git/` directory.
+- The seeded files staged.
+- `_setup.sh` removed.
+
+Use this pattern only when the rule under test genuinely
+requires a non-trivial workspace state. Tight, focused setups
+— don't materialize entire mock projects.
 
 ## File contents
 
@@ -77,17 +129,13 @@ is dead weight.
   multiple files", include the contextual files at minimum
   realistic size.
 
-## No shell setup field
+## No `before` / `after` test hooks
 
-There is no `setup`, `before`, or `after` field for shell
-commands. If you need shell-side preparation (download a
-dependency, generate a key), prefer materializing the
-resulting files into the fixture directly.
-
-If you genuinely need runtime shell execution before `run()`,
-that's a sign the test is too integration-heavy for the
-unit-eval shape. Surface it as a suggestion in your terminal
-output.
+There is no `before`/`after` field on the eval suite for shell
+commands. Workspace bootstrap goes in `_setup.sh` inside the
+fixture (see "Workspaces that need shell bootstrap" above);
+post-test work isn't supported and shouldn't be needed —
+workspaces are tempdirs and get cleaned up automatically.
 
 ## Must_not awareness
 
