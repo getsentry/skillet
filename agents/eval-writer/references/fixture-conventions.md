@@ -79,14 +79,15 @@ against an uninitialized directory has nothing to commit.
 For these cases, drop a `_setup.sh` script in the fixture
 root. The harness:
 
-1. Copies the whole fixture (including `_setup.sh`) into a
-   tempdir.
-2. Runs `_setup.sh` with `cwd` set to the tempdir, 30-second
-   timeout.
-3. Removes `_setup.sh` from disk and untracks it from git
-   (best-effort) so the agent only sees the state the script
-   intended.
-4. Hands the workspace path to the agent via `metadata.cwd`.
+1. Copies fixture contents EXCEPT `_setup.sh` into the
+   workspace tempdir.
+2. Runs `_setup.sh` from a separate location with `cwd` set
+   to the workspace tempdir, 30-second timeout.
+3. Hands the workspace path to the agent via `metadata.cwd`.
+
+Because `_setup.sh` never enters the workspace, a `git add .`
+inside the script can't accidentally stage it, and the agent
+never sees the script — only the state it produced.
 
 ### The post-setup state MUST reflect the test scenario
 
@@ -178,9 +179,10 @@ and refuses.
   and let the script create it after the initial commit.
 - **Don't `git add .` if the staged set should exclude
   something.** Use explicit paths: `git add src/auth/session.py`.
-- **Don't rely on `_setup.sh` showing up in commits.** The
-  harness untracks it after the script runs. Pretend it
-  doesn't exist when reasoning about post-setup state.
+- **Don't reference `_setup.sh` from inside the script.** The
+  script runs from outside the workspace; it isn't on disk
+  inside `cwd` and never will be. Inside the script, treat the
+  workspace as if `_setup.sh` doesn't exist.
 - **Don't leave the workspace on `main`/`master`.** Read the
   spec's must_not list — if the skill under test refuses to
   operate on the default branch (a common safety rule for

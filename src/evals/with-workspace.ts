@@ -17,7 +17,16 @@
  */
 
 import { execSync } from "node:child_process";
-import { chmodSync, cpSync, existsSync, mkdtempSync, rmSync, statSync } from "node:fs";
+import {
+  chmodSync,
+  cpSync,
+  copyFileSync,
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  statSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { onTestFinished } from "vitest";
@@ -47,56 +56,44 @@ export const createWorkspace = (skillRoot: string, slug?: string): string => {
         `createWorkspace("${slug}"): expected a directory at ${root} but found a file.`,
       );
     }
-    cpSync(root, dir, { recursive: true });
 
-    // If the fixture ships a `_setup.sh`, run it inside the
-    // workspace and remove it before the agent sees the dir. This
-    // is how shell-workflow fixtures (e.g. `commit` evals needing
-    // a real git repo with staged changes) bootstrap state that
-    // doesn't copy cleanly via cpSync — a `.git/` directory's
-    // internals, file modes, etc.
-    //
-    // Convention is declarative: drop a `_setup.sh` in the
-    // fixture root, the harness runs it, then the file is
-    // deleted so the agent only sees the seeded files plus
-    // whatever the script produced.
-    const setupPath = join(dir, SETUP_SCRIPT_NAME);
-    if (existsSync(setupPath)) {
+    // Copy fixture contents EXCEPT _setup.sh — the script lives
+    // outside the workspace so a `git add .` inside it can't grab
+    // the script and leave a "deleted _setup.sh" ghost in `git
+    // status` after we remove it. Then run the script with cwd
+    // pointing at the workspace.
+    const setupSrc = join(root, SETUP_SCRIPT_NAME);
+    const hasSetup = existsSync(setupSrc);
+    for (const entry of readdirSync(root)) {
+      if (entry === SETUP_SCRIPT_NAME) continue;
+      cpSync(join(root, entry), join(dir, entry), { recursive: true });
+    }
+
+    if (hasSetup) {
+      // Stage the setup script in its own tempdir so it never
+      // touches the workspace.
+      const scriptDir = mkdtempSync(join(tmpdir(), "skillet-eval-setup-"));
+      const scriptPath = join(scriptDir, SETUP_SCRIPT_NAME);
+      copyFileSync(setupSrc, scriptPath);
       try {
-        chmodSync(setupPath, 0o755);
+        chmodSync(scriptPath, 0o755);
       } catch {
         // best-effort — execSync below will surface real errors
       }
       try {
-        execSync(`./${SETUP_SCRIPT_NAME}`, {
+        execSync(scriptPath, {
           cwd: dir,
           stdio: ["ignore", "pipe", "pipe"],
           timeout: 30_000,
         });
       } catch (err: unknown) {
+        rmSync(scriptDir, { recursive: true, force: true });
         const msg = err instanceof Error ? err.message : String(err);
         throw new Error(
           `createWorkspace("${slug}"): _setup.sh exited non-zero or timed out: ${msg.slice(0, 240)}`,
         );
       }
-      rmSync(setupPath, { force: true });
-
-      // If setup created a git repo and committed `_setup.sh` along
-      // with it, the script's own removal would surface as a "deleted
-      // _setup.sh" working-tree change — confusing the agent under
-      // test. Untrack it (and any leftover index entry) so the agent
-      // sees only the state the script actually intended.
-      if (existsSync(join(dir, ".git"))) {
-        try {
-          execSync("git rm --cached -q -- _setup.sh", {
-            cwd: dir,
-            stdio: ["ignore", "ignore", "ignore"],
-          });
-        } catch {
-          // Not tracked — fine. _setup.sh was either never `git add`-ed
-          // or was already cleaned up by the script.
-        }
-      }
+      rmSync(scriptDir, { recursive: true, force: true });
     }
   }
   return dir;
