@@ -62,9 +62,13 @@ describeEval(
 ```
 
 - `describeEval`'s first arg is the spec entry id, EXACT.
-- `judgeThreshold: 0.75` is the default. Don't change unless
-  there's a strong reason — if so, surface it in your terminal
-  output for the user.
+- `judgeThreshold: 0.75` on `describeEval` controls
+  vitest-evals' automatic suite-level scoring. **It does NOT
+  propagate to explicit `toSatisfyJudge` calls** in the test
+  body — those default to a strict `threshold: 1` and must
+  pass `{ threshold: 0.75 }` inline (see examples below).
+  Don't change either unless there's a strong reason — if so,
+  surface it in your terminal output for the user.
 - One `describeEval` per file (one spec entry per file). Multiple
   cases inside the same `describeEval` are fine when the rule
   has natural variations to test.
@@ -93,8 +97,8 @@ it(
     const names = toolCalls(result.session).map((c) => c.name);
     expect(names).not.toContain("Bash");
 
-    await expect(result).toSatisfyJudge(AsksIntentQuestionsJudge);
-    await expect(result).toSatisfyJudge(DoesNotInvokeCLIPrematurelyJudge);
+    await expect(result).toSatisfyJudge(AsksIntentQuestionsJudge, { threshold: 0.75 });
+    await expect(result).toSatisfyJudge(DoesNotInvokeCLIPrematurelyJudge, { threshold: 0.75 });
   },
 );
 ```
@@ -126,7 +130,7 @@ it(
       }),
     );
 
-    await expect(result).toSatisfyJudge(ConnectsExploitChainJudge);
+    await expect(result).toSatisfyJudge(ConnectsExploitChainJudge, { threshold: 0.75 });
   },
 );
 ```
@@ -149,7 +153,7 @@ it(
       trigger: "pull_request_target",
     });
 
-    await expect(result).toSatisfyJudge(ExploitChainExplanationJudge);
+    await expect(result).toSatisfyJudge(ExploitChainExplanationJudge, { threshold: 0.75 });
   },
 );
 ```
@@ -167,8 +171,8 @@ it(
       { metadata: { cwd } },
     );
 
-    await expect(result).toSatisfyJudge(NoFalsePositiveOnNumericIdJudge);
-    await expect(result).toSatisfyJudge(ExplainsSafeResolvedValueJudge);
+    await expect(result).toSatisfyJudge(NoFalsePositiveOnNumericIdJudge, { threshold: 0.75 });
+    await expect(result).toSatisfyJudge(ExplainsSafeResolvedValueJudge, { threshold: 0.75 });
   },
 );
 ```

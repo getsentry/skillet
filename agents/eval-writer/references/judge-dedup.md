@@ -121,8 +121,8 @@ severity."
 
 The case references both:
 ```ts
-await expect(result).toSatisfyJudge(ConnectsExploitChainJudge);
-await expect(result).toSatisfyJudge(RatesHighSeverityJudge);
+await expect(result).toSatisfyJudge(ConnectsExploitChainJudge, { threshold: 0.75 });
+await expect(result).toSatisfyJudge(RatesHighSeverityJudge, { threshold: 0.75 });
 ```
 
 **Good criteria:**

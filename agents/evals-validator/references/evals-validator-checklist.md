@@ -111,6 +111,20 @@ For each `evals/fixtures/<slug>/` directory:
 - `kind: fixture-orphan` — No `.eval.ts` references that slug
   in a `createWorkspace(...)` call.
 
+## 10b. Judge threshold (severity: error)
+
+For every `await expect(result).toSatisfyJudge(...)` call:
+
+- `kind: missing-threshold` — The call passes only the judge
+  with no `{ threshold: <number> }` second arg. vitest-evals
+  defaults to `threshold: 1` for the explicit matcher (NOT
+  the `judgeThreshold: 0.75` on `describeEval` — that's for
+  automatic suite-level scoring, distinct from the explicit
+  matcher). Without `{ threshold: 0.75 }`, an otherwise-correct
+  response scoring 0.85 fails for an unintended reason.
+
+The fix: `await expect(result).toSatisfyJudge(MyJudge, { threshold: 0.75 })`.
+
 ## 11. Workspace metadata (severity: error)
 
 For each `it(...)` body in every `.eval.ts`:

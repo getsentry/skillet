@@ -54,14 +54,16 @@ Args matchers are **high-leverage and underused**. "The agent
 must read `.github/workflows/ci.yml` before flagging" → assert
 the tool call. That proves real work — no judge needed.
 
-### 3. `await expect(result).toSatisfyJudge(NameJudge)` — LAST RESORT.
+### 3. `await expect(result).toSatisfyJudge(NameJudge, { threshold: 0.75 })` — LAST RESORT.
 
 Only when the deliverable is free-form text reasoning that
 can't be checked structurally. Each judge tests **one
-property**.
+property**. **Always pass `{ threshold: 0.75 }`** — the
+default in vitest-evals is strict 1.0, which fails an
+otherwise-correct response that nailed the property at 0.85.
 
 ```ts
-await expect(result).toSatisfyJudge(IdentifiesPrivilegedTriggerJudge);
+await expect(result).toSatisfyJudge(IdentifiesPrivilegedTriggerJudge, { threshold: 0.75 });
 ```
 
 **Aim for ≤2 judges per case.** Every judge is an LLM call at
@@ -137,7 +139,7 @@ it(
     );
 
     // Grade the prose verdict.
-    await expect(result).toSatisfyJudge(ConnectsExploitChainJudge);
+    await expect(result).toSatisfyJudge(ConnectsExploitChainJudge, { threshold: 0.75 });
   },
 );
 ```
@@ -166,7 +168,7 @@ it(
     const names = toolCalls(result.session).map((c) => c.name);
     expect(names).toContain("read_file");
 
-    await expect(result).toSatisfyJudge(ExploitChainExplanationJudge);
+    await expect(result).toSatisfyJudge(ExploitChainExplanationJudge, { threshold: 0.75 });
   },
 );
 ```
@@ -188,8 +190,8 @@ it(
       "Anything risky about ${{ github.event.pull_request.number }} used in the run command here?",
     );
 
-    await expect(result).toSatisfyJudge(NoFalsePositiveOnNumericIdJudge);
-    await expect(result).toSatisfyJudge(ExplainsSafeResolvedValueJudge);
+    await expect(result).toSatisfyJudge(NoFalsePositiveOnNumericIdJudge, { threshold: 0.75 });
+    await expect(result).toSatisfyJudge(ExplainsSafeResolvedValueJudge, { threshold: 0.75 });
   },
 );
 ```

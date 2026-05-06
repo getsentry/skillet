@@ -151,6 +151,13 @@ from prose tuning is intentional — the rules under test live in
       "please carefully analyze"?
     - No regex / `toMatch` / `toContain` against
       `result.session.outputText`. Banned, no exceptions.
+    - Does every `toSatisfyJudge(Judge)` call pass
+      `{ threshold: 0.75 }` as the second argument?
+      vitest-evals defaults to a strict `threshold: 1.0`,
+      which fails an otherwise-correct response that nailed
+      the property at 0.85. The `judgeThreshold` on
+      `describeEval` does NOT propagate to explicit
+      `toSatisfyJudge` calls.
 12. **Terminate** with a brief summary: which files you wrote,
     which you skipped (and why — usually idempotency), any
     suggestions for spec-level changes.
