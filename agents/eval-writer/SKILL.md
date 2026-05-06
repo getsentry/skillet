@@ -78,6 +78,15 @@ from prose tuning is intentional — the rules under test live in
 7. **Fixtures are real disk files.** No shell setup field, no
    `before/after` magic. See
    `references/fixture-conventions.md`.
+8. **Every case calls `createWorkspace` and passes
+   `metadata: { cwd }`.** Even cases with no seeded fixture —
+   call `createWorkspace(skillRoot)` (no slug) for an empty
+   tempdir. The agent's tool runtime requires `metadata.cwd`
+   for `bash`, `read_file`, `list_files`, `grep`, and
+   `write_file` — every tool call throws without it, and the
+   case fails for an infrastructure reason unrelated to the
+   rule under test. **No exceptions, including pure-prose
+   skills.**
 
 ## Workflow
 
@@ -117,6 +126,12 @@ from prose tuning is intentional — the rules under test live in
 11. **Self-check each file you wrote against the contract.** For
     every `.eval.ts` you just emitted, walk this list before
     moving on:
+    - Does every case call `createWorkspace` and pass
+      `metadata: { cwd }` to `run(...)`? If not, every tool
+      call inside that case throws and the test fails for an
+      infrastructure reason. Empty workspaces are fine —
+      `createWorkspace(skillRoot)` (no slug) returns an empty
+      tempdir.
     - Does every case have at least one structural assertion
       (`toMatchObject` on `result.output`, or `toContainEqual`
       on `toolCalls(result.session)`)? If a case is judges-only

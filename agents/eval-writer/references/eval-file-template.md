@@ -33,9 +33,12 @@ import {
 const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, "");
 ```
 
-Drop unused imports. If the file has no fixtures, don't
-import `createWorkspace`. If no `tool-calls` assertions, don't
-import `toolCalls`. Same for any unused judge.
+**Always import `createWorkspace`** — every case allocates a
+workspace, even when no fixture files are seeded (it returns
+an empty tempdir, and the agent's tool runtime requires
+`metadata.cwd` to function). Drop other imports if unused —
+e.g. `toolCalls` only if the file has no tool-call assertions,
+unused judges, etc.
 
 ## Suite shape
 
@@ -66,15 +69,25 @@ describeEval(
   cases inside the same `describeEval` are fine when the rule
   has natural variations to test.
 
-## Case body — pure prompt (no fixture)
+## Case body — empty workspace (no fixture files)
+
+Even when the case doesn't seed any files, `createWorkspace`
+must be called so the agent has a working directory. The
+agent's tool runtime requires `metadata.cwd` for every tool
+call (`bash`, `read_file`, `list_files`, `grep`, `write_file`)
+— omitting it makes every tool call throw, the agent never
+gets past its first action, and the test fails for an
+infrastructure reason that has nothing to do with the rule.
 
 ```ts
 it(
   "capture-intent__vague-new-skill-request",
   { timeout: 90_000 },
   async ({ run }) => {
+    const cwd = createWorkspace(skillRoot);
     const result = await run(
       "I want to make a skill for reviewing Terraform code for security issues.",
+      { metadata: { cwd } },
     );
 
     const names = toolCalls(result.session).map((c) => c.name);
@@ -85,6 +98,10 @@ it(
   },
 );
 ```
+
+Pass `createWorkspace(skillRoot)` (no slug) for an empty
+tempdir; pass a slug only when a fixture is seeded under
+`evals/fixtures/<slug>/`.
 
 ## Case body — with fixture
 
@@ -144,8 +161,10 @@ it(
   "no-numeric-id-injection__pr-number-in-comment",
   { timeout: 90_000 },
   async ({ run }) => {
+    const cwd = createWorkspace(skillRoot);
     const result = await run(
       "Anything risky about ${{ github.event.pull_request.number }} used in the run command here?",
+      { metadata: { cwd } },
     );
 
     await expect(result).toSatisfyJudge(NoFalsePositiveOnNumericIdJudge);

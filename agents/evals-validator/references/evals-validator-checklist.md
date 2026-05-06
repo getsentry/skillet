@@ -111,7 +111,22 @@ For each `evals/fixtures/<slug>/` directory:
 - `kind: fixture-orphan` — No `.eval.ts` references that slug
   in a `createWorkspace(...)` call.
 
-## 11. Required vs. structural balance (severity: warning)
+## 11. Workspace metadata (severity: error)
+
+For each `it(...)` body in every `.eval.ts`:
+
+- `kind: missing-cwd` — The `await run(...)` call does not pass
+  `metadata: { cwd }`. Every tool call (`bash`, `read_file`,
+  `list_files`, `grep`, `write_file`) requires `metadata.cwd`
+  at runtime; missing it makes every tool throw and the test
+  fails for an infrastructure reason unrelated to the rule.
+
+The fix is: `const cwd = createWorkspace(skillRoot, "<slug>")`
+(or `createWorkspace(skillRoot)` for an empty workspace), then
+`run(input, { metadata: { cwd } })`. This applies to every
+case, including pure-prose skills. Empty workspaces are fine.
+
+## 12. Required vs. structural balance (severity: warning)
 
 For each behavior whose `statement` clearly involves tool
 usage (verbs like "read", "list", "execute", "audit"):
@@ -129,7 +144,7 @@ This check is judgment-based; err toward warning rather than
 error. The eval-contract.md says structural-first is the
 preference, not a hard requirement.
 
-## 12. _judges.ts shape (severity: error)
+## 13. _judges.ts shape (severity: error)
 
 For `_judges.ts`:
 
