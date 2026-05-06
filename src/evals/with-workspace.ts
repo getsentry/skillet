@@ -80,6 +80,23 @@ export const createWorkspace = (skillRoot: string, slug?: string): string => {
         );
       }
       rmSync(setupPath, { force: true });
+
+      // If setup created a git repo and committed `_setup.sh` along
+      // with it, the script's own removal would surface as a "deleted
+      // _setup.sh" working-tree change — confusing the agent under
+      // test. Untrack it (and any leftover index entry) so the agent
+      // sees only the state the script actually intended.
+      if (existsSync(join(dir, ".git"))) {
+        try {
+          execSync("git rm --cached -q -- _setup.sh", {
+            cwd: dir,
+            stdio: ["ignore", "ignore", "ignore"],
+          });
+        } catch {
+          // Not tracked — fine. _setup.sh was either never `git add`-ed
+          // or was already cleaned up by the script.
+        }
+      }
     }
   }
   return dir;

@@ -83,21 +83,36 @@ root. The harness:
    tempdir.
 2. Runs `_setup.sh` with `cwd` set to the tempdir, 30-second
    timeout.
-3. Removes `_setup.sh` so the agent only sees the seeded files
-   plus whatever the script produced.
+3. Removes `_setup.sh` from disk and untracks it from git
+   (best-effort) so the agent only sees the state the script
+   intended.
 4. Hands the workspace path to the agent via `metadata.cwd`.
 
-Example for a `commit` eval:
+### The post-setup state MUST reflect the test scenario
 
-```
-evals/fixtures/include-issue-reference__with-issue/
-├── _setup.sh
-└── src/
-    └── auth/
-        └── session.py
-```
+This is the most common mistake: the script runs `git init`,
+commits everything, and exits — leaving a clean working tree.
+The agent then runs `git status`, sees nothing to commit, and
+the test fails for an obvious reason. **The script must
+finish with the workspace in the exact state the prompt
+implies.**
 
-`_setup.sh`:
+Decide first: what does the agent see when it runs
+`git status` at the start of the test? Then write the script
+to leave that state.
+
+| Test scenario | Post-setup state | Pattern |
+|---------------|------------------|---------|
+| Agent commits a fix the user describes | One staged change matching the fix | initial commit baseline → modify file → `git add` the fix |
+| Agent refuses empty/WIP commits | Nothing staged, working tree clean | initial commit baseline → stop |
+| Agent reviews unstaged work | Modified files, none staged | initial commit baseline → modify → don't add |
+| Agent splits unrelated changes | Multiple staged changes spanning unrelated areas | initial commit → modify file A and file B → `git add` both |
+| Agent handles hook failure | One staged change + a failing pre-commit hook | initial commit baseline → modify → add → write executable `.git/hooks/pre-commit` that exits non-zero |
+
+### Worked examples
+
+**Agent commits a new fix** (canonical pattern — distinct
+pre-fix and post-fix content):
 
 ```sh
 #!/bin/sh
@@ -105,13 +120,63 @@ set -e
 git init -q
 git config user.email "test@example.com"
 git config user.name "test"
+
+# Pre-fix file content.
+mkdir -p src/auth
+cat > src/auth/session.py << 'EOF'
+def validate_session(token):
+    session = cache.get(token)
+    if session.is_expired():  # bug: NPE if session is None
+        return None
+    return session
+EOF
 git add .
+git commit -q -m "initial"
+
+# Apply the fix the prompt implies — DIFFERENT content.
+cat > src/auth/session.py << 'EOF'
+def validate_session(token):
+    session = cache.get(token)
+    if session and not session.is_expired():
+        return session
+    return None
+EOF
+git add src/auth/session.py
 ```
 
-After setup, the workspace has:
-- A real `.git/` directory.
-- The seeded files staged.
-- `_setup.sh` removed.
+After setup: one staged modification of `src/auth/session.py`
+showing the null-check fix. `git status` shows it; the agent
+inspects the diff, composes a commit message, runs
+`git commit`.
+
+**Agent refuses empty commit**:
+
+```sh
+#!/bin/sh
+set -e
+git init -q
+git config user.email "test@example.com"
+git config user.name "test"
+git commit -q --allow-empty -m "initial"
+# Stop here. Nothing staged, nothing modified.
+```
+
+After setup: clean working tree, agent has nothing to commit
+and refuses.
+
+### Pitfalls
+
+- **Don't `cat >` overwrite a fixture-seeded file with the
+  same content.** The fixture seeds version A; the script
+  overwrites with version A; `git add` stages nothing. Either
+  put pre-fix content in the fixture and post-fix in the
+  script, OR don't seed that file at fixture level at all
+  and let the script create it after the initial commit.
+- **Don't `git add .` if the staged set should exclude
+  something.** Use explicit paths: `git add src/auth/session.py`.
+- **Don't rely on `_setup.sh` showing up in commits.** The
+  harness untracks it after the script runs. Pretend it
+  doesn't exist when reasoning about post-setup state.
 
 Use this pattern only when the rule under test genuinely
 requires a non-trivial workspace state. Tight, focused setups
