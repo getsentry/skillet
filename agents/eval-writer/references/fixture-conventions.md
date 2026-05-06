@@ -112,7 +112,7 @@ to leave that state.
 ### Worked examples
 
 **Agent commits a new fix** (canonical pattern — distinct
-pre-fix and post-fix content):
+pre-fix and post-fix content, feature branch):
 
 ```sh
 #!/bin/sh
@@ -132,6 +132,10 @@ def validate_session(token):
 EOF
 git add .
 git commit -q -m "initial"
+
+# Move off the default branch so a 'no-commit-to-main' rule
+# doesn't sidetrack the test.
+git checkout -q -b fix/session-null-check
 
 # Apply the fix the prompt implies — DIFFERENT content.
 cat > src/auth/session.py << 'EOF'
@@ -177,6 +181,16 @@ and refuses.
 - **Don't rely on `_setup.sh` showing up in commits.** The
   harness untracks it after the script runs. Pretend it
   doesn't exist when reasoning about post-setup state.
+- **Don't leave the workspace on `main`/`master`.** Read the
+  spec's must_not list — if the skill under test refuses to
+  operate on the default branch (a common safety rule for
+  commit/branch/PR skills), every test fixture that targets
+  a different rule will get sidetracked into that warning.
+  Default to a feature branch:
+  `git checkout -b feature/test-branch` (or whatever name
+  the test scenario implies) after the initial commit.
+  Cases that test the must-not rule itself stay on `main`
+  on purpose.
 
 Use this pattern only when the rule under test genuinely
 requires a non-trivial workspace state. Tight, focused setups
