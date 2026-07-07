@@ -27,7 +27,7 @@ export const describeWorkspace = (workspace: string): string => {
   const walk = (dir: string): void => {
     let entries: string[];
     try {
-      entries = readdirSync(dir).sort();
+      entries = readdirSync(dir).toSorted();
     } catch {
       return;
     }

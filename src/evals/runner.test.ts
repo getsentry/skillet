@@ -94,14 +94,14 @@ describe("runCases", () => {
   });
 });
 
-describe("summarizeByBehavior", () => {
-  const trial = (status: TrialResult["status"]): TrialResult => ({
-    status,
-    checks: [],
-    transcript: "",
-    durationMs: 0,
-  });
+const trial = (status: TrialResult["status"]): TrialResult => ({
+  status,
+  checks: [],
+  transcript: "",
+  durationMs: 0,
+});
 
+describe("summarizeByBehavior", () => {
   it("computes pass rates and baseline lift per behavior", () => {
     const summaries = summarizeByBehavior([
       {

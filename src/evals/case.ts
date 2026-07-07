@@ -89,12 +89,15 @@ export const parseCase = (
     }
   }
 
-  const behavior = data["behavior"];
-  if (typeof behavior !== "string" || behavior.trim() === "") {
+  const rawBehavior = data["behavior"];
+  const behavior =
+    typeof rawBehavior === "string" && rawBehavior.trim() !== "" ? rawBehavior.trim() : null;
+  if (behavior == null) {
     error('missing required field "behavior"', "Reference a behavior id from spec.md.");
   }
-  const prompt = data["prompt"];
-  if (typeof prompt !== "string" || prompt.trim() === "") {
+  const rawPrompt = data["prompt"];
+  const prompt = typeof rawPrompt === "string" && rawPrompt.trim() !== "" ? rawPrompt : null;
+  if (prompt == null) {
     error('missing required field "prompt"', "The user message given to the agent under test.");
   }
 
@@ -112,11 +115,12 @@ export const parseCase = (
           );
           continue;
         }
-        const [kind] = Object.keys(entry) as [string];
-        const value = entry[kind];
-        if (!(CHECK_KINDS as readonly string[]).includes(kind)) {
+        const rawKind = Object.keys(entry)[0] ?? "";
+        const value = entry[rawKind];
+        const kind = CHECK_KINDS.find((k) => k === rawKind);
+        if (kind == null) {
           error(
-            `check ${i + 1} has unsupported type "${kind}"`,
+            `check ${i + 1} has unsupported type "${rawKind}"`,
             `Supported checks: ${CHECK_KINDS.join(", ")}.`,
           );
           continue;
@@ -125,7 +129,7 @@ export const parseCase = (
           error(`check ${i + 1} (${kind}) must have a non-empty string value`);
           continue;
         }
-        checks.push({ kind: kind as CheckKind, value: value.trim() });
+        checks.push({ kind, value: value.trim() });
       }
     }
   }
@@ -136,12 +140,17 @@ export const parseCase = (
     );
   }
 
-  const trials = data["trials"] ?? 1;
-  if (typeof trials !== "number" || !Number.isInteger(trials) || trials < 1) {
+  const rawTrials = data["trials"] ?? 1;
+  const trials =
+    typeof rawTrials === "number" && Number.isInteger(rawTrials) && rawTrials >= 1
+      ? rawTrials
+      : null;
+  if (trials == null) {
     error('"trials" must be a positive integer');
   }
-  const timeout = data["timeout"] ?? DEFAULT_TIMEOUT_SECONDS;
-  if (typeof timeout !== "number" || timeout <= 0) {
+  const rawTimeout = data["timeout"] ?? DEFAULT_TIMEOUT_SECONDS;
+  const timeout = typeof rawTimeout === "number" && rawTimeout > 0 ? rawTimeout : null;
+  if (timeout == null) {
     error('"timeout" must be a positive number of seconds');
   }
 
@@ -154,20 +163,26 @@ export const parseCase = (
     error('"setup" must be a shell script string');
   }
 
-  if (issues.some((i) => i.severity === "error")) {
+  if (
+    issues.some((i) => i.severity === "error") ||
+    behavior == null ||
+    prompt == null ||
+    trials == null ||
+    timeout == null
+  ) {
     return { evalCase: null, issues };
   }
 
   const evalCase: EvalCase = {
     id: basename(file).replace(/\.ya?ml$/, ""),
     file,
-    behavior: (behavior as string).trim(),
-    prompt: prompt as string,
+    behavior,
+    prompt,
     ...(typeof fixture === "string" && { fixture: fixture.trim() }),
     ...(typeof setup === "string" && { setup }),
     checks,
-    trials: trials as number,
-    timeout: timeout as number,
+    trials,
+    timeout,
   };
   return { evalCase, issues };
 };
@@ -181,7 +196,7 @@ export const loadCases = (skillRoot: string): CaseLoadResult => {
   try {
     entries = readdirSync(casesDir)
       .filter((f) => /\.ya?ml$/.test(f))
-      .sort();
+      .toSorted();
   } catch {
     return { cases, issues };
   }
