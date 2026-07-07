@@ -28,13 +28,15 @@ skillet validate                 # grammar, frontmatter, case schema, coverage �
 skillet eval --trials 3 --baseline
 ```
 
-The last command is the point of the tool: every case runs through a real agent *with* the skill installed and (with `--baseline`) *without* it, and skillet reports per-behavior pass rates and **lift** — the difference the skill actually makes.
+The last command is the point of the tool: every case runs through a real agent *with* the skill installed and (with `--baseline`) *without* it, and skillet reports per-behavior pass rates and **lift** — the difference the skill actually makes. Illustrative output:
 
 ```
 Behaviors:
   conventional-subject: 100% (3/3) | baseline 33% | lift +67%
   branch-safety:        100% (3/3) | baseline 0%  | lift +100%
 ```
+
+Zero lift is a finding too: it means your agent already does this without the skill (note that harness CLIs still load your global agent config, so baseline measures *your configured agent*, not a bare model).
 
 ## The spec
 
