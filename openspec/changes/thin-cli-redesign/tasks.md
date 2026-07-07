@@ -17,9 +17,9 @@
 
 ## 3. Eval cases and workspace
 
-- [ ] 3.1 Define the YAML case schema (`behavior`, `prompt`, `fixture`, `setup`, `checks`, `trials`, `timeout`) and schema validation with unit tests
-- [ ] 3.2 Implement workspace lifecycle: fresh tempdir per trial, fixture copy, setup script materialized outside the workspace, 30s setup timeout, teardown, `--keep-workspaces`
-- [ ] 3.3 Implement check evaluation: `file_exists`, `shell` (exit-code), ordering (deterministic before judge), per-check results with output capture
+- [x] 3.1 Define the YAML case schema (`behavior`, `prompt`, `fixture`, `setup`, `checks`, `trials`, `timeout`) and schema validation with unit tests
+- [x] 3.2 Implement workspace lifecycle: fresh tempdir per trial, fixture copy, setup script materialized outside the workspace, 30s setup timeout, teardown, `--keep-workspaces`
+- [x] 3.3 Implement check evaluation: `file_exists`, `shell` (exit-code), ordering (deterministic before judge), per-check results with output capture
 
 ## 4. Harness
 
