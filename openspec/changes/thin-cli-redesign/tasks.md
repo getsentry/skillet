@@ -32,14 +32,14 @@
 
 ## 5. CLI commands
 
-- [ ] 5.1 `skillet new <name>`: scaffold skill directory with templated spec.md and evals/ layout
-- [ ] 5.2 `skillet status [path] [--json]`: artifact presence/staleness from disk, legacy spec.yaml detection
+- [x] 5.1 `skillet new <name>`: scaffold skill directory with templated spec.md and evals/ layout
+- [x] 5.2 `skillet status [path] [--json]`: artifact presence/staleness from disk, legacy spec.yaml detection
 - [ ] 5.3 `skillet instructions <spec|skill|evals> [--json]`: serve template + writing instructions + output path + state (each payload ≤200 lines)
-- [ ] 5.4 `skillet validate [path] [--json]`: full-skill report (spec grammar, SKILL.md frontmatter, case schema, coverage)
-- [ ] 5.5 `skillet eval [path] [--case id] [--trials n] [--baseline] [--harness x] [--json] [--keep-workspaces]`: run cases, group results by behavior, report pass rates and lift
-- [ ] 5.6 `skillet show [path]`: pretty-print parsed spec with coverage summary
+- [x] 5.4 `skillet validate [path] [--json]`: full-skill report (spec grammar, SKILL.md frontmatter, case schema, coverage)
+- [x] 5.5 `skillet eval [path] [--case id] [--trials n] [--baseline] [--harness x] [--json] [--keep-workspaces]`: run cases, group results by behavior, report pass rates and lift
+- [x] 5.6 `skillet show [path]`: pretty-print parsed spec with coverage summary
 - [ ] 5.7 `skillet init [--tools <ids>] [--force]`: project scaffold + tool integration generation
-- [ ] 5.8 Cross-cutting: `--json` single-object stdout convention, prose to stderr, exit codes 0/1
+- [x] 5.8 Cross-cutting: `--json` single-object stdout convention, prose to stderr, exit codes 0/1
 
 ## 6. Agent integration workflows
 

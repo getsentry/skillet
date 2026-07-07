@@ -18,7 +18,13 @@ Run 'skillet <command> --help' for command-specific flags.
 
 type CommandModule = { run: (argv: string[]) => Promise<number> };
 
-const COMMANDS: Record<string, () => Promise<CommandModule>> = {};
+const COMMANDS: Record<string, () => Promise<CommandModule>> = {
+  new: () => import("./commands/new.js"),
+  status: () => import("./commands/status.js"),
+  validate: () => import("./commands/validate.js"),
+  eval: () => import("./commands/eval.js"),
+  show: () => import("./commands/show.js"),
+};
 
 const main = async (): Promise<number> => {
   const [command, ...rest] = process.argv.slice(2);
