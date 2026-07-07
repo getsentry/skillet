@@ -1,3 +1,11 @@
+# Structured Output Specification
+
+## Purpose
+
+Machine-readable JSON output modes for eval and validate commands, with normalized result shapes.
+
+## Requirements
+
 ### Requirement: JSON output mode for eval
 
 The `eval` command SHALL support a `--json` flag that outputs structured results in a format compatible with vitest-evals' normalized types.

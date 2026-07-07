@@ -1,3 +1,11 @@
+# Validation Specification
+
+## Purpose
+
+Mechanical, no-LLM structural validation of skill artifacts: SKILL.md frontmatter and eval file structure.
+
+## Requirements
+
 ### Requirement: SKILL.md structural validation
 
 The system SHALL validate that SKILL.md has valid YAML frontmatter with required fields (`name`, `description`), that `name` is non-empty, and that `description` is non-empty with reasonable length.

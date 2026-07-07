@@ -1,3 +1,11 @@
+# Skill Authoring Specification
+
+## Purpose
+
+LLM-driven skill creation and improvement: the authoring loop that turns a description into a SKILL.md plus evals and iterates on results.
+
+## Requirements
+
 ### Requirement: Agentic skill authoring loop
 
 The system SHALL provide an `authorSkill()` function that orchestrates multi-phase LLM-driven skill creation and improvement. The loop SHALL proceed through these phases: understand intent → generate/refine SKILL.md → generate/add eval cases → run evals → assess results → iterate if needed.
