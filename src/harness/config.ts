@@ -8,12 +8,10 @@ export const CONFIG_FILE = ".skillet.yaml";
 
 export class HarnessConfigError extends Error {}
 
-const BUILTINS: Record<string, ResolvedHarness> = {
-  codex: { name: "codex", kind: "codex", binary: "codex" },
-  claude: { name: "claude", kind: "claude", binary: "claude" },
-};
+const CODEX: ResolvedHarness = { name: "codex", kind: "codex", binary: "codex" };
+const CLAUDE: ResolvedHarness = { name: "claude", kind: "claude", binary: "claude" };
 
-export const DEFAULT_HARNESS = "codex";
+const BUILTINS: Record<string, ResolvedHarness> = { codex: CODEX, claude: CLAUDE };
 
 const isRecord = (v: unknown): v is Record<string, unknown> => {
   return v != null && typeof v === "object" && !Array.isArray(v);
@@ -22,14 +20,13 @@ const isRecord = (v: unknown): v is Record<string, unknown> => {
 /** Find the nearest .skillet.yaml walking up from `startDir`. */
 export const findConfig = (startDir: string): string | null => {
   let dir = startDir;
-  for (let i = 0; i < 50; i++) {
+  for (;;) {
     const candidate = join(dir, CONFIG_FILE);
     if (existsSync(candidate)) return candidate;
     const parent = dirname(dir);
     if (parent === dir) return null;
     dir = parent;
   }
-  return null;
 };
 
 /**
@@ -105,9 +102,7 @@ export const resolveHarness = (skillRoot: string, flag?: string): ResolvedHarnes
       return resolveHarnessValue(parsed["harness"]);
     }
   }
-  const fallback = BUILTINS[DEFAULT_HARNESS];
-  if (fallback == null) throw new HarnessConfigError("no default harness");
-  return fallback;
+  return CODEX;
 };
 
 /** Fail fast when the harness executable is missing (harness spec). */

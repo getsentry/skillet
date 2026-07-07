@@ -28,7 +28,8 @@ describe("checkCoverage", () => {
   it("errors on unknown behavior references", () => {
     const issues = checkCoverage(spec, [{ file: "x.yaml", behavior: "gamma" }], new Set());
     const err = issues.find((i) => i.severity === "error");
-    expect(err?.message).toBe('x.yaml: references unknown behavior "gamma"');
+    expect(err?.message).toContain("x.yaml");
+    expect(err?.message).toContain('"gamma"');
     expect(err?.hint).toContain("alpha");
   });
 

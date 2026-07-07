@@ -37,11 +37,10 @@ export const parseFrontmatter = (
  */
 export const findSkillRoot = (startPath: string): string | null => {
   let dir = resolve(startPath);
-  for (let i = 0; i < 50; i++) {
+  for (;;) {
     if (existsSync(join(dir, "spec.md")) || existsSync(join(dir, "SKILL.md"))) return dir;
     const parent = dirname(dir);
     if (parent === dir) return null;
     dir = parent;
   }
-  return null;
 };

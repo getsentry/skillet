@@ -7,18 +7,14 @@ const isRecord = (v: unknown): v is Record<string, unknown> => {
 };
 
 const readVersion = (): string => {
-  try {
-    const here = dirname(fileURLToPath(import.meta.url));
-    // Both dist/cli.js and src/version.ts sit one level below the
-    // package root, so ../package.json resolves from either.
-    const parsed: unknown = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf-8"));
-    if (isRecord(parsed) && typeof parsed["version"] === "string") {
-      return parsed["version"];
-    }
-  } catch {
-    // fall through
+  const here = dirname(fileURLToPath(import.meta.url));
+  // Both dist/cli.js and src/version.ts sit one level below the
+  // package root, so ../package.json resolves from either.
+  const parsed: unknown = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf-8"));
+  if (isRecord(parsed) && typeof parsed["version"] === "string") {
+    return parsed["version"];
   }
-  return "unknown";
+  throw new Error("package.json has no version");
 };
 
 export const VERSION = readVersion();

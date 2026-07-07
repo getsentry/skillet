@@ -1,13 +1,14 @@
 import { parseArgs } from "node:util";
-import { emitJson, fail, info } from "../output.js";
+import { emitJson, fail, info, print } from "../output.js";
 import { validateSkill } from "../validate.js";
-import { print, resolveSkillRoot } from "./shared.js";
+import { resolveSkillRoot } from "./shared.js";
 
 const HELP = `Usage: skillet show [path] [--json]
 
 Pretty-print a skill's parsed spec with its eval coverage.
 `;
 
+/** `skillet show` — human-readable view of the parsed spec and coverage. */
 export const run = async (argv: string[]): Promise<number> => {
   const { values, positionals } = parseArgs({
     args: argv,

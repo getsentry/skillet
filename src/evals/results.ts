@@ -27,10 +27,11 @@ export interface BehaviorSummary {
   baselineTrials?: number;
   baselinePassed?: number;
   baselinePassRate?: number;
-  /** passRate − baselinePassRate, the headline metric (design D5). */
+  /** passRate − baselinePassRate: the improvement the skill itself provides. */
   lift?: number;
 }
 
+/** Fraction of trials that passed (errors count against). */
 export const passRate = (trials: TrialResult[]): number => {
   if (trials.length === 0) return 0;
   return trials.filter((t) => t.status === "pass").length / trials.length;

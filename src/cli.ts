@@ -1,3 +1,9 @@
+/**
+ * CLI entry point: a lazy dispatch table and nothing else. Commands
+ * own their flags and output; exit codes are 0 success / 1 failure
+ * (cli spec, "JSON output convention"). No LLM work happens anywhere
+ * in this process.
+ */
 import { fail } from "./output.js";
 
 const HELP = `skillet — spec-driven agent skills with mechanical evals
@@ -15,6 +21,18 @@ Commands:
 
 Run 'skillet <command> --help' for command-specific flags.
 `;
+
+/** v0 commands and where their job moved (cli spec, "Removed command"). */
+const REMOVED_COMMANDS: Record<string, string> = {
+  create:
+    "authoring is agent-driven now — run /skillet:propose in your agent, or 'skillet new <name>' to scaffold by hand",
+  improve: "run /skillet:improve in your agent; it reads 'skillet eval --json' failures",
+  spec: "spec.md is edited directly — /skillet:propose writes it, 'skillet validate' checks it",
+  "add-eval": "add a YAML case under evals/cases/ ('skillet instructions evals' has the template)",
+  resume: "there are no sessions to resume; workflow state lives on disk ('skillet status')",
+  compare: "use 'skillet eval --baseline' to compare with and without the skill",
+  install: "'skillet init --tools <ids>' generates agent integrations",
+};
 
 type CommandModule = { run: (argv: string[]) => Promise<number> };
 
@@ -34,6 +52,11 @@ const main = async (): Promise<number> => {
   if (command == null || command === "--help" || command === "-h" || command === "help") {
     process.stderr.write(HELP);
     return command == null ? 1 : 0;
+  }
+
+  const removed = REMOVED_COMMANDS[command];
+  if (removed != null) {
+    return fail(`'skillet ${command}' was removed in v1 — ${removed}`);
   }
 
   const loader = COMMANDS[command];

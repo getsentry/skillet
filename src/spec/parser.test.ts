@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseSpec } from "./parser.js";
 import { specTemplate } from "./template.js";
-import type { SpecIssue } from "./types.js";
+import type { Issue } from "./types.js";
 
 const VALID = `# Commit Helper
 
@@ -41,7 +41,7 @@ The agent MUST create a feature branch when on main.
 The agent MUST NOT force-push to shared branches.
 `;
 
-const errors = (issues: SpecIssue[]): SpecIssue[] => issues.filter((i) => i.severity === "error");
+const errors = (issues: Issue[]): Issue[] => issues.filter((i) => i.severity === "error");
 
 describe("parseSpec", () => {
   it("parses a valid spec with no errors", () => {

@@ -1,7 +1,7 @@
 import { parseArgs } from "node:util";
-import { emitJson, info } from "../output.js";
+import { emitJson, info, print } from "../output.js";
 import { skillStatus } from "../status.js";
-import { print, resolveSkillRoot } from "./shared.js";
+import { resolveSkillRoot } from "./shared.js";
 
 const HELP = `Usage: skillet status [path] [--json]
 
@@ -14,6 +14,7 @@ const mark = (present: boolean, stale?: boolean): string => {
   return stale === true ? "[~]" : "[x]";
 };
 
+/** `skillet status` — artifact state and next step, derived from disk. */
 export const run = async (argv: string[]): Promise<number> => {
   const { values, positionals } = parseArgs({
     args: argv,

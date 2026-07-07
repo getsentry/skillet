@@ -2,7 +2,7 @@ import { specTemplate } from "../spec/template.js";
 
 export type ArtifactId = "spec" | "skill" | "evals";
 
-export interface InstructionsPayload {
+export interface Instructions {
   artifact: ArtifactId;
   outputPath: string;
   template: string;
@@ -78,7 +78,7 @@ checks:
   - shell: <command that exits 0 on success>
 `;
 
-const PAYLOADS: Record<ArtifactId, InstructionsPayload> = {
+const PAYLOADS: Record<ArtifactId, Instructions> = {
   spec: {
     artifact: "spec",
     outputPath: "spec.md",
@@ -99,4 +99,4 @@ const PAYLOADS: Record<ArtifactId, InstructionsPayload> = {
   },
 };
 
-export const instructionsFor = (artifact: ArtifactId): InstructionsPayload => PAYLOADS[artifact];
+export const instructionsFor = (artifact: ArtifactId): Instructions => PAYLOADS[artifact];

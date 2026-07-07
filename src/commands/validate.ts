@@ -1,8 +1,8 @@
 import { parseArgs } from "node:util";
-import { emitJson, info } from "../output.js";
-import type { SpecIssue } from "../spec/types.js";
+import { emitJson, info, print } from "../output.js";
+import type { Issue } from "../spec/types.js";
 import { validateSkill } from "../validate.js";
-import { print, resolveSkillRoot } from "./shared.js";
+import { resolveSkillRoot } from "./shared.js";
 
 const HELP = `Usage: skillet validate [path] [--json]
 
@@ -11,7 +11,7 @@ eval case schema, and behavior<->eval coverage. Never calls an LLM.
 Exit 1 when any error is found.
 `;
 
-const printIssues = (label: string, issues: SpecIssue[]): void => {
+const printIssues = (label: string, issues: Issue[]): void => {
   if (issues.length === 0) {
     print(`  ${label}: ok`);
     return;
@@ -26,6 +26,7 @@ const printIssues = (label: string, issues: SpecIssue[]): void => {
   }
 };
 
+/** `skillet validate` — the full structural report, exit 1 on errors. */
 export const run = async (argv: string[]): Promise<number> => {
   const { values, positionals } = parseArgs({
     args: argv,
@@ -45,10 +46,13 @@ export const run = async (argv: string[]): Promise<number> => {
   const report = validateSkill(root);
 
   if (values.json === true) {
-    const { parsedSpec: _spec, evalCases: _cases, ...rest } = report;
     emitJson({
-      ...rest,
-      behaviors: report.parsedSpec?.behaviors.map((b) => b.id) ?? [],
+      ok: report.ok,
+      spec: report.spec,
+      skill: report.skill,
+      cases: report.cases,
+      coverageIssues: report.coverage,
+      behaviorIds: report.parsedSpec?.behaviors.map((b) => b.id) ?? [],
       caseCount: report.evalCases.length,
     });
     return report.ok ? 0 : 1;

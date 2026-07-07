@@ -2,11 +2,11 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { fail, info } from "../output.js";
+import { emitJson, fail, info } from "../output.js";
 import { slugify } from "../spec/slug.js";
 import { specTemplate } from "../spec/template.js";
 
-const HELP = `Usage: skillet new <name> [--path <dir>]
+const HELP = `Usage: skillet new <name> [--path <dir>] [--json]
 
 Scaffold a skill directory with a templated spec.md and evals/ layout.
 The directory is named by the slugified skill name unless --path is given.
@@ -19,11 +19,13 @@ const titleCase = (slug: string): string => {
     .join(" ");
 };
 
+/** `skillet new` — scaffold a skill directory around a fresh spec.md. */
 export const run = async (argv: string[]): Promise<number> => {
   const { values, positionals } = parseArgs({
     args: argv,
     options: {
       path: { type: "string" },
+      json: { type: "boolean" },
       help: { type: "boolean", short: "h" },
     },
     allowPositionals: true,
@@ -47,6 +49,15 @@ export const run = async (argv: string[]): Promise<number> => {
   mkdirSync(join(dir, "evals", "fixtures"), { recursive: true });
   const displayName = name === slug ? titleCase(slug) : name;
   writeFileSync(join(dir, "spec.md"), specTemplate(displayName));
+
+  if (values.json === true) {
+    emitJson({
+      root: dir,
+      name: displayName,
+      created: ["spec.md", "evals/cases/", "evals/fixtures/"],
+    });
+    return 0;
+  }
 
   info(`Created skill scaffold at ${dir}/`);
   info(`  spec.md            — fill in intent, triggers, behaviors (or run /skillet:propose)`);

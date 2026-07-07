@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "node build.js",
+    "prepublishOnly": "npm run build",
     "dev": "node build.js --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

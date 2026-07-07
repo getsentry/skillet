@@ -1,6 +1,6 @@
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { basename, join, relative, sep } from "node:path";
 import { parseFrontmatter } from "../skill/frontmatter.js";
 import { slugify } from "../spec/slug.js";
 import type { ResolvedHarness } from "./types.js";
@@ -20,15 +20,30 @@ const skillSlug = (skillRoot: string): string => {
 };
 
 /**
- * Make the skill discoverable by the spawned agent, each adapter using
+ * Copy the skill for installation, excluding the top-level evals/
+ * directory — if cases and fixtures were installed alongside the
+ * skill, the agent under test could read its own grading criteria.
+ */
+const copySkill = (skillRoot: string, dest: string): void => {
+  cpSync(skillRoot, dest, {
+    recursive: true,
+    filter: (src) => {
+      const rel = relative(skillRoot, src);
+      return rel !== "evals" && !rel.startsWith(`evals${sep}`);
+    },
+  });
+};
+
+/**
+ * Make the skill discoverable by the spawned agent, each harness using
  * that agent's native mechanism (harness spec, "Skill installation
  * into the harness"):
  *
  * - claude: project skills under `.claude/skills/<slug>/` in the workspace.
- * - codex: no native skill support (verified against codex 0.139), so the
- *   SKILL.md body becomes the workspace `AGENTS.md`; the full skill
- *   directory is staged outside the workspace and referenced by absolute
- *   path so relative `references/` links keep working.
+ * - codex: no native skill support, so the SKILL.md body becomes the
+ *   workspace `AGENTS.md`; the full skill directory is staged outside
+ *   the workspace and referenced by absolute path so relative
+ *   `references/` links keep working.
  * - custom: copied into the configured `skill_dir` template, or
  *   `.skillet/skill/` in the workspace when none is set.
  */
@@ -40,13 +55,13 @@ export const installSkill = (
   if (harness.kind === "claude") {
     const dest = join(workspace, ".claude", "skills", skillSlug(skillRoot));
     mkdirSync(dest, { recursive: true });
-    cpSync(skillRoot, dest, { recursive: true, filter: (src) => !src.includes("/evals") });
+    copySkill(skillRoot, dest);
     return NOOP;
   }
 
   if (harness.kind === "codex") {
     const staged = mkdtempSync(join(tmpdir(), "skillet-skill-"));
-    cpSync(skillRoot, staged, { recursive: true, filter: (src) => !src.includes("/evals") });
+    copySkill(skillRoot, staged);
     const raw = readFileSync(join(skillRoot, "SKILL.md"), "utf-8");
     const { body } = parseFrontmatter(raw);
     const agentsMd = [
@@ -68,6 +83,6 @@ export const installSkill = (
   const template = harness.skillDir ?? join("{workspace}", ".skillet", "skill");
   const dest = template.replaceAll("{workspace}", workspace);
   mkdirSync(dest, { recursive: true });
-  cpSync(skillRoot, dest, { recursive: true, filter: (src) => !src.includes("/evals") });
+  copySkill(skillRoot, dest);
   return NOOP;
 };

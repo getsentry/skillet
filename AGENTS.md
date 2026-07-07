@@ -51,6 +51,7 @@ Co-Authored-By: (agent model name) <email>
 
 - `policies/README.md` (when to add a policy doc and how policy docs should stay scoped)
 - `policies/code-comments.md` (repo default for code comments, docstrings, and exported-function JSDoc)
+- `policies/skill-creation-lifecycle.md` (keep `LIFECYCLE.md` current when the artifact flow changes)
 - `policies/policy-template.md` (template for adding new policy docs)
 
 ## Investigation-First Development

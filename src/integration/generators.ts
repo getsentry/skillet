@@ -47,6 +47,7 @@ const generateCodex = (version: string, force: boolean): GeneratedFile[] => {
   });
 };
 
+/** Write one tool's workflow files; existing files are kept unless forced. */
 export const generateTool = (
   tool: ToolId,
   projectRoot: string,

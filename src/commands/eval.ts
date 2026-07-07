@@ -1,11 +1,12 @@
 import { parseArgs } from "node:util";
 import { assertBinaryAvailable, HarnessConfigError, resolveHarness } from "../harness/config.js";
-import { emitJson, fail, info } from "../output.js";
+import type { ResolvedHarness } from "../harness/types.js";
+import { emitJson, fail, info, print } from "../output.js";
 import { passRate, summarizeByBehavior } from "../evals/results.js";
 import type { CaseResult } from "../evals/results.js";
 import { runCases } from "../evals/runner.js";
 import { validateSkill } from "../validate.js";
-import { print, resolveSkillRoot } from "./shared.js";
+import { resolveSkillRoot } from "./shared.js";
 
 const HELP = `Usage: skillet eval [path] [options]
 
@@ -45,6 +46,7 @@ const printCase = (result: CaseResult): void => {
   }
 };
 
+/** `skillet eval` — run cases through the harness, report rates and lift. */
 export const run = async (argv: string[]): Promise<number> => {
   const { values, positionals } = parseArgs({
     args: argv,
@@ -91,7 +93,7 @@ export const run = async (argv: string[]): Promise<number> => {
     return fail("no eval cases found under evals/cases/");
   }
 
-  let harness;
+  let harness: ResolvedHarness;
   try {
     harness = resolveHarness(root, values.harness);
     assertBinaryAvailable(harness);
@@ -127,7 +129,7 @@ export const run = async (argv: string[]): Promise<number> => {
   const ok = summary.failed === 0 && summary.errored === 0 && summary.passed > 0;
 
   if (values.json === true) {
-    emitJson({ summary, behaviors, cases: results });
+    emitJson({ ok, summary, behaviors, cases: results });
     return ok ? 0 : 1;
   }
 

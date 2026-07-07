@@ -35,7 +35,7 @@ export interface ParsedSpec {
   constraints: SpecConstraint[];
 }
 
-export interface SpecIssue {
+export interface Issue {
   severity: "error" | "warning";
   message: string;
   line?: number;
@@ -45,5 +45,5 @@ export interface SpecIssue {
 export interface ParseResult {
   /** Null when the document is too broken to produce a structure. */
   spec: ParsedSpec | null;
-  issues: SpecIssue[];
+  issues: Issue[];
 }

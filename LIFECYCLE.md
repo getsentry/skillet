@@ -39,7 +39,7 @@ skillet eval [--trials N] [--baseline]
 (loop until behaviors hold and lift is positive)
 ```
 
-`skillet status` reports where in this flow a skill is, purely from files on disk (presence + spec.md mtime vs SKILL.md). Legacy skills (`spec.yaml`, `*.eval.ts`) are detected and routed to `/skillet:migrate`.
+`skillet status` reports where in this flow a skill is, purely from files on disk (presence + spec.md mtime vs SKILL.md). Legacy skills (a `spec.yaml`, or a `SKILL.md` with no `spec.md`) are detected and routed to `/skillet:migrate`.
 
 ## Eval execution detail
 
@@ -61,6 +61,8 @@ Baseline caveat: harness CLIs still load the user's global configuration, so bas
 | Concern | Module |
 |---|---|
 | spec grammar, parser, template | `src/spec/` |
+| SKILL.md frontmatter + skill-root discovery | `src/skill/` |
+| behavior↔case coverage | `src/coverage.ts` |
 | case schema, workspace, checks, runner, lift | `src/evals/` |
 | harness config/spawn/install/judge | `src/harness/` |
 | instructions payloads | `src/instructions/content.ts` |

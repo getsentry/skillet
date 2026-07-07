@@ -2,13 +2,13 @@ import { existsSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { fail, info } from "../output.js";
+import { emitJson, fail, info } from "../output.js";
 import { CONFIG_FILE } from "../harness/config.js";
 import { SUPPORTED_TOOLS, generateTool } from "../integration/generators.js";
 import type { ToolId } from "../integration/generators.js";
 import { VERSION } from "../version.js";
 
-const HELP = `Usage: skillet init [path] [--tools <ids|all|none>] [--force]
+const HELP = `Usage: skillet init [path] [--tools <ids|all|none>] [--force] [--json]
 
 Scaffold skillet in a project: a commented .skillet.yaml (if missing)
 and the /skillet:* workflow files for your agents.
@@ -27,12 +27,14 @@ const CONFIG_TEMPLATE = `# skillet configuration — see 'skillet eval --help'
 #   skill_dir: "{workspace}/.my-agent/skills"
 `;
 
+/** `skillet init` — scaffold .skillet.yaml and per-tool workflow files. */
 export const run = async (argv: string[]): Promise<number> => {
   const { values, positionals } = parseArgs({
     args: argv,
     options: {
       tools: { type: "string" },
       force: { type: "boolean" },
+      json: { type: "boolean" },
       help: { type: "boolean", short: "h" },
     },
     allowPositionals: true,
@@ -67,18 +69,29 @@ export const run = async (argv: string[]): Promise<number> => {
   }
 
   const configPath = join(projectRoot, CONFIG_FILE);
-  if (!existsSync(configPath)) {
+  const configCreated = !existsSync(configPath);
+  if (configCreated) {
     writeFileSync(configPath, CONFIG_TEMPLATE);
+  }
+
+  const generated = tools.flatMap((tool) =>
+    generateTool(tool, projectRoot, VERSION, values.force === true).map((file) => ({
+      tool,
+      ...file,
+    })),
+  );
+
+  if (values.json === true) {
+    emitJson({ root: projectRoot, configCreated, configPath, files: generated });
+    return 0;
+  }
+
+  if (configCreated) {
     info(`Created ${configPath}`);
   }
-
-  for (const tool of tools) {
-    const files = generateTool(tool, projectRoot, VERSION, values.force === true);
-    for (const file of files) {
-      info(`${file.skipped ? "kept   " : "wrote  "} ${file.path}`);
-    }
+  for (const file of generated) {
+    info(`${file.skipped ? "kept   " : "wrote  "} ${file.path}`);
   }
-
   info(`\nWorkflows: /skillet:propose -> /skillet:render -> skillet eval -> /skillet:improve`);
   info(`Start a skill with 'skillet new <name>'.`);
   return 0;

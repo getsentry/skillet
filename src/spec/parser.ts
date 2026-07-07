@@ -15,7 +15,7 @@ import type {
   ParsedSpec,
   SpecBehavior,
   SpecConstraint,
-  SpecIssue,
+  Issue,
   SpecScenario,
 } from "./types.js";
 
@@ -34,7 +34,7 @@ const isComment = (text: string): boolean => {
  * that knows the line numbers.
  */
 export const parseSpec = (content: string): ParseResult => {
-  const issues: SpecIssue[] = [];
+  const issues: Issue[] = [];
   const error = (message: string, line?: number, hint?: string): void => {
     issues.push({
       severity: "error",

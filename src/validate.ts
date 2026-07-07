@@ -5,20 +5,20 @@ import { listFixtures, loadCases } from "./evals/case.js";
 import type { EvalCase } from "./evals/case.js";
 import { parseFrontmatter } from "./skill/frontmatter.js";
 import { parseSpec } from "./spec/parser.js";
-import type { ParsedSpec, SpecIssue } from "./spec/types.js";
+import type { ParsedSpec, Issue } from "./spec/types.js";
 
 export interface ValidationReport {
   ok: boolean;
-  spec: SpecIssue[];
-  skill: SpecIssue[];
-  cases: SpecIssue[];
-  coverage: SpecIssue[];
+  spec: Issue[];
+  skill: Issue[];
+  cases: Issue[];
+  coverage: Issue[];
   parsedSpec: ParsedSpec | null;
   evalCases: EvalCase[];
 }
 
 /** SKILL.md frontmatter rules (validation spec). */
-export const validateSkillMd = (root: string): SpecIssue[] => {
+export const validateSkillMd = (root: string): Issue[] => {
   const path = join(root, "SKILL.md");
   if (!existsSync(path)) {
     return [
@@ -29,7 +29,7 @@ export const validateSkillMd = (root: string): SpecIssue[] => {
       },
     ];
   }
-  const issues: SpecIssue[] = [];
+  const issues: Issue[] = [];
   const raw = readFileSync(path, "utf-8");
   const { meta } = parseFrontmatter(raw);
   if (Object.keys(meta).length === 0) {
@@ -60,7 +60,7 @@ export const validateSkillMd = (root: string): SpecIssue[] => {
  */
 export const validateSkill = (root: string): ValidationReport => {
   const specPath = join(root, "spec.md");
-  const specIssues: SpecIssue[] = [];
+  const specIssues: Issue[] = [];
   let parsedSpec: ParsedSpec | null = null;
 
   if (existsSync(specPath)) {

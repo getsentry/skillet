@@ -14,7 +14,8 @@ Skillet itself makes **zero LLM calls**. It scaffolds, validates, serves writing
 
 ```bash
 npm install -g @sentry/skillet   # or: npx @sentry/skillet
-skillet init --tools claude      # writes /skillet:* workflows (+ codex for $CODEX_HOME/prompts)
+skillet init --tools claude      # /skillet:* workflows; add codex via --tools claude,codex
+                                 # (codex prompts are global: $CODEX_HOME/prompts)
 ```
 
 ## Quickstart

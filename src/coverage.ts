@@ -1,4 +1,4 @@
-import type { ParsedSpec, SpecIssue } from "./spec/types.js";
+import type { ParsedSpec, Issue } from "./spec/types.js";
 
 /** The slice of an eval case that coverage checking needs. */
 export interface CaseRef {
@@ -17,8 +17,8 @@ export const checkCoverage = (
   spec: ParsedSpec,
   cases: CaseRef[],
   fixtureSlugs: ReadonlySet<string>,
-): SpecIssue[] => {
-  const issues: SpecIssue[] = [];
+): Issue[] => {
+  const issues: Issue[] = [];
   const behaviorIds = new Set(spec.behaviors.map((b) => b.id));
   const covered = new Set<string>();
 

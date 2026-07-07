@@ -3,10 +3,6 @@ import { resolve } from "node:path";
 import { findSkillRoot } from "../skill/frontmatter.js";
 import { fail } from "../output.js";
 
-export const print = (message: string): void => {
-  process.stdout.write(`${message}\n`);
-};
-
 /**
  * Resolve the skill root from an optional positional path (default:
  * cwd). Returns null after printing an error when no skill is found.

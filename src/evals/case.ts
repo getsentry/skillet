@@ -1,12 +1,12 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import { parse as parseYaml } from "yaml";
-import type { SpecIssue } from "../spec/types.js";
+import type { Issue } from "../spec/types.js";
 
 export const CHECK_KINDS = ["file_exists", "shell", "judge"] as const;
 export type CheckKind = (typeof CHECK_KINDS)[number];
 
-export interface CheckSpec {
+export interface Check {
   kind: CheckKind;
   value: string;
 }
@@ -20,14 +20,14 @@ export interface EvalCase {
   prompt: string;
   fixture?: string;
   setup?: string;
-  checks: CheckSpec[];
+  checks: Check[];
   trials: number;
   timeout: number;
 }
 
 export interface CaseLoadResult {
   cases: EvalCase[];
-  issues: SpecIssue[];
+  issues: Issue[];
 }
 
 export const DEFAULT_TIMEOUT_SECONDS = 300;
@@ -54,8 +54,8 @@ const isRecord = (v: unknown): v is Record<string, unknown> => {
 export const parseCase = (
   file: string,
   content: string,
-): { evalCase: EvalCase | null; issues: SpecIssue[] } => {
-  const issues: SpecIssue[] = [];
+): { evalCase: EvalCase | null; issues: Issue[] } => {
+  const issues: Issue[] = [];
   const error = (message: string, hint?: string): void => {
     issues.push({
       severity: "error",
@@ -101,7 +101,7 @@ export const parseCase = (
     error('missing required field "prompt"', "The user message given to the agent under test.");
   }
 
-  const checks: CheckSpec[] = [];
+  const checks: Check[] = [];
   const rawChecks = data["checks"];
   if (rawChecks != null) {
     if (!Array.isArray(rawChecks)) {
@@ -190,7 +190,7 @@ export const parseCase = (
 /** Load all cases under `<skillRoot>/evals/cases/`. */
 export const loadCases = (skillRoot: string): CaseLoadResult => {
   const casesDir = join(skillRoot, "evals", "cases");
-  const issues: SpecIssue[] = [];
+  const issues: Issue[] = [];
   const cases: EvalCase[] = [];
   let entries: string[];
   try {

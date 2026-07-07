@@ -100,6 +100,7 @@ export const describeWorkspace = (workspace: string): string => {
   return sections.length > 0 ? sections.join("\n") : "(workspace is empty)";
 };
 
+/** Assemble the self-contained grading prompt the judge harness receives. */
 export const buildJudgePrompt = (
   criterion: string,
   casePrompt: string,
@@ -127,6 +128,7 @@ ${workspaceDump}
 
 Judge strictly: the criterion must actually be satisfied by the workspace state or transcript above, not merely attempted or claimed. Explain your reasoning in one short paragraph, then end your reply with a final line that is exactly "VERDICT: pass" or "VERDICT: fail".`;
 
+/** Extract the verdict — the LAST `VERDICT:` token wins, null when absent. */
 export const parseVerdict = (text: string): "pass" | "fail" | null => {
   const matches = [...text.matchAll(/VERDICT:\s*(pass|fail)/gi)];
   const last = matches.at(-1)?.[1]?.toLowerCase();

@@ -86,7 +86,7 @@ const runTrial = async (
       checkResults.push({
         kind: "judge",
         value: judgeCheck.value,
-        status: verdict.status === "error" ? "error" : verdict.status,
+        status: verdict.status,
         output: verdict.reasoning,
       });
     }

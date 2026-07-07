@@ -2,7 +2,7 @@ import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { loadCases } from "./evals/case.js";
 
-export interface ArtifactState {
+export interface ArtifactStatus {
   present: boolean;
   path: string;
   /** Older than spec.md — needs regeneration. */
@@ -11,9 +11,9 @@ export interface ArtifactState {
 
 export interface SkillStatus {
   root: string;
-  spec: ArtifactState;
-  skill: ArtifactState;
-  evals: ArtifactState & { caseCount: number };
+  spec: ArtifactStatus;
+  skill: ArtifactStatus;
+  evals: ArtifactStatus & { caseCount: number };
   legacy: {
     specYaml: boolean;
   };
@@ -42,13 +42,13 @@ export const skillStatus = (root: string): SkillStatus => {
   const caseCount = specPresent || skillPresent ? loadCases(root).cases.length : 0;
   const specMtime = mtime(specPath);
 
-  const spec: ArtifactState = { present: specPresent, path: "spec.md" };
-  const skill: ArtifactState = {
+  const spec: ArtifactStatus = { present: specPresent, path: "spec.md" };
+  const skill: ArtifactStatus = {
     present: skillPresent,
     path: "SKILL.md",
     ...(specPresent && skillPresent && { stale: mtime(skillPath) < specMtime }),
   };
-  const evals: ArtifactState & { caseCount: number } = {
+  const evals: ArtifactStatus & { caseCount: number } = {
     present: caseCount > 0,
     path: "evals/cases/",
     caseCount,

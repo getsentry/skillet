@@ -55,16 +55,20 @@ describe("createWorkspace", () => {
 
   it("throws SetupError and removes the workspace when setup fails", () => {
     const root = makeSkillRoot();
-    let dir = "";
+    // The failing setup script leaks its cwd (the workspace path) to a
+    // file outside the workspace, so the test can verify removal.
+    const probe = join(root, "workspace-path.txt");
     expect(() => {
       try {
-        createWorkspace({ skillRoot: root, setup: "echo doomed >&2; exit 3" });
+        createWorkspace({ skillRoot: root, setup: `pwd > "${probe}"; exit 3` });
       } catch (err) {
         expect(err).toBeInstanceOf(SetupError);
         throw err;
       }
     }).toThrow(/setup script failed/);
-    expect(dir).toBe("");
+    const workspaceDir = readFileSync(probe, "utf-8").trim();
+    expect(workspaceDir).not.toBe("");
+    expect(existsSync(workspaceDir)).toBe(false);
   });
 
   it("gives each call an isolated directory", () => {

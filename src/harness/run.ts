@@ -9,10 +9,11 @@ const shQuote = (value: string): string => `'${value.replaceAll("'", `'\\''`)}'`
 interface Invocation {
   cmd: string;
   args: string[];
-  /** File the adapter writes the final message to, if it supports that. */
+  /** File the harness writes the final message to, if it supports that. */
   lastMessageFile?: string;
 }
 
+/** Map a harness to the exact command/args that run one prompt in a workspace. */
 export const buildInvocation = (
   harness: ResolvedHarness,
   workspace: string,
@@ -23,7 +24,7 @@ export const buildInvocation = (
     const lastMessageFile = join(scratchDir, "last-message.txt");
     return {
       cmd: "codex",
-      // Full bypass mirrors the claude adapter's permission skip: the
+      // Full bypass mirrors the claude harness's permission skip: the
       // workspace is a disposable tempdir, and codex's workspace-write
       // sandbox denies .git writes, which breaks any skill that commits.
       args: [
