@@ -23,12 +23,12 @@
 
 ## 4. Harness
 
-- [ ] 4.1 Implement the harness abstraction: command template substitution (`{workspace}`, `{prompt}`), subprocess spawn, transcript capture, per-case timeout and kill
-- [ ] 4.2 Implement the codex adapter (default): non-interactive invocation, skill installation into the workspace's codex skill location — verify the current codex CLI mechanism as part of this task
-- [ ] 4.3 Implement the claude adapter (`claude -p`) with its skill installation path
-- [ ] 4.4 Implement custom harness config in `.skillet.yaml` with placeholder validation and fail-fast on missing binary
-- [ ] 4.5 Implement the harness-executed judge: grading prompt (criterion + case prompt + transcript + workspace diff), `VERDICT: pass|fail` protocol, one retry, errored-not-failed on unparseable output
-- [ ] 4.6 Implement baseline mode: paired trials without skill installation, isolated workspaces, per-behavior lift computation
+- [x] 4.1 Implement the harness abstraction: command template substitution (`{workspace}`, `{prompt}`), subprocess spawn, transcript capture, per-case timeout and kill
+- [x] 4.2 Implement the codex adapter (default): non-interactive invocation, skill installation into the workspace's codex skill location — verify the current codex CLI mechanism as part of this task
+- [x] 4.3 Implement the claude adapter (`claude -p`) with its skill installation path
+- [x] 4.4 Implement custom harness config in `.skillet.yaml` with placeholder validation and fail-fast on missing binary
+- [x] 4.5 Implement the harness-executed judge: grading prompt (criterion + case prompt + transcript + workspace diff), `VERDICT: pass|fail` protocol, one retry, errored-not-failed on unparseable output
+- [x] 4.6 Implement baseline mode: paired trials without skill installation, isolated workspaces, per-behavior lift computation
 
 ## 5. CLI commands
 
