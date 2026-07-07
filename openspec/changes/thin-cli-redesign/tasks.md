@@ -57,6 +57,6 @@
 
 ## 8. Docs and release
 
-- [ ] 8.1 Rewrite README around the new model (7 commands, spec.md grammar, eval format, harness config, baseline metric)
-- [ ] 8.2 Replace LIFECYCLE.md with the new artifact flow; update AGENTS.md; delete stale policy docs that describe deleted machinery
-- [ ] 8.3 Major version bump, CHANGELOG entry describing the breaking redesign and migration path
+- [x] 8.1 Rewrite README around the new model (7 commands, spec.md grammar, eval format, harness config, baseline metric)
+- [x] 8.2 Replace LIFECYCLE.md with the new artifact flow; update AGENTS.md; delete stale policy docs that describe deleted machinery
+- [x] 8.3 Major version bump, CHANGELOG entry describing the breaking redesign and migration path

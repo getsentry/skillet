@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.0.0
+
+### Breaking — thin-CLI redesign 🔥
+
+Skillet is rebuilt around the OpenSpec architecture pattern: the CLI
+makes zero LLM calls and owns artifacts, validation, and mechanical
+eval execution; all generation moved to host agents via generated
+/skillet:* workflows.
+
+- `spec.yaml` -> `spec.md` (markdown grammar: Intent, SHOULD/SHOULD NOT
+  Triggers, Behaviors with WHEN/THEN Scenarios, MUST NOT Constraints).
+- Generated TypeScript evals + vitest runner -> declarative YAML cases
+  run through real agent CLIs (codex default, claude built-in, custom
+  command templates via .skillet.yaml).
+- Judges run through the harness with a binary VERDICT protocol; score
+  thresholds are gone. `skillet eval --trials N --baseline` reports
+  per-behavior pass rates and lift.
+- Command surface: init, new, status, instructions, validate, eval,
+  show. Removed: create, improve, spec, add-eval, resume, compare,
+  install, and all SKILLET_* env vars.
+- Migration: `skillet status` detects legacy skills; the generated
+  /skillet:migrate workflow converts spec.yaml and .eval.ts intent.
+  See openspec/changes/thin-cli-redesign/ for the full design.
+
+
 ## 0.28.0
 
 ### Bug Fixes 🐛

@@ -1,233 +1,133 @@
 # Skillet
 
-Spec-driven authoring of agent skills. Define a structured `spec.yaml`
-that captures intent, behaviors, and triggers; a small set of bundled
-authoring agents render `SKILL.md` and eval cases from it, validate the
-output, and iterate against eval failures.
+Spec-driven agent skills with mechanical evals.
+
+Skillet is a small CLI that manages three artifacts per skill and proves the skill works:
+
+- **`spec.md`** — the source of truth: intent, triggers, behaviors with WHEN/THEN scenarios, and constraints, in a strict-but-tiny markdown grammar humans review in PRs.
+- **`SKILL.md`** — the instruction text agents load, rendered from the spec by *your* coding agent.
+- **`evals/cases/*.yaml`** — declarative eval cases that run the skill through a **real coding agent** (codex or claude CLI, or any CLI you configure) in a fresh workspace and check what it actually did.
+
+Skillet itself makes **zero LLM calls**. It scaffolds, validates, serves writing instructions to your agent, and runs evals mechanically. All generation happens in the coding agent you already use, driven by generated `/skillet:*` workflows — so upgrading skillet upgrades every agent's behavior, and nothing here needs an API key.
 
 ## Install
 
 ```bash
-npx @sentry/skillet install
+npm install -g @sentry/skillet   # or: npx @sentry/skillet
+skillet init --tools claude      # writes /skillet:* workflows (+ codex for $CODEX_HOME/prompts)
 ```
 
-This copies the skillet skill into your agent (auto-detects Claude Code,
-OpenCode, Pi). Your agent then knows how to use skillet when you ask it
-to create or improve skills.
-
-## Usage
-
-### Create a new skill from a description
+## Quickstart
 
 ```bash
-npx @sentry/skillet create "Django N+1 query reviewer"
+skillet new commit-conventions   # scaffold spec.md + evals/ layout
+# fill in spec.md by hand, or ask your agent: /skillet:propose
+# then have the agent render SKILL.md + eval cases: /skillet:render
+skillet validate                 # grammar, frontmatter, case schema, coverage — no LLM
+skillet eval --trials 3 --baseline
 ```
 
-Generates `spec.yaml` from the description (interactive
-spec-author dialogue), then runs the orchestrator: skill-writer
-and eval-writer in parallel, then skill-validator and
-evals-validator. Validator errors trigger one writer re-pass.
+The last command is the point of the tool: every case runs through a real agent *with* the skill installed and (with `--baseline`) *without* it, and skillet reports per-behavior pass rates and **lift** — the difference the skill actually makes.
 
-### Improve an existing skill
-
-```bash
-npx @sentry/skillet improve ./my-skill
+```
+Behaviors:
+  conventional-subject: 100% (3/3) | baseline 33% | lift +67%
+  branch-safety:        100% (3/3) | baseline 0%  | lift +100%
 ```
 
-If `my-skill/` already has a `spec.yaml`, the loop iterates from
-there. If it only has a legacy `SKILL.md` (no spec), the loop
-auto-imports first — no separate migration step.
+## The spec
 
-### Add a behavior
+```markdown
+# Commit Conventions
 
-```bash
-npx @sentry/skillet add-eval ./my-skill \
-  "should flag N+1 queries in loops" \
-  "should NOT flag single .get() calls"
+## Intent
+
+Make the agent produce disciplined git commits...
+
+## Triggers
+
+- **SHOULD** trigger when the user asks to commit changes
+- **SHOULD NOT** trigger when the user asks to review a diff
+
+## Behaviors
+
+### Behavior: Conventional subject
+
+The agent SHALL write commit subjects as `<type>(<scope>): <description>`...
+
+#### Scenario: Committing a staged bug fix
+
+- **WHEN** the workspace has a staged bug fix and the user asks to commit
+- **THEN** the commit subject starts with `fix` and stays under 70 characters
+
+## Constraints
+
+### Constraint: No history rewriting
+
+The agent MUST NOT amend, rebase, or force-push unless explicitly asked.
 ```
 
-Each behavior is appended to `spec.yaml` and SKILL.md + eval files
-are regenerated. Internally a thin wrapper over `spec refine`.
+Rules the validator enforces: every behavior has at least one scenario (`####`, exactly four hashes), behavior names slugify to unique ids (`conventional-subject`), and every scenario has WHEN/THEN bullets. Errors come with line numbers and fix hints.
 
-### Edit the spec via natural language
+## Evals
 
-```bash
-npx @sentry/skillet spec refine \
-  "tighten the N+1 rule to also cover list comprehensions" \
-  ./my-skill
+One YAML file per case in `evals/cases/`, linked to a spec behavior by id:
+
+```yaml
+behavior: conventional-subject
+prompt: |
+  I fixed the null check in app.js — please commit my staged change.
+setup: |
+  git init -q -b main && git add -A ...
+checks:
+  - shell: git log -1 --format=%s | grep -Eq '^(feat|fix|chore)...'
+  - file_exists: some/artifact
+  - judge: The commit message accurately describes the null-check fix.
+trials: 1
+timeout: 300
 ```
 
-The LLM produces structured `SpecPatch[]` operations, applies them
-to `spec.yaml`, and regenerates the derived files.
+- Each trial gets a **fresh temp workspace**: the optional `fixture:` directory (`evals/fixtures/<slug>/`) is copied in, then `setup:` runs (the script itself never enters the workspace).
+- `file_exists` and `shell` checks run in the workspace after the agent finishes — check artifacts, not phrasing. Transcript regexing is deliberately unsupported.
+- `judge:` checks are graded by the same harness CLI with a strict pass/fail verdict protocol, and only run after all deterministic checks pass. No API keys, no thresholds; repeatability comes from `--trials`.
+- A behavior with no case is a validation warning; a case referencing an unknown behavior or missing fixture is an error.
 
-### Inspect the spec
+## Harnesses
 
-```bash
-npx @sentry/skillet spec show ./my-skill
+The default harness is `codex` (`codex exec`); `claude` (`claude -p`) is built in. Pick per run with `--harness`, or configure any CLI in `.skillet.yaml`:
+
+```yaml
+harness:
+  name: my-agent
+  command: "my-agent run --dir {workspace} {prompt}"
+  skill_dir: "{workspace}/.my-agent/skills"   # where the skill gets installed
 ```
 
-Pretty-prints the spec with the banner stripped.
-
-### Verify a skill
-
-```bash
-npx @sentry/skillet verify ./my-skill
-npx @sentry/skillet verify ./my-skill --semantic   # also runs LLM-judged SKILL.md coverage
-npx @sentry/skillet verify ./my-skill --json       # structured output for CI
-```
-
-Four layers, short-circuits on the first failure:
-1. Structural — each file (spec, SKILL.md, evals) parses and has its required fields
-2. Cross-artifact coverage — every behavior has an eval case; no orphans
-3. Per-behavior results — when run data is available, every behavior has a passing case
-4. Semantic (opt-in) — LLM judge confirms SKILL.md actually encodes each behavior
-
-Layers 1–3 are no-LLM and sub-second. Replaces the older `validate`
-command with cross-artifact awareness on top.
-
-### Run evals once
-
-```bash
-npx @sentry/skillet eval ./my-skill
-npx @sentry/skillet eval ./my-skill --json
-```
-
-Delegates to vitest. Runs whatever `evals/*.eval.ts` exist; doesn't
-regenerate — that happens automatically on spec mutations.
+Skill installation uses each agent's native mechanism: `.claude/skills/` for claude, the workspace `AGENTS.md` for codex (which has no skill mechanism), `skill_dir` for custom harnesses. `--baseline` runs the same trials with no installation at all.
 
 ## Commands
 
-| Command | Purpose |
-|---------|---------|
-| `create "<description>" [--input <dir>]...` | New skill: spec-author dialogue + orchestrator (writers + validators) |
-| `improve [path]` | Re-render via orchestrator, run evals, re-pass against failures; auto-imports legacy |
-| `spec init "<description>"` | Run interactive spec-author loop without the improve loop |
-| `spec show [path]` | Pretty-print the spec (banner stripped) |
-| `spec refine "<feedback>" [path]` | Natural-language patch; auto-regens |
-| `spec import [path]` | Seed a spec from an existing SKILL.md, then run the spec-author loop |
-| `resume <path> --answer "..."` | Resume a paused spec-author session (one `--answer` per pending question) |
-| `add-eval [path] "<behavior>" ...` | Append behaviors to spec; auto-regens |
-| `verify [path] [--semantic] [--json]` | Layered consistency check (subsumes `validate`) |
-| `eval [path] [--json]` | Run evals once |
-| `install [path]` | Install skillet skill into your agent |
+| Command | What it does |
+|---|---|
+| `skillet init [--tools claude,codex] [--force]` | Scaffold `.skillet.yaml` + agent workflow files |
+| `skillet new <name>` | Scaffold a skill directory with a templated spec.md |
+| `skillet status [path]` | Artifact state and the single next step, derived from disk |
+| `skillet instructions <spec\|skill\|evals>` | Template + writing rules for one artifact (what the workflows consume) |
+| `skillet validate [path]` | Spec grammar, SKILL.md frontmatter, case schema, coverage — exit 1 on errors |
+| `skillet eval [path] [--case id] [--trials n] [--baseline] [--harness x] [--keep-workspaces]` | Run cases through the harness; per-behavior pass rates and lift |
+| `skillet show [path]` | Pretty-print the parsed spec with coverage |
 
-## Credentials
+Every command takes `--json`: one JSON object on stdout, prose on stderr, exit 0/1.
 
-Skillet auto-discovers LLM credentials. No configuration needed when
-running inside Claude Code, Codex, GitHub Copilot, or any environment
-with standard API keys set.
+## Agent workflows
 
-Override with `SKILLET_MODEL=provider/model-id` if needed.
+`skillet init` generates four thin workflows that script your agent into the `skillet status` / `skillet instructions --json` loop:
 
-## How spec-driven authoring works
+- **`/skillet:propose`** — interview the user, write spec.md
+- **`/skillet:render`** — render SKILL.md + eval cases from the spec
+- **`/skillet:improve`** — diagnose failing evals into spec/skill/eval fixes and re-run
+- **`/skillet:migrate`** — convert a legacy `spec.yaml` or bare SKILL.md skill
 
-`spec.yaml` captures **what** the skill does — intent, behaviors,
-must-nots, triggers — as a simple, user-readable document. SKILL.md
-is derived from it (clobbered on regen; edit the spec to change rules).
-`evals/*.eval.ts` are generated initially but durable after that —
-edit them directly to refine specific test prompts or assertions.
+## Migrating from skillet v0
 
-```
-spec.yaml ──► generate ──► SKILL.md + evals/*.eval.ts
-                              │
-                              ▼
-                       run evals (vitest)
-                              │
-                              ▼
-                       verify (4 layers)
-                              │
-                              ▼
-                       tune SKILL.md prose
-                              │
-                              └──► loop until pass or max iterations
-```
-
-A spec.yaml looks like this:
-
-```yaml
-managed_by: skillet
-spec_version: 1
-name: django-perf-review
-intent: |
-  Review Django code for performance regressions, focusing on N+1
-  queries and queryset misuse.
-
-triggers:
-  should:
-    - "review django performance"
-    - "find N+1 queries"
-    - "optimize django"
-  should_not:
-    - "review this React component"
-
-behaviors:
-  - id: flag-n-plus-one
-    statement: Flag N+1 queries in loops over querysets.
-    rationale: |
-      Loops accessing related objects without select_related issue
-      one query per iteration in production but pass tests.
-
-must_not:
-  - id: dont-flag-single-get
-    statement: Don't flag single .get() calls as N+1.
-    rationale: A single fetch isn't a query loop.
-```
-
-The spec is intent only — eval prompts, setup scripts, and assertions
-live in the generated eval file (see below), not here. This keeps the
-spec readable and lets you edit eval shapes directly without touching
-the source of truth.
-
-## Eval format
-
-Eval files are TypeScript that vitest runs natively. They use the
-harness-first API mirroring [vitest-evals#41](https://github.com/getsentry/vitest-evals/pull/41) —
-imported through `@sentry/skillet/evals` so generated files don't
-change when vitest-evals 0.9 ships.
-
-```typescript
-import { fileURLToPath } from "node:url";
-import { dirname } from "node:path";
-import {
-  describeEval,
-  CriterionJudge,
-  SubstringJudge,
-  skilletHarness,
-} from "@sentry/skillet/evals";
-
-const skillRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/evals$/, "");
-
-describeEval("django-perf-review", {
-  data: [
-    {
-      name: "flag-n-plus-one__loop_over_books",
-      tests_behavior: "flag-n-plus-one",
-      input: "Review views.py for performance issues",
-      expectedContains: "select_related",
-      setup: `cat > views.py <<'EOF'
-for book in Book.objects.all():
-    print(book.author.name)
-EOF`,
-    },
-    {
-      name: "dont-flag-single-get__single_call",
-      tests_behavior: "dont-flag-single-get",
-      input: "Is `User.objects.get(id=1)` an N+1?",
-      criteria: "agent does not call this an N+1 issue",
-    },
-  ],
-  harness: skilletHarness({ skill: skillRoot }),
-  judges: [SubstringJudge(), CriterionJudge()],
-  threshold: 0.75,
-});
-```
-
-Each case sets up a workspace (optional `setup`), sends `input` to an
-agent loaded with the skill, and grades the output with the judges.
-`tests_behavior` links cases back to spec entries — verification uses
-this as the join key so failures land on the specific behavior they
-affect, not on a free-text "something went wrong" signal.
-
-## License
-
-MIT
+The v0 formats (`spec.yaml`, generated `evals/*.eval.ts`, the `create`/`improve`/`spec` commands, and all `SKILLET_*` env vars) are gone. `skillet status` detects legacy skills and points at `/skillet:migrate`, which converts intent to `spec.md` and eval intent to YAML cases. See `examples/commit-conventions/` for a complete current-format skill.

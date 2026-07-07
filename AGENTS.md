@@ -4,7 +4,7 @@
 
 Use **npm**: `npm install`, `npm run build`, `npm run typecheck`, `npm run check`, `npm run format`.
 
-`npm run check` runs typecheck + lint + format — use it as the final gate before commits.
+`npm run check` runs typecheck + lint + format + unit tests — use it as the final gate before commits.
 
 ## Commit Attribution
 
@@ -22,23 +22,22 @@ Co-Authored-By: (agent model name) <email>
 | Lint          | `npm run lint` (oxlint, type-aware)     |
 | Format check  | `npm run format` (oxfmt --check)        |
 | Format fix    | `npm run format:fix`                    |
+| Unit tests    | `npm run test` (vitest, no LLM/network) |
+| One test file | `npx vitest run src/spec/parser.test.ts`|
 | Build         | `npm run build`                         |
-| Skill evals   | `dist/cli.js eval <skill-path>`         |
-| One eval file | `npx vitest run path/to/file.eval.ts`   |
+| Skill evals   | `dist/cli.js eval <skill-path>` (spawns real agent CLIs — slow, needs codex or claude on PATH) |
 
 ## Key Conventions
 
-- Use OpenSpec for non-trivial changes. New work goes under `openspec/changes/<YYYY-MM-DD>-<slug>/` with `proposal.md`, `design.md`, `tasks.md`, and `specs/<capability>/spec.md` deltas. Validate with `npx openspec validate <id> --strict` before committing.
-- spec.yaml is the source of truth for skills. SKILL.md and `evals/*.eval.ts` are derived; `skillet` regenerates them from spec.
-- Eval files use the harness-first callback form: `describeEval(id, { harness }, (it) => { it("...", async ({ run, behavior }) => { ... }) })`. Code-level `expect(...)` for deterministic checks; named `toSatisfyJudge(<NameJudge>)` for semantic checks. Never use the legacy data-array `{ data: [...] }` shape for new generation.
-- All LLM-bound work submits through `submitAiJob` in `src/agent/queue.ts` (concurrency + per-job timeout + telemetry). `completeWithBackoff` owns per-call transient retry; the queue does not retry on its own.
+- Use OpenSpec for non-trivial changes. New work goes under `openspec/changes/<slug>/` with `proposal.md`, `design.md`, `tasks.md`, and `specs/<capability>/spec.md` deltas. Validate with `npx openspec validate <id> --strict` before committing.
+- **Skillet makes zero LLM calls.** The CLI is a file/state manager, validator, and mechanical eval runner. All generation happens in host agents via the generated `/skillet:*` workflows. Do not add provider SDKs, API-key handling, or in-process agent loops.
+- Per-skill artifacts: `spec.md` is the source of truth; `SKILL.md` and `evals/cases/*.yaml` are derived by agents and validated by the CLI. Skillet never regenerates or overwrites eval cases.
+- Unit tests live next to their modules (`*.test.ts`) and must run offline in milliseconds. Anything spawning a real harness CLI is manual/dogfood territory (`examples/`), not the test suite.
 - Don't bypass hooks (`--no-verify`), don't `--force-push` to main, don't amend already-pushed commits without asking.
 - Lint baseline: pre-existing warnings are allowed; new errors are not. Run `npm run lint` and confirm error count does not increase before committing.
-- Prefer integration-style evals (`*.eval.ts` running through skilletHarness) over inline unit tests. Skillet's vitest config only collects `*.eval.ts`.
-- Prefer hard cutover over backwards-compat shims unless the change crosses a published surface. When a shim is unavoidable, mark it `@deprecated` with a "remove in next minor" note.
-- Minimize defensive programming — no fallbacks for systems expected to work. Trust internal contracts; only validate at system boundaries (user input, external APIs).
+- Prefer hard cutover over backwards-compat shims unless the change crosses a published surface.
+- Minimize defensive programming — no fallbacks for systems expected to work. Trust internal contracts; only validate at system boundaries (user input, external APIs, spawned processes).
 - Keep public surfaces small: fewer exported types/functions, fewer integration points, explicit contracts.
-- Prefer composition over abstractions that add indirection without clear reuse.
 
 ## Engineering Principles
 
@@ -52,59 +51,27 @@ Co-Authored-By: (agent model name) <email>
 
 - `policies/README.md` (when to add a policy doc and how policy docs should stay scoped)
 - `policies/code-comments.md` (repo default for code comments, docstrings, and exported-function JSDoc)
-- `policies/skill-creation-lifecycle.md` (keep `LIFECYCLE.md` current when the skill-creation flow changes)
 - `policies/policy-template.md` (template for adding new policy docs)
 
 ## Investigation-First Development
 
-- Before implementing anything that depends on an external system (provider SDK, vitest internals, OpenSpec validator), read the relevant documentation or source first. State the constraint being relied on before writing code.
-- Before removing an architectural layer, prove the replacement handles all known edge cases in a working proof-of-concept. Do not remove the incumbent until the replacement is verified end-to-end.
+- Before implementing anything that depends on an external system (codex/claude CLI flags, OpenSpec validator), read the relevant documentation or check the installed binary first. State the constraint being relied on before writing code.
 - When changing a function signature, error contract, or shared pattern, grep for all consumers and verify each one still works.
 - If a fix attempt fails, stop. Re-read the error, trace the full system from input to output, and identify the root cause before trying another fix.
 
-## Skill Creation Flow
+## Architecture
 
-The end-to-end flow of how a skill gets created is documented in
-`LIFECYCLE.md` at the repo root. Read it before changing
-anything in `src/authoring/`. When you change a phase, sub-pass,
-or artifact layout, update `LIFECYCLE.md` in the same change —
-see `policies/skill-creation-lifecycle.md`.
+The end-to-end artifact flow is documented in `LIFECYCLE.md`. Module ownership:
 
-## Architecture Discipline
-
-- `src/agent/` owns LLM call lifecycle (queue, backoff, tool-loop). Phases and commands submit jobs through `submitAiJob`; they do not call pi-ai's `complete` directly.
-- `src/agents/` (plural) is the orchestration layer for bundled authoring agents. `runner.ts` drives one agent through `runToolLoop` with scoped read/write policy; `orchestrator.ts` runs writers + validators in parallel with one re-pass on errors; `author.ts` is the entry point that `skillet create` and `skillet improve` call. Bundled agent skills live under `agents/<name>/` and ship via `package.json`'s `files` array.
-- `src/authoring/phases/` is now scoped to the interactive spec-author + spec-refine paths and shared text helpers — the eval-gen / skill-gen / skill-improve / reference-gen phases moved into bundled agents and no longer exist as TypeScript.
-- `src/spec/` is the source-of-truth schema and parser/validator. Patches go through `applyPatch` / `applyPatches` in `patcher.ts`; the parser and structural validator are independent so spec edits round-trip cleanly.
-- `src/evals.ts` is the public entry for generated `.eval.ts` files. It re-exports upstream `vitest-evals` (`describeEval`, `toSatisfyJudge`, `Harness*`, …) and adds skillet-specific helpers: `criterionJudge(name, text)`, `createWorkspace(skillRoot, slug?)`, `skilletAgent({ skillRoot })`, and a wrapped `piAiHarness`. The import path `@sentry/skillet/evals` is the contract.
-- `src/eval/vitest-runner.ts` is the only place that spawns vitest.
-- `src/cli.ts` parses global flags (queue config, --verbose) and dispatches to `src/commands/*`. Each command exports its `*_USAGE` constant; the dispatcher routes `--help`/`-h` to print usage before invoking the command body.
-- Use `openspec/specs/<capability>/spec.md` as the canonical capability description; change deltas live under `openspec/changes/`. Don't duplicate spec content into AGENTS.md.
-
-## Codex Execution Checklist
-
-- Read local contracts first: this file, relevant `openspec/specs/*`, and the policy files this file enumerates.
-- For any non-trivial change, write the OpenSpec change first (proposal + design + tasks + specs deltas). Validate strict before implementation.
-- Derive explicit invariants before editing and keep them stable through implementation.
-- Use an explicit sequence for non-trivial tasks: discover → minimal vertical slice → verify → summarize.
-- Reuse existing repository patterns before introducing new abstractions.
-- Treat completion as gated: `npm run check` clean, the change's `tasks.md` checked off, and OpenSpec validation strict-passing.
+- `src/spec/` — the spec.md grammar: template, single-pass parser with line-accurate issues, slugs.
+- `src/evals/` — case schema (`case.ts`), workspace lifecycle (`workspace.ts`), deterministic checks (`checks.ts`), the trial runner (`runner.ts`), and result/lift math (`results.ts`).
+- `src/harness/` — everything that spawns agent CLIs: config resolution (`config.ts`), invocation building + process control (`run.ts`), skill installation per adapter (`install.ts`), the harness-executed judge (`judge.ts`).
+- `src/instructions/` — the writing guidance served by `skillet instructions` (hard budget: ≤200 lines per artifact).
+- `src/integration/` — generated workflow content and per-tool file generators.
+- `src/commands/` — one file per CLI command; `src/cli.ts` is a lazy dispatch table.
+- `src/status.ts` / `src/validate.ts` — the two cross-artifact aggregators (state from disk; full-skill validation report).
+- Use `openspec/specs/<capability>/spec.md` as the canonical capability description. Don't duplicate spec content into AGENTS.md.
 
 ## Known OpenSpec Capabilities
 
-Run `ls openspec/specs/` for the current list. As of writing:
-
-- `agent` — LLM call lifecycle, queue, backoff
-- `cli` — CLI flag parsing, command dispatch, end-of-command summary
-- `eval-format` — `.eval.ts` file shape (harness-first callback form)
-- `eval-linter` — eval file structural validation
-- `judge` — LLM judge prompt + grade parsing
-- `provider-autodiscovery` — env-based provider/model selection
-- `agent-orchestration` — bundled authoring agents, runner, orchestrator, diagnostic schema
-- `skill-authoring` — interactive spec-author + orchestrator-driven write/validate cycle
-- `skill-loader` — loading SKILL.md + references at runtime
-- `structured-output` — JSON-output retry harness
-- `validation` — spec.yaml structural validation
-- `workspace` — temp workspace lifecycle for eval cases
-
-In-flight changes live under `openspec/changes/`; archived changes under `openspec/changes/archive/`.
+Run `ls openspec/specs/` for the current list. In-flight changes live under `openspec/changes/`; archived changes under `openspec/changes/archive/`.
