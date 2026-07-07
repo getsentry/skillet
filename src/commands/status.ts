@@ -9,6 +9,11 @@ Show which artifacts exist for a skill (spec.md, SKILL.md, eval cases),
 what is stale, and the single next step. State comes purely from disk.
 `;
 
+const mark = (present: boolean, stale?: boolean): string => {
+  if (!present) return "[ ]";
+  return stale === true ? "[~]" : "[x]";
+};
+
 export const run = async (argv: string[]): Promise<number> => {
   const { values, positionals } = parseArgs({
     args: argv,
@@ -32,10 +37,6 @@ export const run = async (argv: string[]): Promise<number> => {
     return 0;
   }
 
-  const mark = (present: boolean, stale?: boolean): string => {
-    if (!present) return "[ ]";
-    return stale === true ? "[~]" : "[x]";
-  };
   print(`Skill: ${status.root}`);
   print(`${mark(status.spec.present)} spec.md`);
   print(
