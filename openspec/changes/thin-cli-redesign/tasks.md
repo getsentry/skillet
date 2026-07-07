@@ -34,20 +34,20 @@
 
 - [x] 5.1 `skillet new <name>`: scaffold skill directory with templated spec.md and evals/ layout
 - [x] 5.2 `skillet status [path] [--json]`: artifact presence/staleness from disk, legacy spec.yaml detection
-- [ ] 5.3 `skillet instructions <spec|skill|evals> [--json]`: serve template + writing instructions + output path + state (each payload ≤200 lines)
+- [x] 5.3 `skillet instructions <spec|skill|evals> [--json]`: serve template + writing instructions + output path + state (each payload ≤200 lines)
 - [x] 5.4 `skillet validate [path] [--json]`: full-skill report (spec grammar, SKILL.md frontmatter, case schema, coverage)
 - [x] 5.5 `skillet eval [path] [--case id] [--trials n] [--baseline] [--harness x] [--json] [--keep-workspaces]`: run cases, group results by behavior, report pass rates and lift
 - [x] 5.6 `skillet show [path]`: pretty-print parsed spec with coverage summary
-- [ ] 5.7 `skillet init [--tools <ids>] [--force]`: project scaffold + tool integration generation
+- [x] 5.7 `skillet init [--tools <ids>] [--force]`: project scaffold + tool integration generation
 - [x] 5.8 Cross-cutting: `--json` single-object stdout convention, prose to stderr, exit codes 0/1
 
 ## 6. Agent integration workflows
 
-- [ ] 6.1 Author the generated workflow content for `/skillet:propose` (interview user → write spec.md via instructions)
-- [ ] 6.2 Author `/skillet:render` (spec.md → SKILL.md + references + eval cases → validate → eval)
-- [ ] 6.3 Author `/skillet:improve` (read `eval --json` failures → edit spec/skill → re-run)
-- [ ] 6.4 Author `/skillet:migrate` (spec.yaml or bare SKILL.md → spec.md + cases)
-- [ ] 6.5 Implement generators for Claude Code (`.claude/commands/skillet/`, `.claude/skills/`) and Codex (`$CODEX_HOME/prompts/`), keeping workflow files thin (fetch instructions from CLI)
+- [x] 6.1 Author the generated workflow content for `/skillet:propose` (interview user → write spec.md via instructions)
+- [x] 6.2 Author `/skillet:render` (spec.md → SKILL.md + references + eval cases → validate → eval)
+- [x] 6.3 Author `/skillet:improve` (read `eval --json` failures → edit spec/skill → re-run)
+- [x] 6.4 Author `/skillet:migrate` (spec.yaml or bare SKILL.md → spec.md + cases)
+- [x] 6.5 Implement generators for Claude Code (`.claude/commands/skillet/`, `.claude/skills/`) and Codex (`$CODEX_HOME/prompts/`), keeping workflow files thin (fetch instructions from CLI)
 
 ## 7. Prove it works
 

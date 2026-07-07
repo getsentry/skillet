@@ -19,7 +19,9 @@ Run 'skillet <command> --help' for command-specific flags.
 type CommandModule = { run: (argv: string[]) => Promise<number> };
 
 const COMMANDS: Record<string, () => Promise<CommandModule>> = {
+  init: () => import("./commands/init.js"),
   new: () => import("./commands/new.js"),
+  instructions: () => import("./commands/instructions.js"),
   status: () => import("./commands/status.js"),
   validate: () => import("./commands/validate.js"),
   eval: () => import("./commands/eval.js"),
