@@ -83,6 +83,7 @@ describe("buildInvocation", () => {
     expect(inv.cmd).toBe("codex");
     expect(inv.args).toContain("exec");
     expect(inv.args).toContain("--skip-git-repo-check");
+    expect(inv.args).toContain("--dangerously-bypass-approvals-and-sandbox");
     expect(inv.args.join(" ")).toContain("-C /ws");
     expect(inv.lastMessageFile).toBe("/scratch/last-message.txt");
     expect(inv.args.at(-1)).toBe("do things");

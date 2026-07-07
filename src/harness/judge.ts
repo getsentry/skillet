@@ -1,4 +1,5 @@
-import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { runHarness } from "./run.js";
@@ -15,14 +16,43 @@ const MAX_FILE_BYTES = 4_000;
 const MAX_TOTAL_BYTES = 32_000;
 const SKIPPED_DIRS = new Set([".git", "node_modules", ".claude", ".skillet"]);
 
+const gitSummary = (workspace: string): string | null => {
+  if (!existsSync(join(workspace, ".git"))) return null;
+  try {
+    const log = execFileSync("git", ["log", "--all", "--format=%d %s", "--stat", "-5"], {
+      cwd: workspace,
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: 5_000,
+    })
+      .toString()
+      .trim();
+    const status = execFileSync("git", ["status", "--porcelain", "-b"], {
+      cwd: workspace,
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: 5_000,
+    })
+      .toString()
+      .trim();
+    return `--- git status ---\n${status}\n--- git log (last 5, all branches) ---\n${log}`.slice(
+      0,
+      6_000,
+    );
+  } catch {
+    return null;
+  }
+};
+
 /**
- * Bounded dump of the workspace for the grading prompt: file tree plus
- * small text file contents. The judge runs isolated from the workspace
- * (judge spec), so everything it grades must be in the prompt.
+ * Bounded dump of the workspace for the grading prompt: git state (when
+ * present), file tree, and small text file contents. The judge runs
+ * isolated from the workspace (judge spec), so everything it grades
+ * must be in the prompt.
  */
 export const describeWorkspace = (workspace: string): string => {
   const sections: string[] = [];
   let budget = MAX_TOTAL_BYTES;
+  const git = gitSummary(workspace);
+  if (git != null) sections.push(git);
 
   const walk = (dir: string): void => {
     let entries: string[];

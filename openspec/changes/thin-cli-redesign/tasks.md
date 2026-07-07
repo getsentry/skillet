@@ -51,9 +51,9 @@
 
 ## 7. Prove it works
 
-- [ ] 7.1 Unit test suite green (`parser`, `validator`, `schema`, `harness templating`, `check evaluation`, `lift math`) with no LLM or network access
+- [x] 7.1 Unit test suite green (`parser`, `validator`, `schema`, `harness templating`, `check evaluation`, `lift math`) with no LLM or network access
 - [ ] 7.2 Dogfood: recreate one real skill (e.g. the commit skill) end-to-end via `/skillet:propose` → `/skillet:render` → `skillet eval --trials 3 --baseline` and record the lift numbers
-- [ ] 7.3 Run the same dogfood skill through both codex and claude harnesses to confirm adapter parity
+- [x] 7.3 Run the same dogfood skill through both codex and claude harnesses to confirm adapter parity
 
 ## 8. Docs and release
 

@@ -23,13 +23,15 @@ export const buildInvocation = (
     const lastMessageFile = join(scratchDir, "last-message.txt");
     return {
       cmd: "codex",
+      // Full bypass mirrors the claude adapter's permission skip: the
+      // workspace is a disposable tempdir, and codex's workspace-write
+      // sandbox denies .git writes, which breaks any skill that commits.
       args: [
         "exec",
         "-C",
         workspace,
         "--skip-git-repo-check",
-        "--sandbox",
-        "workspace-write",
+        "--dangerously-bypass-approvals-and-sandbox",
         "--ephemeral",
         "--color",
         "never",

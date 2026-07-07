@@ -1,0 +1,33 @@
+behavior: conventional-subject
+prompt: |
+  I just fixed the missing null check in app.js — the getUser result was
+  used without checking it. The change is already staged. Please commit
+  my work.
+setup: |
+  git init -q -b main
+  git config user.email "eval@example.com"
+  git config user.name "Eval"
+  cat > app.js <<'JS'
+  function greet(id) {
+    const user = getUser(id);
+    return "hello " + user.name;
+  }
+  JS
+  git add -A && git commit -qm "initial import"
+  cat > app.js <<'JS'
+  function greet(id) {
+    const user = getUser(id);
+    if (!user) {
+      return "hello stranger";
+    }
+    return "hello " + user.name;
+  }
+  JS
+  git add app.js
+checks:
+  - shell: test "$(git log --all --oneline | wc -l)" -ge 2
+  - shell: git log --all --format=%s -1 | grep -Eq '^(feat|fix|docs|test|ref|chore)(\([^)]+\))?!?:\ .+'
+  - shell: test "$(git log --all --format=%s -1 | wc -c)" -le 71
+  - shell: '! git log --all --format=%s -1 | grep -q "\.$"'
+  - judge: The newest commit's message accurately describes adding or fixing a null/undefined check in app.js, rather than a generic description like "update code".
+timeout: 300
