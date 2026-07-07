@@ -33,6 +33,7 @@
     "import/no-nodejs-modules": "off",
     "unicorn/no-process-exit": "off",
     "unicorn/no-null": "off",
+    "unicorn/no-thenable": "off",
     "unicorn/prefer-top-level-await": "off",
     "typescript/prefer-readonly-parameter-types": "off"
   },

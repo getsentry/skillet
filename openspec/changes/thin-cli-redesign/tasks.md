@@ -10,10 +10,10 @@
 
 ## 2. skill-spec: grammar, parser, validator
 
-- [ ] 2.1 Define the spec.md template (Intent, Triggers, Behaviors/Scenarios, Constraints) and grammar constants
-- [ ] 2.2 Implement the markdown parser producing `{intent, triggers, behaviors[{id, name, text, scenarios[]}], constraints[]}` with line-accurate error positions
-- [ ] 2.3 Implement structural validation with fix hints (missing scenario, wrong heading depth, duplicate slugs) and unit tests over valid/invalid corpora
-- [ ] 2.4 Implement behavior↔eval coverage checks (uncovered behavior = warning, unknown behavior ref = error, missing fixture = error)
+- [x] 2.1 Define the spec.md template (Intent, Triggers, Behaviors/Scenarios, Constraints) and grammar constants
+- [x] 2.2 Implement the markdown parser producing `{intent, triggers, behaviors[{id, name, text, scenarios[]}], constraints[]}` with line-accurate error positions
+- [x] 2.3 Implement structural validation with fix hints (missing scenario, wrong heading depth, duplicate slugs) and unit tests over valid/invalid corpora
+- [x] 2.4 Implement behavior↔eval coverage checks (uncovered behavior = warning, unknown behavior ref = error, missing fixture = error)
 
 ## 3. Eval cases and workspace
 
