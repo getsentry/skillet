@@ -1,33 +1,23 @@
 {
   "name": "@sentry/skillet",
   "version": "0.28.0",
-  "description": "Create, evaluate, and iterate on agent skills",
+  "description": "Spec-driven agent skills with mechanical evals",
   "type": "module",
   "bin": {
     "skillet": "./dist/cli.js"
-  },
-  "exports": {
-    "./evals": {
-      "types": "./dist/lib/evals.d.ts",
-      "import": "./dist/lib/evals.js"
-    }
   },
   "scripts": {
     "build": "node build.js",
     "dev": "node build.js --watch",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "lint": "oxlint --type-aware src/",
     "lint:fix": "oxlint --type-aware --fix src/",
     "format": "oxfmt --check src/",
     "format:fix": "oxfmt src/",
-    "check": "npm run typecheck && npm run lint && npm run format"
+    "check": "npm run typecheck && npm run lint && npm run format && npm run test"
   },
   "dependencies": {
-    "@mariozechner/pi-agent-core": "^0.70.6",
-    "@mariozechner/pi-ai": "^0.72.1",
-    "@vitest-evals/harness-pi-ai": "0.9.0-beta.3",
-    "vitest": "4.1.5",
-    "vitest-evals": "0.9.0-beta.3",
     "yaml": "^2.7.0"
   },
   "devDependencies": {
@@ -36,16 +26,14 @@
     "oxfmt": "^0.46.0",
     "oxlint": "^1.61.0",
     "oxlint-tsgolint": "^0.21.1",
-    "typescript": "^5.8.0"
+    "typescript": "^5.8.0",
+    "vitest": "4.1.5"
   },
   "engines": {
     "node": ">=20.0.0"
   },
   "files": [
-    "agents",
-    "dist",
-    "references",
-    "skills"
+    "dist"
   ],
   "license": "MIT"
 }

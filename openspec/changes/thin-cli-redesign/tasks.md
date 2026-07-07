@@ -2,11 +2,11 @@
 
 ## 1. Clear the ground
 
-- [ ] 1.1 Archive the three stale active changes (`2026-05-04-agent-orchestration`, `2026-05-03-pi-ai-harness-adoption`, `2026-05-03-vitest-evals-upstream-migration`) without spec sync
-- [ ] 1.2 Delete `src/authoring/`, `src/agents/`, `src/agent/`, `src/eval/`, `src/evals/`, `src/staging/`, `src/verify/`, `src/cli/` (transport/pause/job-summary), and the command files for create/improve/spec/add-eval/resume/compare/install
-- [ ] 1.3 Extract salvage: slug logic from `src/spec/slug.ts`, frontmatter parsing from `src/skill/`, fixture-copy from `src/evals/with-workspace.ts`, writing guidance worth keeping from `agents/*/references/`
-- [ ] 1.4 Remove deps `@mariozechner/pi-agent-core`, `@mariozechner/pi-ai`, `@vitest-evals/harness-pi-ai`, `vitest-evals`; keep vitest as a devDependency for unit tests only
-- [ ] 1.5 Delete all `SKILLET_*` env var handling, `.skillet-tmp/` machinery, and `bench/` (superseded by `--baseline`)
+- [x] 1.1 Archive the three stale active changes (`2026-05-04-agent-orchestration`, `2026-05-03-pi-ai-harness-adoption`, `2026-05-03-vitest-evals-upstream-migration`) without spec sync
+- [x] 1.2 Delete `src/authoring/`, `src/agents/`, `src/agent/`, `src/eval/`, `src/evals/`, `src/staging/`, `src/verify/`, `src/cli/` (transport/pause/job-summary), and the command files for create/improve/spec/add-eval/resume/compare/install
+- [x] 1.3 Extract salvage: slug logic from `src/spec/slug.ts`, frontmatter parsing from `src/skill/`, fixture-copy from `src/evals/with-workspace.ts`, writing guidance worth keeping from `agents/*/references/`
+- [x] 1.4 Remove deps `@mariozechner/pi-agent-core`, `@mariozechner/pi-ai`, `@vitest-evals/harness-pi-ai`, `vitest-evals`; keep vitest as a devDependency for unit tests only
+- [x] 1.5 Delete all `SKILLET_*` env var handling, `.skillet-tmp/` machinery, and `bench/` (superseded by `--baseline`)
 
 ## 2. skill-spec: grammar, parser, validator
 
