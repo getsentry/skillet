@@ -34,6 +34,7 @@ const SKILL_INSTRUCTIONS = `Render SKILL.md from spec.md. The spec states intent
 Frontmatter (required):
 - name: the skill slug.
 - description: third person, one sentence of what it does plus the concrete trigger conditions ("Use when...") — this is the ONLY text the agent sees before deciding to load the skill, so pack the spec's SHOULD triggers into it and honor the SHOULD NOT side by not overclaiming.
+- spec_hash: copy the value from 'skillet status --json' (.spec.hash). It ties this render to the spec content so 'skillet status' can detect staleness reliably.
 
 Body rules:
 - Imperative voice, written to the agent ("Run...", "Never...", not "The agent shall...").
@@ -88,7 +89,7 @@ const PAYLOADS: Record<ArtifactId, Instructions> = {
   skill: {
     artifact: "skill",
     outputPath: "SKILL.md",
-    template: `---\nname: <slug>\ndescription: <what it does + when to use it>\n---\n\n# <Skill Name>\n\n<instructions to the agent>\n`,
+    template: `---\nname: <slug>\ndescription: <what it does + when to use it>\nspec_hash: <from skillet status --json .spec.hash>\n---\n\n# <Skill Name>\n\n<instructions to the agent>\n`,
     instructions: SKILL_INSTRUCTIONS,
   },
   evals: {

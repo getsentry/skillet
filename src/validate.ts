@@ -49,6 +49,13 @@ export const validateSkillMd = (root: string): Issue[] => {
       });
     }
   }
+  if (existsSync(join(root, "spec.md")) && typeof meta["spec_hash"] !== "string") {
+    issues.push({
+      severity: "warning",
+      message: "SKILL.md frontmatter has no spec_hash",
+      hint: "Record 'skillet status --json' .spec.hash so staleness detection survives git clones.",
+    });
+  }
   return issues;
 };
 

@@ -1,6 +1,8 @@
-import { existsSync, statSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { loadCases } from "./evals/case.js";
+import { parseFrontmatter } from "./skill/frontmatter.js";
 
 /** Staleness only exists for present artifacts. */
 export type ArtifactStatus = { path: string } & (
@@ -10,7 +12,8 @@ export type ArtifactStatus = { path: string } & (
 
 export interface SkillStatus {
   root: string;
-  spec: { path: string; present: boolean };
+  /** hash identifies the spec content; SKILL.md records it as spec_hash. */
+  spec: { path: string; present: boolean; hash?: string };
   skill: ArtifactStatus;
   evals: { path: string; caseCount: number };
   legacy: {
@@ -28,6 +31,25 @@ const mtime = (path: string): number => {
   }
 };
 
+/** Short content hash of spec.md — survives clones, unlike mtimes. */
+export const specHash = (specPath: string): string => {
+  return createHash("sha256").update(readFileSync(specPath)).digest("hex").slice(0, 12);
+};
+
+/**
+ * A SKILL.md carrying spec_hash is stale exactly when the hash
+ * diverges; without it, fall back to mtimes (unreliable after git
+ * checkout, which is why renders are told to record the hash).
+ */
+const skillIsStale = (skillPath: string, specPath: string, hash: string): boolean => {
+  const { meta } = parseFrontmatter(readFileSync(skillPath, "utf8"));
+  const recorded = meta["spec_hash"];
+  if (typeof recorded === "string" && recorded !== "") {
+    return recorded !== hash;
+  }
+  return mtime(skillPath) < mtime(specPath);
+};
+
 /**
  * Derive workflow state purely from files on disk (agent-integration
  * spec, "Filesystem as state machine").
@@ -39,11 +61,15 @@ export const skillStatus = (root: string): SkillStatus => {
   const specPresent = existsSync(specPath);
   const skillPresent = existsSync(skillPath);
   const caseCount = specPresent || skillPresent ? loadCases(root).cases.length : 0;
-  const specMtime = mtime(specPath);
+  const hash = specPresent ? specHash(specPath) : undefined;
 
-  const spec = { present: specPresent, path: "spec.md" };
+  const spec = { present: specPresent, path: "spec.md", ...(hash != null && { hash }) };
   const skill: ArtifactStatus = skillPresent
-    ? { present: true, path: "SKILL.md", stale: specPresent && mtime(skillPath) < specMtime }
+    ? {
+        present: true,
+        path: "SKILL.md",
+        stale: hash != null && skillIsStale(skillPath, specPath, hash),
+      }
     : { present: false, path: "SKILL.md" };
   const evals = { path: "evals/cases/", caseCount };
 
