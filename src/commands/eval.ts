@@ -1,5 +1,7 @@
 import { parseArgs } from "node:util";
 import { assertBinaryAvailable, HarnessConfigError, resolveHarness } from "../harness/config.js";
+import { assertSandboxAvailable, resolveSandbox } from "../harness/sandbox.js";
+import type { SandboxConfig } from "../harness/sandbox.js";
 import type { ResolvedHarness } from "../harness/types.js";
 import { emitJson, fail, info, print } from "../output.js";
 import { passRate, summarizeByBehavior } from "../evals/results.js";
@@ -17,6 +19,8 @@ Options:
   --trials <n>        Run each case n times and report pass rates
   --baseline          Also run every trial without the skill; report lift
   --harness <name>    Override the harness (codex, claude)
+  --sandbox <mode>    docker: run every harness invocation in a container
+                      (none: force direct). Default from .skillet.yaml.
   --keep-workspaces   Leave trial workspaces on disk for debugging
   --json              Machine-readable results on stdout
 `;
@@ -55,6 +59,7 @@ export const run = async (argv: string[]): Promise<number> => {
       trials: { type: "string" },
       baseline: { type: "boolean" },
       harness: { type: "string" },
+      sandbox: { type: "string" },
       "keep-workspaces": { type: "boolean" },
       json: { type: "boolean" },
       help: { type: "boolean", short: "h" },
@@ -94,20 +99,27 @@ export const run = async (argv: string[]): Promise<number> => {
   }
 
   let harness: ResolvedHarness;
+  let sandbox: SandboxConfig | null;
   try {
     harness = resolveHarness(root, values.harness);
-    assertBinaryAvailable(harness);
+    sandbox = resolveSandbox(root, values.sandbox);
+    if (sandbox != null) {
+      assertSandboxAvailable(sandbox, harness);
+    } else {
+      assertBinaryAvailable(harness);
+    }
   } catch (err) {
     if (err instanceof HarnessConfigError) return fail(err.message);
     throw err;
   }
 
   info(
-    `Running ${cases.length} case(s) via ${harness.name}${values.baseline === true ? " (with baseline)" : ""}...`,
+    `Running ${cases.length} case(s) via ${harness.name}${sandbox != null ? " [docker sandbox]" : ""}${values.baseline === true ? " (with baseline)" : ""}...`,
   );
   const results = await runCases(cases, {
     skillRoot: root,
     harness,
+    sandbox,
     ...(trials != null && { trials }),
     ...(values.baseline === true && { baseline: true }),
     ...(values["keep-workspaces"] === true && { keepWorkspaces: true }),

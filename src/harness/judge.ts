@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } 
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { runHarness } from "./run.js";
+import type { SandboxConfig } from "./sandbox.js";
 import type { ResolvedHarness } from "./types.js";
 
 export interface JudgeVerdict {
@@ -148,6 +149,7 @@ export const runJudge = async (
   casePrompt: string,
   transcript: string,
   workspace: string,
+  sandbox?: SandboxConfig | null,
 ): Promise<JudgeVerdict> => {
   const prompt = buildJudgePrompt(criterion, casePrompt, transcript, describeWorkspace(workspace));
 
@@ -155,7 +157,7 @@ export const runJudge = async (
   for (let attempt = 0; attempt < 2; attempt++) {
     const judgeDir = mkdtempSync(join(tmpdir(), "skillet-judge-"));
     try {
-      const run = await runHarness(harness, judgeDir, prompt, JUDGE_TIMEOUT_SECONDS);
+      const run = await runHarness(harness, judgeDir, prompt, JUDGE_TIMEOUT_SECONDS, sandbox);
       lastOutput = run.lastMessage !== "" ? run.lastMessage : run.transcript;
       const verdict = parseVerdict(lastOutput);
       if (verdict != null) {

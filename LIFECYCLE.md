@@ -48,7 +48,7 @@ Per trial (see `src/evals/runner.ts`):
 1. `mkdtemp` workspace; copy `evals/fixtures/<slug>/` in when the case declares `fixture:`.
 2. Run `setup:` with cwd = workspace; the script itself is staged outside the workspace so it can never appear in workspace contents or git state. 30s timeout; non-zero exit → trial `error`, agent never spawns.
 3. Install the skill using the harness's native mechanism — `.claude/skills/` (claude), workspace `AGENTS.md` + staged skill dir (codex), `skill_dir` template (custom). Baseline trials skip this step.
-4. Spawn the harness CLI on the case prompt (per-case `timeout:`, default 300s; kill reaps the whole process group). Capture transcript + final message.
+4. Spawn the harness CLI on the case prompt (per-case `timeout:`, default 300s; kill reaps the whole process group). Capture transcript + final message. Direct execution with full access is the default (trusting your own skill); with `--sandbox docker` the invocation — judges included — is wrapped in a container with the workspace mounted at `/workspace`.
 5. Run `file_exists` / `shell` checks in the workspace. If all pass, grade each `judge:` check by running the harness again in an isolated directory with a grading prompt (criterion + case prompt + transcript + bounded workspace dump) and a strict trailing `VERDICT: pass|fail` protocol — one retry, then `error` (never a silent fail).
 6. Trial status: `pass` (all checks pass), `fail` (a check failed), `error` (setup/timeout/judge-parse trouble). Workspaces are removed unless `--keep-workspaces`.
 

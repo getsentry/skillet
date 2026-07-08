@@ -2,6 +2,8 @@ import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { CONTAINER_SCRATCH, CONTAINER_WORKSPACE, dockerize } from "./sandbox.js";
+import type { SandboxConfig } from "./sandbox.js";
 import type { HarnessRun, ResolvedHarness } from "./types.js";
 
 const shQuote = (value: string): string => `'${value.replaceAll("'", `'\\''`)}'`;
@@ -58,16 +60,31 @@ export const buildInvocation = (
 /**
  * Spawn the harness agent on a prompt in a workspace, capture the
  * transcript, and enforce the per-case timeout (harness spec,
- * "Transcript capture").
+ * "Transcript capture"). With a sandbox, the invocation is built
+ * against container paths and wrapped in `docker run`; the last
+ * message is still read from the host side of the scratch mount.
  */
 export const runHarness = async (
   harness: ResolvedHarness,
   workspace: string,
   prompt: string,
   timeoutSeconds: number,
+  sandbox?: SandboxConfig | null,
 ): Promise<HarnessRun> => {
   const scratchDir = mkdtempSync(join(tmpdir(), "skillet-run-"));
-  const invocation = buildInvocation(harness, workspace, prompt, scratchDir);
+  let invocation: Invocation;
+  if (sandbox != null) {
+    const inner = buildInvocation(harness, CONTAINER_WORKSPACE, prompt, CONTAINER_SCRATCH);
+    const wrapped = dockerize(inner, workspace, scratchDir, sandbox);
+    invocation = {
+      ...wrapped,
+      ...(inner.lastMessageFile != null && {
+        lastMessageFile: join(scratchDir, "last-message.txt"),
+      }),
+    };
+  } else {
+    invocation = buildInvocation(harness, workspace, prompt, scratchDir);
+  }
   const started = Date.now();
 
   try {

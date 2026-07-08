@@ -60,3 +60,12 @@
 - [x] 8.1 Rewrite README around the new model (7 commands, spec.md grammar, eval format, harness config, baseline metric)
 - [x] 8.2 Replace LIFECYCLE.md with the new artifact flow; update AGENTS.md; delete stale policy docs that describe deleted machinery
 - [x] 8.3 Major version bump, CHANGELOG entry describing the breaking redesign and migration path
+
+## 9. Container sandbox mode (opt-in)
+
+- [x] 9.1 Sandbox config in .skillet.yaml (enabled, image, mount_auth, network, env) with validation, plus `skillet eval --sandbox docker|none` override
+- [x] 9.2 Invocation wrapping: build harness argv against container paths (/workspace, /scratch), wrap in `docker run` with workspace/scratch/auth mounts, optional --network none, env passthrough; judges wrapped identically
+- [x] 9.3 Fail fast when docker or the image is missing; preflight the harness binary inside the image
+- [x] 9.4 Unit tests for config resolution and docker argv construction (offline, no docker)
+- [x] 9.5 Live smoke: run one example case through --sandbox docker with the codex harness; document the macOS claude-auth caveat (Keychain credentials don't mount)
+- [x] 9.6 Docs: README sandbox section with a shippable Dockerfile recipe; LIFECYCLE note

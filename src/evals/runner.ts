@@ -1,4 +1,5 @@
 import { runJudge } from "../harness/judge.js";
+import type { SandboxConfig } from "../harness/sandbox.js";
 import { installSkill } from "../harness/install.js";
 import { runHarness } from "../harness/run.js";
 import type { ResolvedHarness } from "../harness/types.js";
@@ -13,6 +14,8 @@ export interface RunOptions {
   harness: ResolvedHarness;
   /** Overrides each case's own trials when set (--trials). */
   trials?: number;
+  /** Non-null wraps every harness invocation in a container. */
+  sandbox?: SandboxConfig | null;
   baseline?: boolean;
   keepWorkspaces?: boolean;
   onProgress?: (message: string) => void;
@@ -53,7 +56,13 @@ const runTrial = async (
     : { cleanup: (): void => {} };
 
   try {
-    const run = await runHarness(opts.harness, workspace.dir, evalCase.prompt, evalCase.timeout);
+    const run = await runHarness(
+      opts.harness,
+      workspace.dir,
+      evalCase.prompt,
+      evalCase.timeout,
+      opts.sandbox,
+    );
     if (run.timedOut) {
       return {
         status: "error",
@@ -82,6 +91,7 @@ const runTrial = async (
         evalCase.prompt,
         run.transcript,
         workspace.dir,
+        opts.sandbox,
       );
       checkResults.push({
         kind: "judge",

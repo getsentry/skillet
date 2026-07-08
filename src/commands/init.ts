@@ -25,6 +25,12 @@ const CONFIG_TEMPLATE = `# skillet configuration — see 'skillet eval --help'
 #   name: my-agent
 #   command: "my-agent run --dir {workspace} {prompt}"
 #   skill_dir: "{workspace}/.my-agent/skills"
+#
+# Containerize harness runs (for untrusted skills / CI):
+# sandbox:
+#   enabled: true        # or opt in per run: skillet eval --sandbox docker
+#   image: skillet-eval  # build recipe: sandbox/Dockerfile in the skillet repo
+#   network: true
 `;
 
 /** `skillet init` — scaffold .skillet.yaml and per-tool workflow files. */
