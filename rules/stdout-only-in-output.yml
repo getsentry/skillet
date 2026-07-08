@@ -1,0 +1,16 @@
+# The --json contract: stdout carries exactly one JSON object; all
+# prose goes to stderr. Only src/output.ts may touch stdout — a stray
+# console.log anywhere else corrupts every machine consumer.
+id: stdout-only-in-output
+language: typescript
+severity: error
+files:
+  - src/**/*.ts
+ignores:
+  - src/output.ts
+  - src/**/*.test.ts
+rule:
+  any:
+    - pattern: console.$METHOD($$$ARGS)
+    - pattern: process.stdout.write($$$ARGS)
+message: stdout/console is reserved for src/output.ts (JSON-purity invariant). Use print/info/fail/emitJson.

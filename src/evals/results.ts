@@ -1,4 +1,4 @@
-import { type CheckResult } from "./checks.js";
+import type { CheckResult } from "./checks.js";
 
 export type TrialStatus = "pass" | "fail" | "error";
 

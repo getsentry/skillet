@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { installSkill } from "./install.js";
 import { runJudge } from "./judge.js";
-import { type ResolvedHarness } from "./types.js";
+import type { ResolvedHarness } from "./types.js";
 
 const dirs: string[] = [];
 const tempDir = (prefix: string): string => {

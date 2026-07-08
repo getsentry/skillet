@@ -1,0 +1,19 @@
+# Template strings inside subprocess argv are how shell injection
+# happens (user-controlled config flowed into `sh -c` once already).
+# Pass values as separate argv entries ("$1" + positional arg) or
+# through shQuote for custom-harness templates.
+id: no-shell-interpolation
+language: typescript
+severity: error
+files:
+  - src/**/*.ts
+ignores:
+  - src/**/*.test.ts
+rule:
+  any:
+    - pattern: execFileSync($$$ARGS)
+    - pattern: spawn($$$ARGS)
+  has:
+    kind: template_string
+    stopBy: end
+message: No template strings in subprocess arguments — pass values as separate argv entries or shQuote them.

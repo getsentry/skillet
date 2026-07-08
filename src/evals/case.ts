@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import { parse as parseYaml } from "yaml";
-import { type Issue } from "../spec/types.js";
+import type { Issue } from "../spec/types.js";
 
 export const CHECK_KINDS = ["file_exists", "shell", "judge"] as const;
 export type CheckKind = (typeof CHECK_KINDS)[number];

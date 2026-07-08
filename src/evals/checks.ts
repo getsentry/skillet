@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { type Check } from "./case.js";
+import type { Check } from "./case.js";
 
 export type CheckStatus = "pass" | "fail" | "skipped" | "error";
 

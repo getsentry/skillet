@@ -9,10 +9,11 @@
   "scripts": {
     "build": "node build.js",
     "prepublishOnly": "npm run build",
+    "prepare": "git config core.hooksPath .githooks",
     "dev": "node build.js --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "lint": "oxlint --deny-warnings src/",
+    "lint": "oxlint --deny-warnings src/ && ast-grep scan src/",
     "lint:fix": "oxlint --deny-warnings --fix src/",
     "format": "oxfmt --check src/",
     "format:fix": "oxfmt src/",
@@ -22,6 +23,7 @@
     "yaml": "^2.7.0"
   },
   "devDependencies": {
+    "@ast-grep/cli": "^0.44.1",
     "@types/node": "^22.15.0",
     "esbuild": "^0.25.0",
     "oxfmt": "^0.46.0",

@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import { basename, join } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { HarnessConfigError, findConfig } from "./config.js";
-import { type ResolvedHarness } from "./types.js";
+import type { ResolvedHarness } from "./types.js";
 
 /** Paths inside the container; the host workspace/scratch mount here. */
 export const CONTAINER_WORKSPACE = "/workspace";
@@ -120,14 +120,17 @@ export const dockerize = (
  */
 export const assertSandboxAvailable = (sandbox: SandboxConfig, harness: ResolvedHarness): void => {
   try {
-    execFileSync("sh", ["-c", "command -v docker"], { stdio: "ignore" });
+    execFileSync("sh", ["-c", "command -v docker"], { stdio: "ignore", timeout: 10_000 });
   } catch {
     throw new HarnessConfigError(
       "sandbox mode needs docker on PATH — install Docker or run without --sandbox",
     );
   }
   try {
-    execFileSync("docker", ["image", "inspect", sandbox.image], { stdio: "ignore" });
+    execFileSync("docker", ["image", "inspect", sandbox.image], {
+      stdio: "ignore",
+      timeout: 30_000,
+    });
   } catch {
     throw new HarnessConfigError(
       `sandbox image "${sandbox.image}" not found — build it (see README "Sandboxed evals") or set sandbox.image in .skillet.yaml`,
@@ -136,7 +139,7 @@ export const assertSandboxAvailable = (sandbox: SandboxConfig, harness: Resolved
   try {
     execFileSync(
       "docker",
-      ["run", "--rm", sandbox.image, "sh", "-c", `command -v ${harness.binary}`],
+      ["run", "--rm", sandbox.image, "sh", "-c", 'command -v "$1"', "sh", harness.binary],
       {
         stdio: "ignore",
         timeout: 60_000,

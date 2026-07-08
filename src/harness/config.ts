@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { parse as parseYaml } from "yaml";
-import { type ResolvedHarness } from "./types.js";
+import type { ResolvedHarness } from "./types.js";
 
 export const CONFIG_FILE = ".skillet.yaml";
 
@@ -113,7 +113,10 @@ export const resolveHarness = (skillRoot: string, flag?: string): ResolvedHarnes
 /** Fail fast when the harness executable is missing (harness spec). */
 export const assertBinaryAvailable = (harness: ResolvedHarness): void => {
   try {
-    execFileSync("sh", ["-c", `command -v ${harness.binary}`], { stdio: "ignore" });
+    execFileSync("sh", ["-c", 'command -v "$1"', "sh", harness.binary], {
+      stdio: "ignore",
+      timeout: 10_000,
+    });
   } catch {
     throw new HarnessConfigError(
       `harness "${harness.name}" needs "${harness.binary}" on PATH — install it or switch harnesses (--harness, or "harness:" in ${CONFIG_FILE})`,

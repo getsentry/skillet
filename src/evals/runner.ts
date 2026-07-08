@@ -1,11 +1,11 @@
 import { runJudge } from "../harness/judge.js";
-import { type SandboxConfig } from "../harness/sandbox.js";
+import type { SandboxConfig } from "../harness/sandbox.js";
 import { installSkill } from "../harness/install.js";
 import { runHarness } from "../harness/run.js";
-import { type ResolvedHarness } from "../harness/types.js";
-import { type EvalCase } from "./case.js";
+import type { ResolvedHarness } from "../harness/types.js";
+import type { EvalCase } from "./case.js";
 import { type CheckResult, runDeterministicCheck } from "./checks.js";
-import { type CaseResult, type TrialResult, type TrialStatus } from "./results.js";
+import type { CaseResult, TrialResult, TrialStatus } from "./results.js";
 import { SetupError, createWorkspace } from "./workspace.js";
 
 export interface RunOptions {

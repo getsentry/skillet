@@ -1,0 +1,11 @@
+# Exit flows through `process.exitCode = await main()` in cli.ts so
+# finally-blocks and stream flushes always run. process.exit() would
+# skip both.
+id: no-process-exit
+language: typescript
+severity: error
+files:
+  - src/**/*.ts
+rule:
+  pattern: process.exit($$$ARGS)
+message: Set process.exitCode (via command return values) instead of calling process.exit.

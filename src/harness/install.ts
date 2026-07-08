@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { basename, join, relative, sep } from "node:path";
 import { parseFrontmatter } from "../skill/frontmatter.js";
 import { slugify } from "../spec/slug.js";
-import { type ResolvedHarness } from "./types.js";
+import type { ResolvedHarness } from "./types.js";
 
 export interface Installation {
   /** Directories to remove when the trial finishes (outside the workspace). */

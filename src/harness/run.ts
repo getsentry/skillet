@@ -8,7 +8,7 @@ import {
   dockerize,
   type SandboxConfig,
 } from "./sandbox.js";
-import { type HarnessRun, type ResolvedHarness } from "./types.js";
+import type { HarnessRun, ResolvedHarness } from "./types.js";
 
 const shQuote = (value: string): string => `'${value.replaceAll("'", `'\\''`)}'`;
 

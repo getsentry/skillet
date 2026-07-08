@@ -4,7 +4,7 @@ import { checkCoverage } from "./coverage.js";
 import { listFixtures, loadCases, type EvalCase } from "./evals/case.js";
 import { parseFrontmatter } from "./skill/frontmatter.js";
 import { parseSpec } from "./spec/parser.js";
-import { type ParsedSpec, type Issue } from "./spec/types.js";
+import type { ParsedSpec, Issue } from "./spec/types.js";
 
 export interface ValidationReport {
   ok: boolean;

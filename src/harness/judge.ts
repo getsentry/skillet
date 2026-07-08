@@ -3,8 +3,8 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } 
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { runHarness } from "./run.js";
-import { type SandboxConfig } from "./sandbox.js";
-import { type ResolvedHarness } from "./types.js";
+import type { SandboxConfig } from "./sandbox.js";
+import type { ResolvedHarness } from "./types.js";
 
 export interface JudgeVerdict {
   status: "pass" | "fail" | "error";

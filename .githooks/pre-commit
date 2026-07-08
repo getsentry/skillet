@@ -1,0 +1,4 @@
+#!/bin/sh
+# Canonical gate: typecheck + oxlint(+ast-grep) + format + tests.
+# Installed via `npm install` (prepare -> core.hooksPath .githooks).
+npm run check

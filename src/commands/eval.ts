@@ -1,7 +1,7 @@
 import { parseArgs } from "node:util";
 import { assertBinaryAvailable, HarnessConfigError, resolveHarness } from "../harness/config.js";
 import { assertSandboxAvailable, resolveSandbox, type SandboxConfig } from "../harness/sandbox.js";
-import { type ResolvedHarness } from "../harness/types.js";
+import type { ResolvedHarness } from "../harness/types.js";
 import { emitJson, fail, info, print } from "../output.js";
 import { passRate, summarizeByBehavior, type CaseResult } from "../evals/results.js";
 import { runCases } from "../evals/runner.js";

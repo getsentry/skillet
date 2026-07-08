@@ -1,0 +1,20 @@
+# A subprocess without a timeout can hang an eval run forever (a
+# wedged docker daemon did exactly this in review). Every execFileSync
+# must bound its runtime; spawn is exempt because run.ts owns its own
+# timeout/kill machinery.
+id: subprocess-needs-timeout
+language: typescript
+severity: error
+files:
+  - src/**/*.ts
+ignores:
+  - src/**/*.test.ts
+rule:
+  pattern: execFileSync($$$ARGS)
+  not:
+    has:
+      pattern:
+        context: "({ timeout: $T })"
+        selector: pair
+      stopBy: end
+message: execFileSync must pass a timeout option — unbounded subprocesses hang eval runs.

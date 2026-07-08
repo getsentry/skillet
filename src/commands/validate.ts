@@ -1,6 +1,6 @@
 import { parseArgs } from "node:util";
 import { emitJson, info, print } from "../output.js";
-import { type Issue } from "../spec/types.js";
+import type { Issue } from "../spec/types.js";
 import { validateSkill } from "../validate.js";
 import { resolveSkillRoot } from "./shared.js";
 
