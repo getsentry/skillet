@@ -1,12 +1,11 @@
 import { runJudge } from "../harness/judge.js";
-import type { SandboxConfig } from "../harness/sandbox.js";
+import { type SandboxConfig } from "../harness/sandbox.js";
 import { installSkill } from "../harness/install.js";
 import { runHarness } from "../harness/run.js";
-import type { ResolvedHarness } from "../harness/types.js";
-import type { EvalCase } from "./case.js";
-import type { CheckResult } from "./checks.js";
-import { runDeterministicCheck } from "./checks.js";
-import type { CaseResult, TrialResult } from "./results.js";
+import { type ResolvedHarness } from "../harness/types.js";
+import { type EvalCase } from "./case.js";
+import { type CheckResult, runDeterministicCheck } from "./checks.js";
+import { type CaseResult, type TrialResult, type TrialStatus } from "./results.js";
 import { SetupError, createWorkspace } from "./workspace.js";
 
 export interface RunOptions {
@@ -46,9 +45,9 @@ const runTrial = async (
       ...(evalCase.fixture != null && { fixture: evalCase.fixture }),
       ...(evalCase.setup != null && { setup: evalCase.setup }),
     });
-  } catch (err) {
-    if (err instanceof SetupError) return errorTrial(err.message);
-    throw err;
+  } catch (error) {
+    if (error instanceof SetupError) return errorTrial(error.message);
+    throw error;
   }
 
   const installation = withSkill
@@ -103,14 +102,17 @@ const runTrial = async (
 
     const hasError = checkResults.some((c) => c.status === "error");
     const allPass = checkResults.every((c) => c.status === "pass");
+    let status: TrialStatus = "fail";
+    if (hasError) status = "error";
+    else if (allPass) status = "pass";
     return {
-      status: hasError ? "error" : allPass ? "pass" : "fail",
+      status,
       checks: checkResults,
       transcript: run.transcript,
       durationMs: run.durationMs,
     };
-  } catch (err) {
-    return errorTrial(err instanceof Error ? err.message : String(err));
+  } catch (error) {
+    return errorTrial(error instanceof Error ? error.message : String(error));
   } finally {
     installation.cleanup();
     if (opts.keepWorkspaces === true) {

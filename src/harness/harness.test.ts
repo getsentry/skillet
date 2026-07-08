@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { HarnessConfigError, resolveHarness, resolveHarnessValue } from "./config.js";
 import { buildJudgePrompt, describeWorkspace, parseVerdict } from "./judge.js";
 import { buildInvocation, runHarness } from "./run.js";
-import type { ResolvedHarness } from "./types.js";
+import { type ResolvedHarness } from "./types.js";
 
 const dirs: string[] = [];
 const tempDir = (prefix: string): string => {

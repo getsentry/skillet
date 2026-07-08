@@ -15,7 +15,7 @@ const mark = (present: boolean, stale?: boolean): string => {
 };
 
 /** `skillet status` — artifact state and next step, derived from disk. */
-export const run = async (argv: string[]): Promise<number> => {
+export const run = (argv: string[]): number => {
   const { values, positionals } = parseArgs({
     args: argv,
     options: {

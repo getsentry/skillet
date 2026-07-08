@@ -2,11 +2,16 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { parse as parseYaml } from "yaml";
-import type { ResolvedHarness } from "./types.js";
+import { type ResolvedHarness } from "./types.js";
 
 export const CONFIG_FILE = ".skillet.yaml";
 
-export class HarnessConfigError extends Error {}
+export class HarnessConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "HarnessConfigError";
+  }
+}
 
 const CODEX: ResolvedHarness = { name: "codex", kind: "codex", binary: "codex" };
 const CLAUDE: ResolvedHarness = { name: "claude", kind: "claude", binary: "claude" };
@@ -92,10 +97,10 @@ export const resolveHarness = (skillRoot: string, flag?: string): ResolvedHarnes
   if (configPath != null) {
     let parsed: unknown;
     try {
-      parsed = parseYaml(readFileSync(configPath, "utf-8"));
-    } catch (err) {
+      parsed = parseYaml(readFileSync(configPath, "utf8"));
+    } catch (error) {
       throw new HarnessConfigError(
-        `${configPath} is not valid YAML: ${err instanceof Error ? err.message.split("\n")[0] : String(err)}`,
+        `${configPath} is not valid YAML: ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`,
       );
     }
     if (isRecord(parsed) && parsed["harness"] != null) {

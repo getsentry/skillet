@@ -2,9 +2,13 @@ import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { CONTAINER_SCRATCH, CONTAINER_WORKSPACE, dockerize } from "./sandbox.js";
-import type { SandboxConfig } from "./sandbox.js";
-import type { HarnessRun, ResolvedHarness } from "./types.js";
+import {
+  CONTAINER_SCRATCH,
+  CONTAINER_WORKSPACE,
+  dockerize,
+  type SandboxConfig,
+} from "./sandbox.js";
+import { type HarnessRun, type ResolvedHarness } from "./types.js";
 
 const shQuote = (value: string): string => `'${value.replaceAll("'", `'\\''`)}'`;
 
@@ -145,7 +149,7 @@ export const runHarness = async (
       child.on("exit", (code) => {
         setTimeout(() => {
           settle(code);
-        }, 1_000).unref();
+        }, 1000).unref();
       });
     });
 
@@ -155,7 +159,7 @@ export const runHarness = async (
     let lastMessage = result.out.trim();
     if (invocation.lastMessageFile != null) {
       try {
-        lastMessage = readFileSync(invocation.lastMessageFile, "utf-8").trim();
+        lastMessage = readFileSync(invocation.lastMessageFile, "utf8").trim();
       } catch {
         // agent died before writing the file — fall back to stdout
       }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { checkCoverage } from "./coverage.js";
-import type { ParsedSpec } from "./spec/types.js";
+import { type ParsedSpec } from "./spec/types.js";
 
 const spec: ParsedSpec = {
   name: "S",

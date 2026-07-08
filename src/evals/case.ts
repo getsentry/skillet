@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import { parse as parseYaml } from "yaml";
-import type { Issue } from "../spec/types.js";
+import { type Issue } from "../spec/types.js";
 
 export const CHECK_KINDS = ["file_exists", "shell", "judge"] as const;
 export type CheckKind = (typeof CHECK_KINDS)[number];
@@ -74,8 +74,10 @@ export const parseCase = (
   let data: unknown;
   try {
     data = parseYaml(content);
-  } catch (err) {
-    error(`invalid YAML — ${err instanceof Error ? err.message.split("\n")[0] : String(err)}`);
+  } catch (cause) {
+    error(
+      `invalid YAML — ${cause instanceof Error ? cause.message.split("\n")[0] : String(cause)}`,
+    );
     return { evalCase: null, issues };
   }
   if (!isRecord(data)) {
@@ -202,7 +204,7 @@ export const loadCases = (skillRoot: string): CaseLoadResult => {
   }
   for (const entry of entries) {
     const rel = join("evals", "cases", entry);
-    const parsed = parseCase(rel, readFileSync(join(casesDir, entry), "utf-8"));
+    const parsed = parseCase(rel, readFileSync(join(casesDir, entry), "utf8"));
     issues.push(...parsed.issues);
     if (parsed.evalCase != null) cases.push(parsed.evalCase);
   }

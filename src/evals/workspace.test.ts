@@ -37,7 +37,7 @@ describe("createWorkspace", () => {
       setup: "cat file.txt > copied.txt",
     });
     dirs.push(ws.dir);
-    expect(readFileSync(join(ws.dir, "copied.txt"), "utf-8")).toBe("hello");
+    expect(readFileSync(join(ws.dir, "copied.txt"), "utf8")).toBe("hello");
   });
 
   it("never materializes the setup script inside the workspace", () => {
@@ -47,7 +47,7 @@ describe("createWorkspace", () => {
       setup: "git init -q . && git add -A && ls -a > listing.txt",
     });
     dirs.push(ws.dir);
-    const listing = readFileSync(join(ws.dir, "listing.txt"), "utf-8");
+    const listing = readFileSync(join(ws.dir, "listing.txt"), "utf8");
     expect(listing).not.toContain("setup.sh");
     const staged = execFileSync("git", ["status", "--porcelain"], { cwd: ws.dir }).toString();
     expect(staged).not.toContain("setup.sh");
@@ -61,12 +61,12 @@ describe("createWorkspace", () => {
     expect(() => {
       try {
         createWorkspace({ skillRoot: root, setup: `pwd > "${probe}"; exit 3` });
-      } catch (err) {
-        expect(err).toBeInstanceOf(SetupError);
-        throw err;
+      } catch (error) {
+        expect(error).toBeInstanceOf(SetupError);
+        throw error;
       }
     }).toThrow(/setup script failed/);
-    const workspaceDir = readFileSync(probe, "utf-8").trim();
+    const workspaceDir = readFileSync(probe, "utf8").trim();
     expect(workspaceDir).not.toBe("");
     expect(existsSync(workspaceDir)).toBe(false);
   });

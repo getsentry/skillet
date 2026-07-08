@@ -1,11 +1,9 @@
 import { parseArgs } from "node:util";
 import { assertBinaryAvailable, HarnessConfigError, resolveHarness } from "../harness/config.js";
-import { assertSandboxAvailable, resolveSandbox } from "../harness/sandbox.js";
-import type { SandboxConfig } from "../harness/sandbox.js";
-import type { ResolvedHarness } from "../harness/types.js";
+import { assertSandboxAvailable, resolveSandbox, type SandboxConfig } from "../harness/sandbox.js";
+import { type ResolvedHarness } from "../harness/types.js";
 import { emitJson, fail, info, print } from "../output.js";
-import { passRate, summarizeByBehavior } from "../evals/results.js";
-import type { CaseResult } from "../evals/results.js";
+import { passRate, summarizeByBehavior, type CaseResult } from "../evals/results.js";
 import { runCases } from "../evals/runner.js";
 import { validateSkill } from "../validate.js";
 import { resolveSkillRoot } from "./shared.js";
@@ -108,9 +106,9 @@ export const run = async (argv: string[]): Promise<number> => {
     } else {
       assertBinaryAvailable(harness);
     }
-  } catch (err) {
-    if (err instanceof HarnessConfigError) return fail(err.message);
-    throw err;
+  } catch (error) {
+    if (error instanceof HarnessConfigError) return fail(error.message);
+    throw error;
   }
 
   info(
@@ -158,8 +156,7 @@ export const run = async (argv: string[]): Promise<number> => {
   }
   print(``);
   print(
-    `${summary.passed}/${summary.trials} trials passed via ${summary.harness}` +
-      (summary.errored > 0 ? ` (${summary.errored} errored)` : ""),
+    `${summary.passed}/${summary.trials} trials passed via ${summary.harness}${summary.errored > 0 ? ` (${summary.errored} errored)` : ""}`,
   );
   return ok ? 0 : 1;
 };

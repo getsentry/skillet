@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import { basename, join } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { HarnessConfigError, findConfig } from "./config.js";
-import type { ResolvedHarness } from "./types.js";
+import { type ResolvedHarness } from "./types.js";
 
 /** Paths inside the container; the host workspace/scratch mount here. */
 export const CONTAINER_WORKSPACE = "/workspace";
@@ -51,7 +51,7 @@ export const resolveSandbox = (skillRoot: string, flag?: string): SandboxConfig 
   let block: Record<string, unknown> = {};
   const configPath = findConfig(skillRoot);
   if (configPath != null) {
-    const parsed: unknown = parseYaml(readFileSync(configPath, "utf-8"));
+    const parsed: unknown = parseYaml(readFileSync(configPath, "utf8"));
     if (isRecord(parsed) && isRecord(parsed["sandbox"])) {
       block = parsed["sandbox"];
     }

@@ -1,6 +1,5 @@
 import { parseArgs } from "node:util";
-import { instructionsFor } from "../instructions/content.js";
-import type { ArtifactId } from "../instructions/content.js";
+import { instructionsFor, type ArtifactId } from "../instructions/content.js";
 import { emitJson, fail, info, print } from "../output.js";
 import { skillStatus } from "../status.js";
 import { resolveSkillRoot } from "./shared.js";
@@ -16,7 +15,7 @@ call it instead of embedding guidance.
 const ARTIFACTS: ArtifactId[] = ["spec", "skill", "evals"];
 
 /** `skillet instructions` — serve one artifact's template and rules. */
-export const run = async (argv: string[]): Promise<number> => {
+export const run = (argv: string[]): number => {
   const { values, positionals } = parseArgs({
     args: argv,
     options: {

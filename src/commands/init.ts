@@ -1,11 +1,9 @@
 import { existsSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { join } from "node:path";
+import { resolve, join } from "node:path";
 import { parseArgs } from "node:util";
 import { emitJson, fail, info } from "../output.js";
 import { CONFIG_FILE } from "../harness/config.js";
-import { SUPPORTED_TOOLS, generateTool } from "../integration/generators.js";
-import type { ToolId } from "../integration/generators.js";
+import { SUPPORTED_TOOLS, generateTool, type ToolId } from "../integration/generators.js";
 import { VERSION } from "../version.js";
 
 const HELP = `Usage: skillet init [path] [--tools <ids|all|none>] [--force] [--json]
@@ -34,7 +32,7 @@ const CONFIG_TEMPLATE = `# skillet configuration — see 'skillet eval --help'
 `;
 
 /** `skillet init` — scaffold .skillet.yaml and per-tool workflow files. */
-export const run = async (argv: string[]): Promise<number> => {
+export const run = (argv: string[]): number => {
   const { values, positionals } = parseArgs({
     args: argv,
     options: {

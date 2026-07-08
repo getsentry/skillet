@@ -3,8 +3,7 @@ import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { HarnessConfigError } from "./config.js";
-import { dockerize, resolveSandbox } from "./sandbox.js";
-import type { SandboxConfig } from "./sandbox.js";
+import { dockerize, resolveSandbox, type SandboxConfig } from "./sandbox.js";
 
 const dirs: string[] = [];
 const tempDir = (): string => {
@@ -76,9 +75,7 @@ describe("dockerize", () => {
     expect(joined).toContain("-v /home/u/.claude.json:/root/.claude.json");
     expect(joined).toContain("-e ANTHROPIC_API_KEY");
     expect(joined).not.toContain("--network");
-    expect(wrapped.args.slice(-5)).toEqual(
-      ["img", "codex", "exec", "-C", "/workspace"].concat(["p"]).slice(-5),
-    );
+    expect(wrapped.args.slice(-6)).toEqual(["img", "codex", "exec", "-C", "/workspace", "p"]);
   });
 
   it("disables networking when configured", () => {

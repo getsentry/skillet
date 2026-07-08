@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { Check } from "./case.js";
+import { type Check } from "./case.js";
 
 export type CheckStatus = "pass" | "fail" | "skipped" | "error";
 
@@ -39,20 +39,22 @@ export const runDeterministicCheck = (check: Check, workspace: string): CheckRes
         timeout: SHELL_CHECK_TIMEOUT_MS,
       });
       return { kind: check.kind, value: check.value, status: "pass" };
-    } catch (err) {
+    } catch (error) {
       const parts: string[] = [];
-      if (err != null && typeof err === "object") {
-        if ("status" in err && typeof err.status === "number") parts.push(`exit ${err.status}`);
-        if ("stdout" in err && err.stdout instanceof Buffer) {
-          const text = err.stdout.toString().trim();
+      if (error != null && typeof error === "object") {
+        if ("status" in error && typeof error.status === "number") {
+          parts.push(`exit ${error.status}`);
+        }
+        if ("stdout" in error && error.stdout instanceof Buffer) {
+          const text = error.stdout.toString().trim();
           if (text !== "") parts.push(text);
         }
-        if ("stderr" in err && err.stderr instanceof Buffer) {
-          const text = err.stderr.toString().trim();
+        if ("stderr" in error && error.stderr instanceof Buffer) {
+          const text = error.stderr.toString().trim();
           if (text !== "") parts.push(text);
         }
       }
-      if (parts.length === 0) parts.push(String(err));
+      if (parts.length === 0) parts.push(String(error));
       return {
         kind: check.kind,
         value: check.value,

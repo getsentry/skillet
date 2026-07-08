@@ -3,8 +3,8 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } 
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { runHarness } from "./run.js";
-import type { SandboxConfig } from "./sandbox.js";
-import type { ResolvedHarness } from "./types.js";
+import { type SandboxConfig } from "./sandbox.js";
+import { type ResolvedHarness } from "./types.js";
 
 export interface JudgeVerdict {
   status: "pass" | "fail" | "error";
@@ -13,7 +13,7 @@ export interface JudgeVerdict {
 
 export const JUDGE_TIMEOUT_SECONDS = 120;
 
-const MAX_FILE_BYTES = 4_000;
+const MAX_FILE_BYTES = 4000;
 const MAX_TOTAL_BYTES = 32_000;
 const SKIPPED_DIRS = new Set([".git", "node_modules", ".claude", ".skillet"]);
 
@@ -23,20 +23,20 @@ const gitSummary = (workspace: string): string | null => {
     const log = execFileSync("git", ["log", "--all", "--format=%d %s", "--stat", "-5"], {
       cwd: workspace,
       stdio: ["ignore", "pipe", "pipe"],
-      timeout: 5_000,
+      timeout: 5000,
     })
       .toString()
       .trim();
     const status = execFileSync("git", ["status", "--porcelain", "-b"], {
       cwd: workspace,
       stdio: ["ignore", "pipe", "pipe"],
-      timeout: 5_000,
+      timeout: 5000,
     })
       .toString()
       .trim();
     return `--- git status ---\n${status}\n--- git log (last 5, all branches) ---\n${log}`.slice(
       0,
-      6_000,
+      6000,
     );
   } catch {
     return null;
@@ -82,7 +82,7 @@ export const describeWorkspace = (workspace: string): string => {
       }
       let content: string;
       try {
-        content = readFileSync(full, "utf-8");
+        content = readFileSync(full, "utf8");
       } catch {
         sections.push(`--- ${rel} (unreadable, ${stat.size} bytes) ---`);
         continue;
@@ -161,16 +161,16 @@ export const runJudge = async (
       lastOutput = run.lastMessage !== "" ? run.lastMessage : run.transcript;
       const verdict = parseVerdict(lastOutput);
       if (verdict != null) {
-        return { status: verdict, reasoning: lastOutput.slice(0, 2_000) };
+        return { status: verdict, reasoning: lastOutput.slice(0, 2000) };
       }
-    } catch (err) {
-      lastOutput = err instanceof Error ? err.message : String(err);
+    } catch (error) {
+      lastOutput = error instanceof Error ? error.message : String(error);
     } finally {
       rmSync(judgeDir, { recursive: true, force: true });
     }
   }
   return {
     status: "error",
-    reasoning: `judge output had no VERDICT line after retry: ${lastOutput.slice(0, 1_000)}`,
+    reasoning: `judge output had no VERDICT line after retry: ${lastOutput.slice(0, 1000)}`,
   };
 };

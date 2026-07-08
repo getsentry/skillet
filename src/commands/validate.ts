@@ -1,6 +1,6 @@
 import { parseArgs } from "node:util";
 import { emitJson, info, print } from "../output.js";
-import type { Issue } from "../spec/types.js";
+import { type Issue } from "../spec/types.js";
 import { validateSkill } from "../validate.js";
 import { resolveSkillRoot } from "./shared.js";
 
@@ -27,7 +27,7 @@ const printIssues = (label: string, issues: Issue[]): void => {
 };
 
 /** `skillet validate` — the full structural report, exit 1 on errors. */
-export const run = async (argv: string[]): Promise<number> => {
+export const run = (argv: string[]): number => {
   const { values, positionals } = parseArgs({
     args: argv,
     options: {

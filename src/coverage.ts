@@ -1,4 +1,4 @@
-import type { ParsedSpec, Issue } from "./spec/types.js";
+import { type ParsedSpec, type Issue } from "./spec/types.js";
 
 /** The slice of an eval case that coverage checking needs. */
 export interface CaseRef {

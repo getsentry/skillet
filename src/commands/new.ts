@@ -1,6 +1,5 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { basename, resolve } from "node:path";
-import { join } from "node:path";
+import { basename, resolve, join } from "node:path";
 import { parseArgs } from "node:util";
 import { emitJson, fail, info } from "../output.js";
 import { slugify } from "../spec/slug.js";
@@ -20,7 +19,7 @@ const titleCase = (slug: string): string => {
 };
 
 /** `skillet new` — scaffold a skill directory around a fresh spec.md. */
-export const run = async (argv: string[]): Promise<number> => {
+export const run = (argv: string[]): number => {
   const { values, positionals } = parseArgs({
     args: argv,
     options: {

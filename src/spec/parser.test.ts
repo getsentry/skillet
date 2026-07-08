@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseSpec } from "./parser.js";
 import { specTemplate } from "./template.js";
-import type { Issue } from "./types.js";
+import { type Issue } from "./types.js";
 
 const VALID = `# Commit Helper
 

@@ -34,7 +34,9 @@ const REMOVED_COMMANDS: Record<string, string> = {
   install: "'skillet init --tools <ids>' generates agent integrations",
 };
 
-type CommandModule = { run: (argv: string[]) => Promise<number> };
+interface CommandModule {
+  run: (argv: string[]) => number | Promise<number>;
+}
 
 const COMMANDS: Record<string, () => Promise<CommandModule>> = {
   init: () => import("./commands/init.js"),

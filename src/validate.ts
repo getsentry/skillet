@@ -1,11 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { checkCoverage } from "./coverage.js";
-import { listFixtures, loadCases } from "./evals/case.js";
-import type { EvalCase } from "./evals/case.js";
+import { listFixtures, loadCases, type EvalCase } from "./evals/case.js";
 import { parseFrontmatter } from "./skill/frontmatter.js";
 import { parseSpec } from "./spec/parser.js";
-import type { ParsedSpec, Issue } from "./spec/types.js";
+import { type ParsedSpec, type Issue } from "./spec/types.js";
 
 export interface ValidationReport {
   ok: boolean;
@@ -30,7 +29,7 @@ export const validateSkillMd = (root: string): Issue[] => {
     ];
   }
   const issues: Issue[] = [];
-  const raw = readFileSync(path, "utf-8");
+  const raw = readFileSync(path, "utf8");
   const { meta } = parseFrontmatter(raw);
   if (Object.keys(meta).length === 0) {
     issues.push({
@@ -64,7 +63,7 @@ export const validateSkill = (root: string): ValidationReport => {
   let parsedSpec: ParsedSpec | null = null;
 
   if (existsSync(specPath)) {
-    const parsed = parseSpec(readFileSync(specPath, "utf-8"));
+    const parsed = parseSpec(readFileSync(specPath, "utf8"));
     specIssues.push(...parsed.issues);
     parsedSpec = parsed.spec;
   } else {

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { installSkill } from "./install.js";
 import { runJudge } from "./judge.js";
-import type { ResolvedHarness } from "./types.js";
+import { type ResolvedHarness } from "./types.js";
 
 const dirs: string[] = [];
 const tempDir = (prefix: string): string => {
@@ -34,7 +34,7 @@ describe("installSkill", () => {
     const workspace = tempDir("skillet-install-ws-");
     installSkill({ name: "claude", kind: "claude", binary: "claude" }, skill, workspace);
     const dest = join(workspace, ".claude", "skills", "demo-skill");
-    expect(readFileSync(join(dest, "SKILL.md"), "utf-8")).toContain("Body text");
+    expect(readFileSync(join(dest, "SKILL.md"), "utf8")).toContain("Body text");
     // Grading criteria must not be visible to the agent under test...
     expect(existsSync(join(dest, "evals"))).toBe(false);
     // ...but legitimate content whose name merely contains "evals" survives.
@@ -49,7 +49,7 @@ describe("installSkill", () => {
       skill,
       workspace,
     );
-    const agentsMd = readFileSync(join(workspace, "AGENTS.md"), "utf-8");
+    const agentsMd = readFileSync(join(workspace, "AGENTS.md"), "utf8");
     expect(agentsMd).toContain("Body text");
     const staged = /live at (\S+)\//.exec(agentsMd)?.[1] ?? "";
     expect(staged.startsWith(workspace)).toBe(false);

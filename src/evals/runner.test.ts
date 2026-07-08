@@ -2,10 +2,9 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { ResolvedHarness } from "../harness/types.js";
-import type { EvalCase } from "./case.js";
-import { summarizeByBehavior } from "./results.js";
-import type { TrialResult } from "./results.js";
+import { type ResolvedHarness } from "../harness/types.js";
+import { type EvalCase } from "./case.js";
+import { summarizeByBehavior, type TrialResult } from "./results.js";
 import { runCases } from "./runner.js";
 
 const dirs: string[] = [];

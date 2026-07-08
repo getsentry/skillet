@@ -5,7 +5,12 @@ import { join } from "node:path";
 
 export const SETUP_TIMEOUT_MS = 30_000;
 
-export class SetupError extends Error {}
+export class SetupError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SetupError";
+  }
+}
 
 export interface Workspace {
   dir: string;
@@ -47,16 +52,16 @@ export const createWorkspace = (opts: WorkspaceOptions): Workspace => {
           stdio: ["ignore", "pipe", "pipe"],
           timeout: SETUP_TIMEOUT_MS,
         });
-      } catch (err) {
-        const detail = err instanceof Error ? err.message : String(err);
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
         throw new SetupError(`setup script failed: ${detail.slice(0, 500)}`);
       } finally {
         rmSync(scriptDir, { recursive: true, force: true });
       }
     }
-  } catch (err) {
+  } catch (error) {
     cleanup();
-    throw err;
+    throw error;
   }
 
   return { dir, cleanup };

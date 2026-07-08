@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { basename, join, relative, sep } from "node:path";
 import { parseFrontmatter } from "../skill/frontmatter.js";
 import { slugify } from "../spec/slug.js";
-import type { ResolvedHarness } from "./types.js";
+import { type ResolvedHarness } from "./types.js";
 
 export interface Installation {
   /** Directories to remove when the trial finishes (outside the workspace). */
@@ -13,7 +13,7 @@ export interface Installation {
 const NOOP: Installation = { cleanup: () => {} };
 
 const skillSlug = (skillRoot: string): string => {
-  const raw = readFileSync(join(skillRoot, "SKILL.md"), "utf-8");
+  const raw = readFileSync(join(skillRoot, "SKILL.md"), "utf8");
   const { meta } = parseFrontmatter(raw);
   const name = typeof meta["name"] === "string" ? meta["name"] : basename(skillRoot);
   return slugify(name) || "skill";
@@ -62,7 +62,7 @@ export const installSkill = (
   if (harness.kind === "codex") {
     const staged = mkdtempSync(join(tmpdir(), "skillet-skill-"));
     copySkill(skillRoot, staged);
-    const raw = readFileSync(join(skillRoot, "SKILL.md"), "utf-8");
+    const raw = readFileSync(join(skillRoot, "SKILL.md"), "utf8");
     const { body } = parseFrontmatter(raw);
     const agentsMd = [
       "The following skill applies to all work in this directory. Follow it.",

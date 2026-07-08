@@ -9,7 +9,7 @@ Pretty-print a skill's parsed spec with its eval coverage.
 `;
 
 /** `skillet show` — human-readable view of the parsed spec and coverage. */
-export const run = async (argv: string[]): Promise<number> => {
+export const run = (argv: string[]): number => {
   const { values, positionals } = parseArgs({
     args: argv,
     options: {
