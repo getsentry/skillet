@@ -1,9 +1,11 @@
-interface BuiltinHarness {
+export interface BuiltinHarness {
   kind: "codex" | "claude";
   /** Display name, recorded in eval results. */
   name: string;
   /** Executable checked for PATH presence before any case runs. */
   binary: string;
+  /** Model override passed to the CLI (e.g. "sonnet", "gpt-5"). */
+  model?: string;
 }
 
 interface CustomHarness {

@@ -36,6 +36,7 @@ export const buildInvocation = (
         // sandbox denies .git writes, which breaks any skill that commits.
         args: [
           "exec",
+          ...(harness.model != null ? ["-m", harness.model] : []),
           "-C",
           workspace,
           "--skip-git-repo-check",
@@ -53,7 +54,12 @@ export const buildInvocation = (
     case "claude": {
       return {
         cmd: "claude",
-        args: ["-p", "--dangerously-skip-permissions", prompt],
+        args: [
+          "-p",
+          ...(harness.model != null ? ["--model", harness.model] : []),
+          "--dangerously-skip-permissions",
+          prompt,
+        ],
       };
     }
     case "custom": {

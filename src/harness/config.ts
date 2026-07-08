@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { isRecord } from "../guards.js";
-import type { ResolvedHarness } from "./types.js";
+import type { BuiltinHarness, ResolvedHarness } from "./types.js";
 
 export const CONFIG_FILE = ".skillet.yaml";
 
@@ -14,10 +14,10 @@ export class HarnessConfigError extends Error {
   }
 }
 
-const CODEX: ResolvedHarness = { name: "codex", kind: "codex", binary: "codex" };
-const CLAUDE: ResolvedHarness = { name: "claude", kind: "claude", binary: "claude" };
+const CODEX: BuiltinHarness = { name: "codex", kind: "codex", binary: "codex" };
+const CLAUDE: BuiltinHarness = { name: "claude", kind: "claude", binary: "claude" };
 
-const BUILTINS: Record<string, ResolvedHarness> = { codex: CODEX, claude: CLAUDE };
+const BUILTINS: Record<string, BuiltinHarness> = { codex: CODEX, claude: CLAUDE };
 
 /** Find the nearest .skillet.yaml walking up from `startDir`. */
 export const findConfig = (startDir: string): string | null => {
@@ -55,12 +55,23 @@ export const loadConfig = (skillRoot: string): Record<string, unknown> => {
  * "Custom harness via command template"). Accepts a builtin name or a
  * mapping with a command template.
  */
+/** "claude:sonnet" selects the claude builtin running the sonnet model. */
+const parseBuiltin = (value: string): ResolvedHarness | null => {
+  const [name, model] = value.split(":", 2);
+  const builtin = name != null ? BUILTINS[name] : undefined;
+  if (builtin == null) return null;
+  if (model != null && model !== "") {
+    return { ...builtin, name: value, model };
+  }
+  return builtin;
+};
+
 export const parseHarness = (value: unknown): ResolvedHarness => {
   if (typeof value === "string") {
-    const builtin = BUILTINS[value];
+    const builtin = parseBuiltin(value);
     if (builtin == null) {
       throw new HarnessConfigError(
-        `unknown harness "${value}" — built-ins are ${Object.keys(BUILTINS).join(", ")}; custom harnesses use a mapping with a "command" template`,
+        `unknown harness "${value}" — built-ins are ${Object.keys(BUILTINS).join(", ")} (optionally with a model, e.g. claude:sonnet); custom harnesses use a mapping with a "command" template`,
       );
     }
     return builtin;
@@ -101,10 +112,10 @@ export const parseHarness = (value: unknown): ResolvedHarness => {
  */
 export const resolveHarness = (config: Record<string, unknown>, flag?: string): ResolvedHarness => {
   if (flag != null) {
-    const builtin = BUILTINS[flag];
+    const builtin = parseBuiltin(flag);
     if (builtin == null) {
       throw new HarnessConfigError(
-        `--harness accepts ${Object.keys(BUILTINS).join(", ")}; configure custom harnesses in ${CONFIG_FILE}`,
+        `--harness accepts ${Object.keys(BUILTINS).join(", ")}, optionally with a model (claude:sonnet); configure custom harnesses in ${CONFIG_FILE}`,
       );
     }
     return builtin;

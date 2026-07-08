@@ -35,6 +35,16 @@ describe("parseHarness", () => {
     expect(() => parseHarness("cursor")).toThrow(HarnessConfigError);
   });
 
+  it("parses a model suffix on builtins", () => {
+    expect(parseHarness("claude:sonnet")).toMatchObject({
+      kind: "claude",
+      name: "claude:sonnet",
+      model: "sonnet",
+    });
+    expect(parseHarness("codex:gpt-5")).toMatchObject({ kind: "codex", model: "gpt-5" });
+    expect(() => parseHarness("cursor:fast")).toThrow(HarnessConfigError);
+  });
+
   it("resolves a custom command template", () => {
     const harness = parseHarness({
       command: "myagent run --dir {workspace} {prompt}",
@@ -87,6 +97,23 @@ describe("buildInvocation", () => {
     expect(inv.args.join(" ")).toContain("-C /ws");
     expect(inv.lastMessageFile).toBe("/scratch/last-message.txt");
     expect(inv.args.at(-1)).toBe("do things");
+  });
+
+  it("passes the model override to each builtin CLI", () => {
+    const claude = buildInvocation(
+      { name: "claude:sonnet", kind: "claude", binary: "claude", model: "sonnet" },
+      "/ws",
+      "p",
+      "/scratch",
+    );
+    expect(claude.args).toEqual(["-p", "--model", "sonnet", "--dangerously-skip-permissions", "p"]);
+    const codex = buildInvocation(
+      { name: "codex:gpt-5", kind: "codex", binary: "codex", model: "gpt-5" },
+      "/ws",
+      "p",
+      "/scratch",
+    );
+    expect(codex.args.slice(1, 3)).toEqual(["-m", "gpt-5"]);
   });
 
   it("builds claude print-mode argv", () => {
