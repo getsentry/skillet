@@ -2,14 +2,15 @@ import type { CheckResult } from "./checks.js";
 
 export type TrialStatus = "pass" | "fail" | "error";
 
-export interface TrialResult {
-  status: TrialStatus;
+interface TrialBase {
   checks: CheckResult[];
   transcript: string;
   durationMs: number;
-  /** Present when status is "error" (setup failure, timeout, spawn error). */
-  error?: string;
 }
+
+/** Errored trials always say why (setup failure, timeout, errored check). */
+export type TrialResult = TrialBase &
+  ({ status: "pass" | "fail" } | { status: "error"; error: string });
 
 export interface CaseResult {
   id: string;

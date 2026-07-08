@@ -4,8 +4,8 @@ import { installSkill } from "../harness/install.js";
 import { runHarness } from "../harness/run.js";
 import type { ResolvedHarness } from "../harness/types.js";
 import type { EvalCase } from "./case.js";
-import { type CheckResult, runDeterministicCheck } from "./checks.js";
-import type { CaseResult, TrialResult, TrialStatus } from "./results.js";
+import { type CheckResult, runCheck } from "./checks.js";
+import type { CaseResult, TrialResult } from "./results.js";
 import { SetupError, createWorkspace } from "./workspace.js";
 
 export interface RunOptions {
@@ -74,9 +74,7 @@ const runTrial = async (
 
     const deterministic = evalCase.checks.filter((c) => c.kind !== "judge");
     const judges = evalCase.checks.filter((c) => c.kind === "judge");
-    const checkResults: CheckResult[] = deterministic.map((c) =>
-      runDeterministicCheck(c, workspace.dir),
-    );
+    const checkResults: CheckResult[] = deterministic.map((c) => runCheck(c, workspace.dir));
     const deterministicFailed = checkResults.some((c) => c.status !== "pass");
 
     for (const judgeCheck of judges) {
@@ -92,21 +90,35 @@ const runTrial = async (
         workspace.dir,
         opts.sandbox,
       );
-      checkResults.push({
-        kind: "judge",
-        value: judgeCheck.value,
-        status: verdict.status,
-        output: verdict.reasoning,
-      });
+      if (verdict.status === "pass") {
+        checkResults.push({
+          kind: "judge",
+          value: judgeCheck.value,
+          status: "pass",
+          output: verdict.reasoning,
+        });
+      } else {
+        checkResults.push({
+          kind: "judge",
+          value: judgeCheck.value,
+          status: verdict.status,
+          output: verdict.reasoning,
+        });
+      }
     }
 
-    const hasError = checkResults.some((c) => c.status === "error");
-    const allPass = checkResults.every((c) => c.status === "pass");
-    let status: TrialStatus = "fail";
-    if (hasError) status = "error";
-    else if (allPass) status = "pass";
+    const errored = checkResults.find((c) => c.status === "error");
+    if (errored != null && errored.status === "error") {
+      return {
+        status: "error",
+        error: errored.output,
+        checks: checkResults,
+        transcript: run.transcript,
+        durationMs: run.durationMs,
+      };
+    }
     return {
-      status,
+      status: checkResults.every((c) => c.status === "pass") ? "pass" : "fail",
       checks: checkResults,
       transcript: run.transcript,
       durationMs: run.durationMs,

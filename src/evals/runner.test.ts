@@ -61,7 +61,8 @@ describe("runCases", () => {
       { skillRoot: makeSkillRoot(), harness: fakeAgent },
     );
     expect(results[0]?.trials[0]?.status).toBe("error");
-    expect(results[0]?.trials[0]?.error).toContain("setup script failed");
+    const bad = results[0]?.trials[0];
+    expect(bad?.status === "error" && bad.error).toContain("setup script failed");
     expect(results[1]?.trials[0]?.status).toBe("pass");
   });
 
@@ -93,12 +94,10 @@ describe("runCases", () => {
   });
 });
 
-const trial = (status: TrialResult["status"]): TrialResult => ({
-  status,
-  checks: [],
-  transcript: "",
-  durationMs: 0,
-});
+const trial = (status: TrialResult["status"]): TrialResult => {
+  const base = { checks: [], transcript: "", durationMs: 0 };
+  return status === "error" ? { ...base, status, error: "boom" } : { ...base, status };
+};
 
 describe("summarizeByBehavior", () => {
   it("computes pass rates and baseline lift per behavior", () => {

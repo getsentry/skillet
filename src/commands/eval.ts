@@ -39,16 +39,14 @@ const printCase = (result: CaseResult): void => {
   for (const [i, trial] of result.trials.entries()) {
     if (trial.status === "pass") continue;
     const label = result.trials.length > 1 ? ` trial ${i + 1}` : "";
-    if (trial.error != null) {
+    if (trial.status === "error") {
       print(`      error${label}: ${trial.error}`);
       continue;
     }
     for (const check of trial.checks) {
-      if (check.status === "pass") continue;
+      if (check.status === "pass" || check.status === "skipped") continue;
       print(`      ${check.status}${label}: ${check.kind} ${check.value}`);
-      if (check.output != null) {
-        print(`        ${check.output.split("\n").slice(0, 4).join("\n        ")}`);
-      }
+      print(`        ${check.output.split("\n").slice(0, 4).join("\n        ")}`);
     }
   }
 };
