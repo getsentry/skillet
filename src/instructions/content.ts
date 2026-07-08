@@ -64,6 +64,7 @@ Rules that keep evals honest:
 - Prompts are realistic user asks. Never quote the skill's own wording or name the expected artifact — a prompt that says "create marker.txt" tests reading comprehension, not the skill.
 - Prefer deterministic checks (file_exists, shell) — grep committed files, inspect git state, run the produced code. Use at most ONE judge check per case, only for genuinely semantic questions ("the explanation names the root cause"), and phrase the criterion as an objectively checkable statement.
 - The workspace after the run is the whole observable record for deterministic checks; transcripts are only visible to judges. Check artifacts, not phrasing.
+- Skill installation itself adds files to the workspace (.claude/ for claude, AGENTS.md for codex). Never assert repo-wide cleanliness; assert that the specific files you care about are unchanged (e.g. git status --porcelain -- . ':(exclude).claude' ':(exclude)AGENTS.md').
 - Fixtures are committed starting states (a repo, a codebase excerpt); setup is for cheap dynamic state (git init, timestamps). Fixture directories must exist — validation fails on dangling slugs.
 - A case that passes without the skill installed proves nothing: design cases where the unskilled agent plausibly does something else, then confirm with 'skillet eval --baseline' that lift is positive.
 - Set trials > 1 only for behaviors you have seen flake; otherwise keep runs cheap.
