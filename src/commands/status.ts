@@ -1,4 +1,5 @@
 import { parseArgs } from "node:util";
+import type { StatusJson } from "../json.js";
 import { emitJson, info, print } from "../output.js";
 import { skillStatus } from "../status.js";
 import { resolveSkillRoot } from "./shared.js";
@@ -34,16 +35,19 @@ export const run = (argv: string[]): number => {
   const status = skillStatus(root);
 
   if (values.json === true) {
-    emitJson(status);
+    const payload: StatusJson = status;
+    emitJson(payload);
     return 0;
   }
 
+  const skillStale = status.skill.present && status.skill.stale;
   print(`Skill: ${status.root}`);
   print(`${mark(status.spec.present)} spec.md`);
   print(
-    `${mark(status.skill.present, status.skill.stale)} SKILL.md${status.skill.stale === true ? " (stale — spec.md is newer)" : ""}`,
+    `${mark(status.skill.present, skillStale)} SKILL.md${skillStale ? " (stale — spec.md is newer)" : ""}`,
   );
-  print(`${mark(status.evals.present)} evals/cases/ (${status.evals.caseCount} cases)`);
+  const caseWord = status.evals.caseCount === 1 ? "case" : "cases";
+  print(`${mark(status.evals.caseCount > 0)} evals/cases/ (${status.evals.caseCount} ${caseWord})`);
   if (status.legacy.specYaml) {
     print(`    legacy spec.yaml present`);
   }

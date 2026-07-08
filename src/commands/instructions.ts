@@ -1,5 +1,6 @@
 import { parseArgs } from "node:util";
 import { instructionsFor, type ArtifactId } from "../instructions/content.js";
+import type { InstructionsJson } from "../json.js";
 import { emitJson, fail, info, print } from "../output.js";
 import { skillStatus } from "../status.js";
 import { resolveSkillRoot } from "./shared.js";
@@ -46,7 +47,8 @@ export const run = (argv: string[]): number => {
   }
 
   if (values.json === true) {
-    emitJson({ ...payload, state });
+    const wire: InstructionsJson = { ...payload, state };
+    emitJson(wire);
     return 0;
   }
 

@@ -2,18 +2,17 @@ import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { loadCases } from "./evals/case.js";
 
-export interface ArtifactStatus {
-  present: boolean;
-  path: string;
-  /** Older than spec.md — needs regeneration. */
-  stale?: boolean;
-}
+/** Staleness only exists for present artifacts. */
+export type ArtifactStatus = { path: string } & (
+  | { present: false }
+  | { present: true; stale: boolean }
+);
 
 export interface SkillStatus {
   root: string;
-  spec: ArtifactStatus;
+  spec: { path: string; present: boolean };
   skill: ArtifactStatus;
-  evals: ArtifactStatus & { caseCount: number };
+  evals: { path: string; caseCount: number };
   legacy: {
     specYaml: boolean;
   };
@@ -42,17 +41,11 @@ export const skillStatus = (root: string): SkillStatus => {
   const caseCount = specPresent || skillPresent ? loadCases(root).cases.length : 0;
   const specMtime = mtime(specPath);
 
-  const spec: ArtifactStatus = { present: specPresent, path: "spec.md" };
-  const skill: ArtifactStatus = {
-    present: skillPresent,
-    path: "SKILL.md",
-    ...(specPresent && skillPresent && { stale: mtime(skillPath) < specMtime }),
-  };
-  const evals: ArtifactStatus & { caseCount: number } = {
-    present: caseCount > 0,
-    path: "evals/cases/",
-    caseCount,
-  };
+  const spec = { present: specPresent, path: "spec.md" };
+  const skill: ArtifactStatus = skillPresent
+    ? { present: true, path: "SKILL.md", stale: specPresent && mtime(skillPath) < specMtime }
+    : { present: false, path: "SKILL.md" };
+  const evals = { path: "evals/cases/", caseCount };
 
   const legacy = { specYaml: existsSync(join(root, "spec.yaml")) };
 
@@ -65,7 +58,7 @@ export const skillStatus = (root: string): SkillStatus => {
     next = "Write spec.md ('skillet instructions spec' has the template and rules).";
   } else if (!skillPresent) {
     next = "Render SKILL.md from the spec ('skillet instructions skill').";
-  } else if (skill.stale === true) {
+  } else if (skill.present && skill.stale) {
     next = "spec.md changed after SKILL.md — re-render it ('skillet instructions skill').";
   } else if (caseCount === 0) {
     next = "Add eval cases for the spec behaviors ('skillet instructions evals').";

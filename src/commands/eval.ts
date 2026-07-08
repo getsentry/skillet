@@ -7,6 +7,7 @@ import {
 } from "../harness/config.js";
 import { requireSandbox, resolveSandbox, type SandboxConfig } from "../harness/sandbox.js";
 import type { ResolvedHarness } from "../harness/types.js";
+import type { EvalJson, EvalSummary } from "../json.js";
 import { emitJson, fail, info, print } from "../output.js";
 import { passRate, summarizeByBehavior, type CaseResult } from "../evals/results.js";
 import { runCases } from "../evals/runner.js";
@@ -132,7 +133,7 @@ export const run = async (argv: string[]): Promise<number> => {
 
   const behaviors = summarizeByBehavior(results);
   const allTrials = results.flatMap((r) => r.trials);
-  const summary = {
+  const summary: EvalSummary = {
     harness: harness.name,
     cases: results.length,
     trials: allTrials.length,
@@ -143,7 +144,8 @@ export const run = async (argv: string[]): Promise<number> => {
   const ok = summary.failed === 0 && summary.errored === 0 && summary.passed > 0;
 
   if (values.json === true) {
-    emitJson({ ok, summary, behaviors, cases: results });
+    const payload: EvalJson = { ok, summary, behaviors, cases: results };
+    emitJson(payload);
     return ok ? 0 : 1;
   }
 

@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { basename, resolve, join } from "node:path";
 import { parseArgs } from "node:util";
+import type { NewJson } from "../json.js";
 import { emitJson, fail, info } from "../output.js";
 import { slugify } from "../spec/slug.js";
 import { specTemplate } from "../spec/template.js";
@@ -50,11 +51,12 @@ export const run = (argv: string[]): number => {
   writeFileSync(join(dir, "spec.md"), specTemplate(displayName));
 
   if (values.json === true) {
-    emitJson({
+    const payload: NewJson = {
       root: dir,
       name: displayName,
       created: ["spec.md", "evals/cases/", "evals/fixtures/"],
-    });
+    };
+    emitJson(payload);
     return 0;
   }
 

@@ -1,4 +1,5 @@
 import { parseArgs } from "node:util";
+import type { ValidateJson } from "../json.js";
 import { emitJson, info, print } from "../output.js";
 import type { Issue } from "../spec/types.js";
 import { validateSkill } from "../validate.js";
@@ -46,7 +47,7 @@ export const run = (argv: string[]): number => {
   const report = validateSkill(root);
 
   if (values.json === true) {
-    emitJson({
+    const payload: ValidateJson = {
       ok: report.ok,
       spec: report.spec,
       skill: report.skill,
@@ -54,7 +55,8 @@ export const run = (argv: string[]): number => {
       coverageIssues: report.coverage,
       behaviorIds: report.parsedSpec?.behaviors.map((b) => b.id) ?? [],
       caseCount: report.evalCases.length,
-    });
+    };
+    emitJson(payload);
     return report.ok ? 0 : 1;
   }
 

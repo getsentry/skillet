@@ -1,6 +1,7 @@
 import { existsSync, writeFileSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { parseArgs } from "node:util";
+import type { InitJson } from "../json.js";
 import { emitJson, fail, info } from "../output.js";
 import { CONFIG_FILE } from "../harness/config.js";
 import { SUPPORTED_TOOLS, generateTool, type ToolId } from "../integration/generators.js";
@@ -86,7 +87,8 @@ export const run = (argv: string[]): number => {
   );
 
   if (values.json === true) {
-    emitJson({ root: projectRoot, configCreated, configPath, files: generated });
+    const payload: InitJson = { root: projectRoot, configCreated, configPath, files: generated };
+    emitJson(payload);
     return 0;
   }
 

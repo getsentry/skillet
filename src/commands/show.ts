@@ -1,4 +1,5 @@
 import { parseArgs } from "node:util";
+import type { ShowJson } from "../json.js";
 import { emitJson, fail, info, print } from "../output.js";
 import { validateSkill } from "../validate.js";
 import { resolveSkillRoot } from "./shared.js";
@@ -39,14 +40,15 @@ export const run = (argv: string[]): number => {
   }
 
   if (values.json === true) {
-    emitJson({
+    const payload: ShowJson = {
       root,
       spec,
       coverage: spec.behaviors.map((b) => ({
         behavior: b.id,
         cases: coveredBy.get(b.id) ?? [],
       })),
-    });
+    };
+    emitJson(payload);
     return 0;
   }
 
