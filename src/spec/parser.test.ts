@@ -149,8 +149,23 @@ describe("parseSpec", () => {
     expect(scenario?.then).toHaveLength(2);
   });
 
-  it("the shipped template parses with errors only for unfilled placeholders", () => {
-    const { spec } = parseSpec(specTemplate("My Skill"));
+  it("rejects the unfilled template as placeholder errors", () => {
+    const { spec, issues } = parseSpec(specTemplate("My Skill"));
     expect(spec?.name).toBe("My Skill");
+    const placeholderErrors = errors(issues).filter((i) =>
+      i.message.includes("template placeholder"),
+    );
+    expect(placeholderErrors.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("errors on placeholder comments left in structural text", () => {
+    const broken = VALID.replace(
+      "- **WHEN** the user asks to commit a small bug fix",
+      "- **WHEN** <!-- the setup and the user ask -->",
+    );
+    const { issues } = parseSpec(broken);
+    const err = errors(issues).find((i) => i.message.includes("template placeholder"));
+    expect(err).toBeDefined();
+    expect(err?.hint).toContain("<!--");
   });
 });

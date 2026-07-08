@@ -27,6 +27,9 @@ const isComment = (text: string): boolean => {
   return text.startsWith("<!--") && text.endsWith("-->");
 };
 
+/** Template scaffold comments left in structural text mean the spec is unfilled. */
+const isPlaceholder = (text: string): boolean => text.includes("<!--");
+
 /**
  * Parse a spec.md document into its structure, collecting structural
  * issues (line-accurate, with fix hints) along the way. Parsing and
@@ -92,6 +95,13 @@ export const parseSpec = (content: string): ParseResult => {
     closeScenario();
     if (behavior == null) return;
     behavior.text = behaviorText.join("\n").trim();
+    if (isPlaceholder(behavior.text)) {
+      error(
+        `Behavior "${behavior.name}" still contains the template placeholder`,
+        behavior.line,
+        "Replace the <!-- ... --> comment with the normative rule.",
+      );
+    }
     if (behavior.scenarios.length === 0) {
       error(
         `Behavior "${behavior.name}" has no scenarios`,
@@ -148,7 +158,13 @@ export const parseSpec = (content: string): ParseResult => {
         const tag = BOLD_TAG.exec(bullet[1] ?? "");
         const kind = tag?.[1]?.trim();
         const text = (tag?.[2] ?? bullet[1] ?? "").trim();
-        if (kind === "SHOULD") triggers.should.push(text);
+        if (isPlaceholder(text)) {
+          error(
+            "Trigger bullet still contains the template placeholder",
+            lineNo,
+            "Replace the <!-- ... --> comment with a real trigger condition.",
+          );
+        } else if (kind === "SHOULD") triggers.should.push(text);
         else if (kind === "SHOULD NOT") triggers.shouldNot.push(text);
         else {
           warn(
@@ -163,7 +179,13 @@ export const parseSpec = (content: string): ParseResult => {
         const tag = BOLD_TAG.exec(bullet[1] ?? "");
         const kind = tag?.[1]?.trim();
         const text = (tag?.[2] ?? "").trim();
-        if (kind === "WHEN" || kind === "GIVEN") scenario.when.push(text);
+        if (isPlaceholder(text)) {
+          error(
+            "Scenario bullet still contains the template placeholder",
+            lineNo,
+            "Replace the <!-- ... --> comment with the concrete condition or outcome.",
+          );
+        } else if (kind === "WHEN" || kind === "GIVEN") scenario.when.push(text);
         else if (kind === "THEN" || kind === "AND") scenario.then.push(text);
         else {
           warn(
@@ -228,6 +250,14 @@ export const parseSpec = (content: string): ParseResult => {
         );
       }
       const behaviorName = title.slice("Behavior:".length).trim();
+      if (isPlaceholder(behaviorName)) {
+        error(
+          "Behavior name still contains the template placeholder",
+          lineNo,
+          "Replace the <!-- ... --> comment with a short behavior name.",
+        );
+        continue;
+      }
       behavior = {
         id: slugify(behaviorName),
         name: behaviorName,
@@ -240,6 +270,14 @@ export const parseSpec = (content: string): ParseResult => {
     if (line.startsWith(SCENARIO_PREFIX)) {
       closeScenario();
       const scenarioName = title.slice("Scenario:".length).trim();
+      if (isPlaceholder(scenarioName)) {
+        error(
+          "Scenario name still contains the template placeholder",
+          lineNo,
+          "Replace the <!-- ... --> comment with a concrete situation.",
+        );
+        continue;
+      }
       if (behavior == null) {
         error(
           `Scenario "${scenarioName}" has no enclosing behavior`,
@@ -263,6 +301,14 @@ export const parseSpec = (content: string): ParseResult => {
         );
       }
       const constraintName = title.slice("Constraint:".length).trim();
+      if (isPlaceholder(constraintName)) {
+        error(
+          "Constraint name still contains the template placeholder",
+          lineNo,
+          "Replace the <!-- ... --> comment with a short constraint name.",
+        );
+        continue;
+      }
       constraint = { id: slugify(constraintName), name: constraintName, line: lineNo, text: "" };
       continue;
     }

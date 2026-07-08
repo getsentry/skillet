@@ -73,14 +73,15 @@ describe("parseCase", () => {
     expect(msgs.some((m) => m.includes('"timeout"'))).toBe(true);
   });
 
-  it("warns on unknown fields and empty checks", () => {
+  it("warns on unknown fields and rejects checkless cases", () => {
     const { evalCase, issues } = parseCase(
       "evals/cases/x.yaml",
       "behavior: b\nprompt: p\nthreshold: 0.75\n",
     );
-    expect(evalCase).not.toBeNull();
+    expect(evalCase).toBeNull();
     const warnings = issues.filter((i) => i.severity === "warning").map((i) => i.message);
     expect(warnings.some((m) => m.includes('unknown field "threshold"'))).toBe(true);
-    expect(warnings.some((m) => m.includes("no checks"))).toBe(true);
+    const errors = issues.filter((i) => i.severity === "error").map((i) => i.message);
+    expect(errors.some((m) => m.includes("no checks"))).toBe(true);
   });
 });

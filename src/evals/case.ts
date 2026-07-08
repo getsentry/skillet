@@ -136,8 +136,8 @@ export const parseCase = (
     }
   }
   if (checks.length === 0) {
-    warn(
-      "case has no checks — it proves nothing",
+    error(
+      "case has no checks — it would pass vacuously",
       "Add at least one file_exists, shell, or judge check.",
     );
   }
