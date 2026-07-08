@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { HarnessConfigError, resolveHarness, resolveHarnessValue } from "./config.js";
+import { HarnessConfigError, loadConfig, parseHarness, resolveHarness } from "./config.js";
 import { buildJudgePrompt, describeWorkspace, parseVerdict } from "./judge.js";
 import { buildInvocation, runHarness } from "./run.js";
 import type { ResolvedHarness } from "./types.js";
@@ -25,28 +25,28 @@ const customHarness = (command: string): ResolvedHarness => ({
   command,
 });
 
-describe("resolveHarnessValue", () => {
+describe("parseHarness", () => {
   it("resolves builtin names", () => {
-    expect(resolveHarnessValue("codex")).toMatchObject({ kind: "codex", binary: "codex" });
-    expect(resolveHarnessValue("claude")).toMatchObject({ kind: "claude", binary: "claude" });
+    expect(parseHarness("codex")).toMatchObject({ kind: "codex", binary: "codex" });
+    expect(parseHarness("claude")).toMatchObject({ kind: "claude", binary: "claude" });
   });
 
   it("rejects unknown builtin names", () => {
-    expect(() => resolveHarnessValue("cursor")).toThrow(HarnessConfigError);
+    expect(() => parseHarness("cursor")).toThrow(HarnessConfigError);
   });
 
   it("resolves a custom command template", () => {
-    const harness = resolveHarnessValue({
+    const harness = parseHarness({
       command: "myagent run --dir {workspace} {prompt}",
       skill_dir: "{workspace}/.myagent/skills",
     });
     expect(harness).toMatchObject({ kind: "custom", binary: "myagent" });
-    expect(harness.skillDir).toBe("{workspace}/.myagent/skills");
+    expect(harness.kind === "custom" && harness.skillDir).toBe("{workspace}/.myagent/skills");
   });
 
   it("rejects templates missing a placeholder", () => {
-    expect(() => resolveHarnessValue({ command: "myagent {workspace}" })).toThrow(/\{prompt\}/);
-    expect(() => resolveHarnessValue({ command: "myagent {prompt}" })).toThrow(/\{workspace\}/);
+    expect(() => parseHarness({ command: "myagent {workspace}" })).toThrow(/\{prompt\}/);
+    expect(() => parseHarness({ command: "myagent {prompt}" })).toThrow(/\{workspace\}/);
   });
 });
 
@@ -54,9 +54,9 @@ describe("resolveHarness", () => {
   it("prefers the flag, then config, then the codex default", () => {
     const root = tempDir("skillet-cfg-");
     writeFileSync(join(root, ".skillet.yaml"), "harness: claude\n");
-    expect(resolveHarness(root).name).toBe("claude");
-    expect(resolveHarness(root, "codex").name).toBe("codex");
-    expect(resolveHarness(tempDir("skillet-nocfg-")).name).toBe("codex");
+    expect(resolveHarness(loadConfig(root)).name).toBe("claude");
+    expect(resolveHarness(loadConfig(root), "codex").name).toBe("codex");
+    expect(resolveHarness(loadConfig(tempDir("skillet-nocfg-"))).name).toBe("codex");
   });
 
   it("finds config in ancestor directories", () => {
@@ -64,11 +64,11 @@ describe("resolveHarness", () => {
     writeFileSync(join(root, ".skillet.yaml"), 'harness:\n  command: "x {workspace} {prompt}"\n');
     const nested = join(root, "skills", "my-skill");
     mkdirSync(nested, { recursive: true });
-    expect(resolveHarness(nested).kind).toBe("custom");
+    expect(resolveHarness(loadConfig(nested)).kind).toBe("custom");
   });
 
   it("rejects custom names passed via flag", () => {
-    expect(() => resolveHarness(tempDir("skillet-x-"), "myagent")).toThrow(/--harness accepts/);
+    expect(() => resolveHarness({}, "myagent")).toThrow(/--harness accepts/);
   });
 });
 

@@ -1,6 +1,11 @@
 import { parseArgs } from "node:util";
-import { assertBinaryAvailable, HarnessConfigError, resolveHarness } from "../harness/config.js";
-import { assertSandboxAvailable, resolveSandbox, type SandboxConfig } from "../harness/sandbox.js";
+import {
+  HarnessConfigError,
+  loadConfig,
+  requireBinary,
+  resolveHarness,
+} from "../harness/config.js";
+import { requireSandbox, resolveSandbox, type SandboxConfig } from "../harness/sandbox.js";
 import type { ResolvedHarness } from "../harness/types.js";
 import { emitJson, fail, info, print } from "../output.js";
 import { passRate, summarizeByBehavior, type CaseResult } from "../evals/results.js";
@@ -99,12 +104,13 @@ export const run = async (argv: string[]): Promise<number> => {
   let harness: ResolvedHarness;
   let sandbox: SandboxConfig | null;
   try {
-    harness = resolveHarness(root, values.harness);
-    sandbox = resolveSandbox(root, values.sandbox);
+    const config = loadConfig(root);
+    harness = resolveHarness(config, values.harness);
+    sandbox = resolveSandbox(config, values.sandbox);
     if (sandbox != null) {
-      assertSandboxAvailable(sandbox, harness);
+      requireSandbox(sandbox, harness);
     } else {
-      assertBinaryAvailable(harness);
+      requireBinary(harness);
     }
   } catch (error) {
     if (error instanceof HarnessConfigError) return fail(error.message);

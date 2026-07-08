@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { HarnessConfigError } from "./config.js";
+import { HarnessConfigError, loadConfig } from "./config.js";
 import { dockerize, resolveSandbox, type SandboxConfig } from "./sandbox.js";
 
 const dirs: string[] = [];
@@ -18,11 +18,11 @@ afterEach(() => {
 
 describe("resolveSandbox", () => {
   it("defaults to direct execution", () => {
-    expect(resolveSandbox(tempDir())).toBeNull();
+    expect(resolveSandbox({})).toBeNull();
   });
 
   it("activates via flag with config defaults", () => {
-    const sandbox = resolveSandbox(tempDir(), "docker");
+    const sandbox = resolveSandbox({}, "docker");
     expect(sandbox?.image).toBe("skillet-eval");
     expect(sandbox?.network).toBe(true);
   });
@@ -33,7 +33,7 @@ describe("resolveSandbox", () => {
       join(root, ".skillet.yaml"),
       'sandbox:\n  enabled: true\n  image: my-img\n  network: false\n  mount_auth: ["~/.codex"]\n  env: ["ANTHROPIC_API_KEY"]\n',
     );
-    const sandbox = resolveSandbox(root);
+    const sandbox = resolveSandbox(loadConfig(root));
     expect(sandbox).toMatchObject({ image: "my-img", network: false, env: ["ANTHROPIC_API_KEY"] });
     expect(sandbox?.mountAuth).toEqual([join(homedir(), "/.codex")]);
   });
@@ -41,14 +41,14 @@ describe("resolveSandbox", () => {
   it("--sandbox none overrides an enabled config", () => {
     const root = tempDir();
     writeFileSync(join(root, ".skillet.yaml"), "sandbox:\n  enabled: true\n");
-    expect(resolveSandbox(root, "none")).toBeNull();
+    expect(resolveSandbox(loadConfig(root), "none")).toBeNull();
   });
 
   it("rejects unknown flag values and bad field types", () => {
-    expect(() => resolveSandbox(tempDir(), "podman")).toThrow(HarnessConfigError);
+    expect(() => resolveSandbox({}, "podman")).toThrow(HarnessConfigError);
     const root = tempDir();
     writeFileSync(join(root, ".skillet.yaml"), "sandbox:\n  enabled: true\n  env: notalist\n");
-    expect(() => resolveSandbox(root)).toThrow(/must be a list of strings/);
+    expect(() => resolveSandbox(loadConfig(root))).toThrow(/must be a list of strings/);
   });
 });
 

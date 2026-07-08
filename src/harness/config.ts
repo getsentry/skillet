@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { parse as parseYaml } from "yaml";
+import { isRecord } from "../guards.js";
 import type { ResolvedHarness } from "./types.js";
 
 export const CONFIG_FILE = ".skillet.yaml";
@@ -18,10 +19,6 @@ const CLAUDE: ResolvedHarness = { name: "claude", kind: "claude", binary: "claud
 
 const BUILTINS: Record<string, ResolvedHarness> = { codex: CODEX, claude: CLAUDE };
 
-const isRecord = (v: unknown): v is Record<string, unknown> => {
-  return v != null && typeof v === "object" && !Array.isArray(v);
-};
-
 /** Find the nearest .skillet.yaml walking up from `startDir`. */
 export const findConfig = (startDir: string): string | null => {
   let dir = startDir;
@@ -35,11 +32,30 @@ export const findConfig = (startDir: string): string | null => {
 };
 
 /**
+ * Load and parse the nearest .skillet.yaml once; the harness and
+ * sandbox resolvers both read from this, so parse errors surface
+ * through one channel and the file is read once per run.
+ */
+export const loadConfig = (skillRoot: string): Record<string, unknown> => {
+  const configPath = findConfig(skillRoot);
+  if (configPath == null) return {};
+  let parsed: unknown;
+  try {
+    parsed = parseYaml(readFileSync(configPath, "utf8"));
+  } catch (cause) {
+    throw new HarnessConfigError(
+      `${configPath} is not valid YAML: ${cause instanceof Error ? cause.message.split("\n")[0] : String(cause)}`,
+    );
+  }
+  return isRecord(parsed) ? parsed : {};
+};
+
+/**
  * Turn a config `harness:` value into a ResolvedHarness (harness spec,
  * "Custom harness via command template"). Accepts a builtin name or a
  * mapping with a command template.
  */
-export const resolveHarnessValue = (value: unknown): ResolvedHarness => {
+export const parseHarness = (value: unknown): ResolvedHarness => {
   if (typeof value === "string") {
     const builtin = BUILTINS[value];
     if (builtin == null) {
@@ -83,7 +99,7 @@ export const resolveHarnessValue = (value: unknown): ResolvedHarness => {
  * codex. The flag accepts builtin names only; custom harnesses are
  * configured in .skillet.yaml.
  */
-export const resolveHarness = (skillRoot: string, flag?: string): ResolvedHarness => {
+export const resolveHarness = (config: Record<string, unknown>, flag?: string): ResolvedHarness => {
   if (flag != null) {
     const builtin = BUILTINS[flag];
     if (builtin == null) {
@@ -93,25 +109,14 @@ export const resolveHarness = (skillRoot: string, flag?: string): ResolvedHarnes
     }
     return builtin;
   }
-  const configPath = findConfig(skillRoot);
-  if (configPath != null) {
-    let parsed: unknown;
-    try {
-      parsed = parseYaml(readFileSync(configPath, "utf8"));
-    } catch (error) {
-      throw new HarnessConfigError(
-        `${configPath} is not valid YAML: ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`,
-      );
-    }
-    if (isRecord(parsed) && parsed["harness"] != null) {
-      return resolveHarnessValue(parsed["harness"]);
-    }
+  if (config["harness"] != null) {
+    return parseHarness(config["harness"]);
   }
   return CODEX;
 };
 
 /** Fail fast when the harness executable is missing (harness spec). */
-export const assertBinaryAvailable = (harness: ResolvedHarness): void => {
+export const requireBinary = (harness: ResolvedHarness): void => {
   try {
     execFileSync("sh", ["-c", 'command -v "$1"', "sh", harness.binary], {
       stdio: "ignore",

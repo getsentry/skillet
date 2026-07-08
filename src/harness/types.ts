@@ -1,16 +1,22 @@
-export type HarnessKind = "codex" | "claude" | "custom";
-
-export interface ResolvedHarness {
+interface BuiltinHarness {
+  kind: "codex" | "claude";
   /** Display name, recorded in eval results. */
   name: string;
-  kind: HarnessKind;
   /** Executable checked for PATH presence before any case runs. */
   binary: string;
-  /** Custom harnesses only: sh command template with {workspace} and {prompt}. */
-  command?: string;
-  /** Custom harnesses only: where to copy the skill, e.g. "{workspace}/.agent/skills". */
+}
+
+interface CustomHarness {
+  kind: "custom";
+  name: string;
+  binary: string;
+  /** sh command template with {workspace} and {prompt} placeholders. */
+  command: string;
+  /** Where to copy the skill, e.g. "{workspace}/.agent/skills". */
   skillDir?: string;
 }
+
+export type ResolvedHarness = BuiltinHarness | CustomHarness;
 
 export interface HarnessRun {
   transcript: string;

@@ -52,37 +52,42 @@ export const installSkill = (
   skillRoot: string,
   workspace: string,
 ): Installation => {
-  if (harness.kind === "claude") {
-    const dest = join(workspace, ".claude", "skills", skillSlug(skillRoot));
-    mkdirSync(dest, { recursive: true });
-    copySkill(skillRoot, dest);
-    return NOOP;
+  switch (harness.kind) {
+    case "claude": {
+      const dest = join(workspace, ".claude", "skills", skillSlug(skillRoot));
+      mkdirSync(dest, { recursive: true });
+      copySkill(skillRoot, dest);
+      return NOOP;
+    }
+    case "codex": {
+      const staged = mkdtempSync(join(tmpdir(), "skillet-skill-"));
+      copySkill(skillRoot, staged);
+      const raw = readFileSync(join(skillRoot, "SKILL.md"), "utf8");
+      const { body } = parseFrontmatter(raw);
+      const agentsMd = [
+        "The following skill applies to all work in this directory. Follow it.",
+        `Its bundled files live at ${staged}/ — relative \`references/\` paths in the text resolve there.`,
+        "",
+        "---",
+        "",
+        body,
+      ].join("\n");
+      writeFileSync(join(workspace, "AGENTS.md"), agentsMd);
+      return {
+        cleanup: () => {
+          rmSync(staged, { recursive: true, force: true });
+        },
+      };
+    }
+    case "custom": {
+      const template = harness.skillDir ?? join("{workspace}", ".skillet", "skill");
+      const dest = template.replaceAll("{workspace}", workspace);
+      mkdirSync(dest, { recursive: true });
+      copySkill(skillRoot, dest);
+      return NOOP;
+    }
+    default: {
+      return harness satisfies never;
+    }
   }
-
-  if (harness.kind === "codex") {
-    const staged = mkdtempSync(join(tmpdir(), "skillet-skill-"));
-    copySkill(skillRoot, staged);
-    const raw = readFileSync(join(skillRoot, "SKILL.md"), "utf8");
-    const { body } = parseFrontmatter(raw);
-    const agentsMd = [
-      "The following skill applies to all work in this directory. Follow it.",
-      `Its bundled files live at ${staged}/ — relative \`references/\` paths in the text resolve there.`,
-      "",
-      "---",
-      "",
-      body,
-    ].join("\n");
-    writeFileSync(join(workspace, "AGENTS.md"), agentsMd);
-    return {
-      cleanup: () => {
-        rmSync(staged, { recursive: true, force: true });
-      },
-    };
-  }
-
-  const template = harness.skillDir ?? join("{workspace}", ".skillet", "skill");
-  const dest = template.replaceAll("{workspace}", workspace);
-  mkdirSync(dest, { recursive: true });
-  copySkill(skillRoot, dest);
-  return NOOP;
 };

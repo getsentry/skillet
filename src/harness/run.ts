@@ -26,39 +26,46 @@ export const buildInvocation = (
   prompt: string,
   scratchDir: string,
 ): Invocation => {
-  if (harness.kind === "codex") {
-    const lastMessageFile = join(scratchDir, "last-message.txt");
-    return {
-      cmd: "codex",
-      // Full bypass mirrors the claude harness's permission skip: the
-      // workspace is a disposable tempdir, and codex's workspace-write
-      // sandbox denies .git writes, which breaks any skill that commits.
-      args: [
-        "exec",
-        "-C",
-        workspace,
-        "--skip-git-repo-check",
-        "--dangerously-bypass-approvals-and-sandbox",
-        "--ephemeral",
-        "--color",
-        "never",
-        "-o",
+  switch (harness.kind) {
+    case "codex": {
+      const lastMessageFile = join(scratchDir, "last-message.txt");
+      return {
+        cmd: "codex",
+        // Full bypass mirrors the claude harness's permission skip: the
+        // workspace is a disposable tempdir, and codex's workspace-write
+        // sandbox denies .git writes, which breaks any skill that commits.
+        args: [
+          "exec",
+          "-C",
+          workspace,
+          "--skip-git-repo-check",
+          "--dangerously-bypass-approvals-and-sandbox",
+          "--ephemeral",
+          "--color",
+          "never",
+          "-o",
+          lastMessageFile,
+          prompt,
+        ],
         lastMessageFile,
-        prompt,
-      ],
-      lastMessageFile,
-    };
+      };
+    }
+    case "claude": {
+      return {
+        cmd: "claude",
+        args: ["-p", "--dangerously-skip-permissions", prompt],
+      };
+    }
+    case "custom": {
+      const command = harness.command
+        .replaceAll("{workspace}", shQuote(workspace))
+        .replaceAll("{prompt}", shQuote(prompt));
+      return { cmd: "sh", args: ["-c", command] };
+    }
+    default: {
+      return harness satisfies never;
+    }
   }
-  if (harness.kind === "claude") {
-    return {
-      cmd: "claude",
-      args: ["-p", "--dangerously-skip-permissions", prompt],
-    };
-  }
-  const command = (harness.command ?? "")
-    .replaceAll("{workspace}", shQuote(workspace))
-    .replaceAll("{prompt}", shQuote(prompt));
-  return { cmd: "sh", args: ["-c", command] };
 };
 
 /**

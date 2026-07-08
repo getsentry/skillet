@@ -1,9 +1,9 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
-import { parse as parseYaml } from "yaml";
-import { HarnessConfigError, findConfig } from "./config.js";
+import { isRecord } from "../guards.js";
+import { HarnessConfigError } from "./config.js";
 import type { ResolvedHarness } from "./types.js";
 
 /** Paths inside the container; the host workspace/scratch mount here. */
@@ -22,10 +22,6 @@ export interface SandboxConfig {
 export const DEFAULT_IMAGE = "skillet-eval";
 const DEFAULT_AUTH_CANDIDATES = ["~/.codex", "~/.claude", "~/.claude.json"];
 
-const isRecord = (v: unknown): v is Record<string, unknown> => {
-  return v != null && typeof v === "object" && !Array.isArray(v);
-};
-
 const expandHome = (path: string): string => {
   return path.startsWith("~") ? join(homedir(), path.slice(1)) : path;
 };
@@ -39,23 +35,21 @@ const stringList = (value: unknown, field: string): string[] => {
 };
 
 /**
- * Resolve the sandbox for a run: `--sandbox docker|none` overrides the
- * `.skillet.yaml` `sandbox:` block's `enabled` value. Returns null when
- * the run is direct (the default — trusting the skill under eval).
+ * Resolve the sandbox for a run from the loaded .skillet.yaml config:
+ * `--sandbox docker|none` overrides the `sandbox:` block's `enabled`
+ * value. Returns null when the run is direct (the default — trusting
+ * the skill under eval).
  */
-export const resolveSandbox = (skillRoot: string, flag?: string): SandboxConfig | null => {
+export const resolveSandbox = (
+  config: Record<string, unknown>,
+  flag?: string,
+): SandboxConfig | null => {
   if (flag != null && flag !== "docker" && flag !== "none") {
     throw new HarnessConfigError('--sandbox accepts "docker" or "none"');
   }
 
-  let block: Record<string, unknown> = {};
-  const configPath = findConfig(skillRoot);
-  if (configPath != null) {
-    const parsed: unknown = parseYaml(readFileSync(configPath, "utf8"));
-    if (isRecord(parsed) && isRecord(parsed["sandbox"])) {
-      block = parsed["sandbox"];
-    }
-  }
+  const raw = config["sandbox"];
+  const block: Record<string, unknown> = isRecord(raw) ? raw : {};
 
   const enabled = flag != null ? flag === "docker" : block["enabled"] === true;
   if (!enabled) return null;
@@ -118,7 +112,7 @@ export const dockerize = (
  * fast"): docker on PATH, the image present locally, and the harness
  * binary resolvable inside the image.
  */
-export const assertSandboxAvailable = (sandbox: SandboxConfig, harness: ResolvedHarness): void => {
+export const requireSandbox = (sandbox: SandboxConfig, harness: ResolvedHarness): void => {
   try {
     execFileSync("sh", ["-c", "command -v docker"], { stdio: "ignore", timeout: 10_000 });
   } catch {
