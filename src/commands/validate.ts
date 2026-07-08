@@ -1,6 +1,6 @@
 import { parseArgs } from "node:util";
 import type { ValidateJson } from "../json.js";
-import { emitJson, info, print } from "../output.js";
+import { emitJson, print } from "../output.js";
 import type { Issue } from "../spec/types.js";
 import { validateSkill } from "../validate.js";
 import { resolveSkillRoot } from "./shared.js";
@@ -38,7 +38,7 @@ export const run = (argv: string[]): number => {
     allowPositionals: true,
   });
   if (values.help === true) {
-    info(HELP);
+    print(HELP.trimEnd());
     return 0;
   }
 

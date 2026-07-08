@@ -1,8 +1,8 @@
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { parseArgs } from "node:util";
 import type { InitJson } from "../json.js";
-import { emitJson, fail, info } from "../output.js";
+import { emitJson, fail, info, print } from "../output.js";
 import { CONFIG_FILE } from "../harness/config.js";
 import { SUPPORTED_TOOLS, generateTool, type ToolId } from "../integration/generators.js";
 import { VERSION } from "../version.js";
@@ -45,14 +45,12 @@ export const run = (argv: string[]): number => {
     allowPositionals: true,
   });
   if (values.help === true) {
-    info(HELP);
+    print(HELP.trimEnd());
     return 0;
   }
 
   const projectRoot = resolve(positionals[0] ?? ".");
-  if (!existsSync(projectRoot)) {
-    return fail(`no such directory: ${projectRoot}`);
-  }
+  mkdirSync(projectRoot, { recursive: true });
 
   const toolsArg = values.tools ?? "claude";
   let tools: ToolId[];

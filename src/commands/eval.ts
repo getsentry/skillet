@@ -69,7 +69,7 @@ export const run = async (argv: string[]): Promise<number> => {
     allowPositionals: true,
   });
   if (values.help === true) {
-    info(HELP);
+    print(HELP.trimEnd());
     return 0;
   }
 

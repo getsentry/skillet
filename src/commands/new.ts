@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { basename, resolve, join } from "node:path";
 import { parseArgs } from "node:util";
 import type { NewJson } from "../json.js";
-import { emitJson, fail, info } from "../output.js";
+import { emitJson, fail, info, print } from "../output.js";
 import { slugify } from "../spec/slug.js";
 import { specTemplate } from "../spec/template.js";
 
@@ -30,9 +30,13 @@ export const run = (argv: string[]): number => {
     },
     allowPositionals: true,
   });
-  if (values.help === true || positionals.length === 0) {
+  if (values.help === true) {
+    print(HELP.trimEnd());
+    return 0;
+  }
+  if (positionals.length === 0) {
     info(HELP);
-    return values.help === true ? 0 : 1;
+    return 1;
   }
 
   const name = positionals.join(" ");

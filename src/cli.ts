@@ -4,7 +4,7 @@
  * (cli spec, "JSON output convention"). No LLM work happens anywhere
  * in this process.
  */
-import { fail } from "./output.js";
+import { fail, info, print } from "./output.js";
 
 const HELP = `skillet — spec-driven agent skills with mechanical evals
 
@@ -20,6 +20,7 @@ Commands:
   show          Pretty-print a skill's spec and coverage
 
 Run 'skillet <command> --help' for command-specific flags.
+Exit codes: 0 success, 1 failure. --json prints one JSON object on stdout.
 `;
 
 /** v0 commands and where their job moved (cli spec, "Removed command"). */
@@ -48,12 +49,31 @@ const COMMANDS: Record<string, () => Promise<CommandModule>> = {
   show: () => import("./commands/show.js"),
 };
 
+/** Node's parseArgs throws typed errors on unknown/misused flags. */
+const isUsageError = (cause: unknown): cause is Error => {
+  return (
+    cause instanceof Error &&
+    "code" in cause &&
+    typeof cause.code === "string" &&
+    cause.code.startsWith("ERR_PARSE_ARGS")
+  );
+};
+
 const main = async (): Promise<number> => {
   const [command, ...rest] = process.argv.slice(2);
 
-  if (command == null || command === "--help" || command === "-h" || command === "help") {
-    process.stderr.write(HELP);
-    return command == null ? 1 : 0;
+  if (command == null) {
+    info(HELP);
+    return 1;
+  }
+  if (command === "--help" || command === "-h" || command === "help") {
+    print(HELP.trimEnd());
+    return 0;
+  }
+  if (command === "--version" || command === "-v" || command === "version") {
+    const { VERSION } = await import("./version.js");
+    print(VERSION);
+    return 0;
   }
 
   const removed = REMOVED_COMMANDS[command];
@@ -67,7 +87,14 @@ const main = async (): Promise<number> => {
   }
 
   const mod = await loader();
-  return mod.run(rest);
+  try {
+    return await mod.run(rest);
+  } catch (cause) {
+    if (isUsageError(cause)) {
+      return fail(`${cause.message}\nRun 'skillet ${command} --help' for flags.`);
+    }
+    throw cause;
+  }
 };
 
 process.exitCode = await main();

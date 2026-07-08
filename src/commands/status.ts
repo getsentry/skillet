@@ -1,6 +1,10 @@
 import { parseArgs } from "node:util";
 import type { StatusJson } from "../json.js";
-import { emitJson, info, print } from "../output.js";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { findConfig } from "../harness/config.js";
+import { emitJson, print } from "../output.js";
+import { findSkillRoot } from "../skill/frontmatter.js";
 import { skillStatus } from "../status.js";
 import { resolveSkillRoot } from "./shared.js";
 
@@ -26,12 +30,21 @@ export const run = (argv: string[]): number => {
     allowPositionals: true,
   });
   if (values.help === true) {
-    info(HELP);
+    print(HELP.trimEnd());
     return 0;
   }
 
-  const root = resolveSkillRoot(positionals[0]);
-  if (root == null) return 1;
+  const start = resolve(positionals[0] ?? ".");
+  const root = existsSync(start) ? findSkillRoot(start) : null;
+  if (root == null) {
+    if (existsSync(start) && findConfig(start) != null) {
+      print(`Project initialized (.skillet.yaml found); no skill at or above ${start}.`);
+      print(`Next: 'skillet new <name>' scaffolds one.`);
+      return 0;
+    }
+    resolveSkillRoot(positionals[0]);
+    return 1;
+  }
   const status = skillStatus(root);
 
   if (values.json === true) {
