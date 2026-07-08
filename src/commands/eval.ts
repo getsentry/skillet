@@ -20,34 +20,47 @@ Run the skill's eval cases through the configured harness.
 
 Options:
   --case <id>         Run a single case
+  --behavior <id>     Run only the cases covering one behavior
   --trials <n>        Run each case n times and report pass rates
   --baseline          Also run every trial without the skill; report lift
   --harness <name>    Override the harness (codex, claude)
   --sandbox <mode>    docker: run every harness invocation in a container
                       (none: force direct). Default from .skillet.yaml.
   --keep-workspaces   Leave trial workspaces on disk for debugging
+  --verbose           Print full transcripts for non-passing trials
   --json              Machine-readable results on stdout
+
+Exit codes: 0 all trials passed, 1 otherwise.
 `;
 
 const percent = (rate: number): string => `${Math.round(rate * 100)}%`;
 
-const printCase = (result: CaseResult): void => {
+const printCase = (result: CaseResult, verbose: boolean): void => {
   const rate = passRate(result.trials);
-  const trialWord = `${result.trials.filter((t) => t.status === "pass").length}/${result.trials.length}`;
+  const passed = result.trials.filter((t) => t.status === "pass").length;
+  const totalSeconds = Math.round(result.trials.reduce((ms, t) => ms + t.durationMs, 0) / 1000);
   print(
-    `  ${rate === 1 ? "✓" : "✗"} ${result.id} (${result.behavior}) — ${trialWord} trials passed`,
+    `  ${rate === 1 ? "✓" : "✗"} ${result.id} (${result.behavior}) — ${passed}/${result.trials.length} trials passed, ${totalSeconds}s`,
   );
   for (const [i, trial] of result.trials.entries()) {
     if (trial.status === "pass") continue;
     const label = result.trials.length > 1 ? ` trial ${i + 1}` : "";
     if (trial.status === "error") {
       print(`      error${label}: ${trial.error}`);
-      continue;
     }
     for (const check of trial.checks) {
       if (check.status === "pass" || check.status === "skipped") continue;
       print(`      ${check.status}${label}: ${check.kind} ${check.value}`);
       print(`        ${check.output.split("\n").slice(0, 4).join("\n        ")}`);
+    }
+    if (verbose && trial.transcript.trim() !== "") {
+      print(`      transcript${label}:`);
+      print(
+        trial.transcript
+          .split("\n")
+          .map((line) => `        ${line}`)
+          .join("\n"),
+      );
     }
   }
 };
@@ -58,11 +71,13 @@ export const run = async (argv: string[]): Promise<number> => {
     args: argv,
     options: {
       case: { type: "string" },
+      behavior: { type: "string" },
       trials: { type: "string" },
       baseline: { type: "boolean" },
       harness: { type: "string" },
       sandbox: { type: "string" },
       "keep-workspaces": { type: "boolean" },
+      verbose: { type: "boolean" },
       json: { type: "boolean" },
       help: { type: "boolean", short: "h" },
     },
@@ -81,6 +96,22 @@ export const run = async (argv: string[]): Promise<number> => {
     return fail("--trials must be a positive integer");
   }
 
+  let harness: ResolvedHarness;
+  let sandbox: SandboxConfig | null;
+  try {
+    const config = loadConfig(root);
+    harness = resolveHarness(config, values.harness);
+    sandbox = resolveSandbox(config, values.sandbox);
+    if (sandbox != null) {
+      requireSandbox(sandbox, harness);
+    } else {
+      requireBinary(harness);
+    }
+  } catch (error) {
+    if (error instanceof HarnessConfigError) return fail(error.message);
+    throw error;
+  }
+
   // Validate before spending any agent invocations.
   const report = validateSkill(root);
   if (!report.ok) {
@@ -96,24 +127,17 @@ export const run = async (argv: string[]): Promise<number> => {
       );
     }
   }
+  if (values.behavior != null) {
+    cases = cases.filter((c) => c.behavior === values.behavior);
+    if (cases.length === 0) {
+      const behaviors = [...new Set(report.evalCases.map((c) => c.behavior))];
+      return fail(
+        `no cases cover behavior "${values.behavior}" — covered: ${behaviors.join(", ")}`,
+      );
+    }
+  }
   if (cases.length === 0) {
     return fail("no eval cases found under evals/cases/");
-  }
-
-  let harness: ResolvedHarness;
-  let sandbox: SandboxConfig | null;
-  try {
-    const config = loadConfig(root);
-    harness = resolveHarness(config, values.harness);
-    sandbox = resolveSandbox(config, values.sandbox);
-    if (sandbox != null) {
-      requireSandbox(sandbox, harness);
-    } else {
-      requireBinary(harness);
-    }
-  } catch (error) {
-    if (error instanceof HarnessConfigError) return fail(error.message);
-    throw error;
   }
 
   info(
@@ -150,7 +174,7 @@ export const run = async (argv: string[]): Promise<number> => {
   }
 
   print(``);
-  for (const result of results) printCase(result);
+  for (const result of results) printCase(result, values.verbose === true);
   print(``);
   print(`Behaviors:`);
   for (const b of behaviors) {
@@ -164,5 +188,13 @@ export const run = async (argv: string[]): Promise<number> => {
   print(
     `${summary.passed}/${summary.trials} trials passed via ${summary.harness}${summary.errored > 0 ? ` (${summary.errored} errored)` : ""}`,
   );
+  const keptDirs = results
+    .flatMap((r) => [...r.trials, ...(r.baselineTrials ?? [])])
+    .flatMap((t) => (t.workspace != null ? [t.workspace] : []));
+  if (keptDirs.length > 0) {
+    print(``);
+    print(`Kept workspaces:`);
+    for (const dir of keptDirs) print(`  ${dir}`);
+  }
   return ok ? 0 : 1;
 };

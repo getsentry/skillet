@@ -6,6 +6,8 @@ interface TrialBase {
   checks: CheckResult[];
   transcript: string;
   durationMs: number;
+  /** Set when --keep-workspaces preserved the trial's directory. */
+  workspace?: string;
 }
 
 /** Errored trials always say why (setup failure, timeout, errored check). */

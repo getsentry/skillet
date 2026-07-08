@@ -49,19 +49,35 @@ const runTrial = async (
     if (error instanceof SetupError) return errorTrial(error.message);
     throw error;
   }
+  // Kept workspaces surface on the result so eval can print one
+  // consolidated list at the end instead of scroll-away progress lines.
+  const kept = opts.keepWorkspaces === true ? { workspace: workspace.dir } : {};
 
   const installation = withSkill
     ? installSkill(opts.harness, opts.skillRoot, workspace.dir)
     : { cleanup: (): void => {} };
 
   try {
-    const run = await runHarness(
-      opts.harness,
-      workspace.dir,
-      evalCase.prompt,
-      evalCase.timeout,
-      opts.sandbox,
-    );
+    // Heartbeat: a silent multi-minute agent run is indistinguishable
+    // from a hang without it.
+    let elapsed = 0;
+    const heartbeat = setInterval(() => {
+      elapsed += 30;
+      opts.onProgress?.(`${evalCase.id}: still running (~${elapsed}s)`);
+    }, 30_000);
+    heartbeat.unref();
+    let run;
+    try {
+      run = await runHarness(
+        opts.harness,
+        workspace.dir,
+        evalCase.prompt,
+        evalCase.timeout,
+        opts.sandbox,
+      );
+    } finally {
+      clearInterval(heartbeat);
+    }
     if (run.timedOut) {
       return {
         status: "error",
@@ -69,6 +85,7 @@ const runTrial = async (
         transcript: run.transcript,
         durationMs: run.durationMs,
         error: `harness timed out after ${evalCase.timeout}s`,
+        ...kept,
       };
     }
 
@@ -115,6 +132,7 @@ const runTrial = async (
         checks: checkResults,
         transcript: run.transcript,
         durationMs: run.durationMs,
+        ...kept,
       };
     }
     return {
@@ -122,14 +140,13 @@ const runTrial = async (
       checks: checkResults,
       transcript: run.transcript,
       durationMs: run.durationMs,
+      ...kept,
     };
   } catch (error) {
-    return errorTrial(error instanceof Error ? error.message : String(error));
+    return { ...errorTrial(error instanceof Error ? error.message : String(error)), ...kept };
   } finally {
     installation.cleanup();
-    if (opts.keepWorkspaces === true) {
-      opts.onProgress?.(`workspace kept: ${workspace.dir}`);
-    } else {
+    if (opts.keepWorkspaces !== true) {
       workspace.cleanup();
     }
   }
