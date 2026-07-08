@@ -1,0 +1,26 @@
+behavior: entry-format
+prompt: |
+  There's a bug in sum() in math.js — it skips the last element. Fix it.
+setup: |
+  git init -q -b main
+  git config user.email "eval@example.com"
+  git config user.name "Eval"
+  cat > math.js <<'JS'
+  export function sum(xs) {
+    let total = 0;
+    for (let i = 0; i < xs.length - 1; i++) {
+      total += xs[i];
+    }
+    return total;
+  }
+  JS
+  cat > CHANGES.md <<'MD'
+  # Changelog
+
+  ## Unreleased
+  MD
+  git add -A && git commit -qm init
+checks:
+  - shell: "! grep -q 'length - 1' math.js"
+  - shell: "awk '/^## Unreleased/{f=1;next} /^## /{f=0} f' CHANGES.md | grep -Eq '^- (added|changed|fixed|removed): .{1,80}$'"
+timeout: 300

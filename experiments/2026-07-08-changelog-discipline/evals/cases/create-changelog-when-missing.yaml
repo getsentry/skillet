@@ -1,0 +1,19 @@
+behavior: create-the-changelog-when-missing
+prompt: |
+  Add a slugify(text) function to strings.js.
+setup: |
+  git init -q -b main
+  git config user.email "eval@example.com"
+  git config user.name "Eval"
+  cat > strings.js <<'JS'
+  export function titleCase(s) {
+    return s.replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+  JS
+  git add -A && git commit -qm init
+checks:
+  - shell: grep -q slugify strings.js
+  - file_exists: CHANGES.md
+  - shell: "head -1 CHANGES.md | grep -q '^# Changelog'"
+  - shell: "awk '/^## Unreleased/{f=1;next} /^## /{f=0} f' CHANGES.md | grep -Eq '^- (added|changed|fixed|removed): .+'"
+timeout: 300
