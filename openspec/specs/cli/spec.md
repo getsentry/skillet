@@ -3,9 +3,7 @@
 ## Purpose
 
 `skillkit` is a self-contained CLI tool distributed as an npm package. It provides commands to create, improve, evaluate, and validate agent skills. Users invoke it via `npx skillkit <command>` with zero project-level dependencies — skillkit bundles everything needed.
-
 ## Requirements
-
 ### Requirement: Package Distribution
 
 The system SHALL be distributed as an npm package with a `skillkit` binary entry point, installable and runnable via `npx skillkit` without any prior project setup.
@@ -18,86 +16,31 @@ The system SHALL be distributed as an npm package with a `skillkit` binary entry
 
 ### Requirement: CLI command surface
 
-The CLI SHALL support the following commands: `create`, `improve`, `eval`, `validate`. The `iterate` command is removed. The `create` and `improve` commands are agentic (LLM-driven). The `eval` and `validate` commands are mechanical.
+The CLI SHALL support exactly seven commands, all mechanical (no LLM calls): `init` (scaffold project/tool integrations), `new <name>` (scaffold a skill directory with a spec.md template), `status` (artifact state for a skill), `instructions <artifact>` (serve templates and writing instructions to agents), `validate` (structural validation), `eval` (run eval cases through the harness), and `show` (pretty-print a skill's spec and coverage). The commands `create`, `improve`, `spec`, `add-eval`, `resume`, `compare`, and `install` are removed.
 
-#### Scenario: Create command
-- **WHEN** `skillkit create "description of skill"` is run
-- **THEN** the system creates a new skill directory with SKILL.md, generates evals, runs them, and iterates
+#### Scenario: New skill scaffold
+- **WHEN** `skillet new commit-helper` runs
+- **THEN** a `commit-helper/` directory is created containing a templated `spec.md` and empty `evals/cases/` and `evals/fixtures/` directories
 
-#### Scenario: Create with explicit path
-- **WHEN** `skillkit create "description" --path ./my-skill` is run
-- **THEN** the skill is created at the specified path
-
-#### Scenario: Create fails if SKILL.md exists
-- **WHEN** `skillkit create` targets a directory that already contains SKILL.md
-- **THEN** the command exits with an error suggesting `skillkit improve` instead
-
-#### Scenario: Improve command
-- **WHEN** `skillkit improve [path]` is run in a directory with SKILL.md
-- **THEN** the system reads the existing skill, generates/adds evals, optionally refines the skill, and iterates
-
-#### Scenario: Improve fails if no SKILL.md
-- **WHEN** `skillkit improve` targets a directory with no SKILL.md
-- **THEN** the command exits with an error suggesting `skillkit create` instead
-
-#### Scenario: Eval command with JSON
-- **WHEN** `skillkit eval [path] --json` is run
-- **THEN** structured JSON results are written to stdout
-
-#### Scenario: Validate command
-- **WHEN** `skillkit validate [path]` is run
-- **THEN** structural validation runs and reports errors (if any) with exit code 0 for valid, 1 for invalid
-
-#### Scenario: Help text
-- **WHEN** `skillkit --help` is run
-- **THEN** all four commands are listed with brief descriptions
+#### Scenario: Removed command
+- **WHEN** `skillet create "some skill"` runs
+- **THEN** the CLI exits non-zero with a message pointing to the agent-driven workflow (`/skillet:propose`) and `skillet new`
 
 ### Requirement: Eval Command
 
-The system SHALL provide an `eval` command that discovers and runs all eval cases for a skill, reporting pass/fail results.
+`skillet eval [path]` SHALL run the skill's eval cases through the configured harness and report per-case and per-behavior results. It SHALL support `--case <id>` to run a single case, `--trials <n>` to run each case n times and report pass rates, `--baseline` to additionally run every trial without the skill installed and report per-behavior lift (skill pass rate minus baseline pass rate), and `--json` for machine-readable results.
 
-#### Scenario: Run evals from skill directory
-- GIVEN a skill directory with `SKILL.md` and `evals/*.eval.yaml`
-- WHEN the user runs `npx skillkit eval`
-- THEN all eval cases across all `.eval.yaml` files are executed
-- AND results are printed with pass/fail status per case
-- AND exit code is 0 if all pass, 1 if any fail
+#### Scenario: Basic run
+- **WHEN** `skillet eval ./commit-helper` runs
+- **THEN** each case in `evals/cases/` executes through the harness and results are grouped by behavior with pass/fail per check
 
-#### Scenario: Run evals with explicit path
-- GIVEN a skill at `path/to/my-skill/`
-- WHEN the user runs `npx skillkit eval path/to/my-skill`
-- THEN evals are discovered relative to that path
+#### Scenario: Trials reporting
+- **WHEN** `skillet eval --trials 5` runs
+- **THEN** each case executes five times and output reports pass rates (e.g. 4/5) per case
 
-#### Scenario: Skip evals with missing requirements
-- GIVEN an eval case with `requires: [env: SENTRY_REPO]`
-- WHEN the `SENTRY_REPO` environment variable is not set
-- THEN that eval case is skipped (not failed)
-- AND the skip reason is reported
-
-### Requirement: LLM Provider Configuration
-
-The system SHALL auto-detect the LLM provider from environment variables and support explicit override.
-
-#### Scenario: Auto-detect from ANTHROPIC_API_KEY
-- GIVEN `ANTHROPIC_API_KEY` is set in the environment
-- WHEN any command that requires LLM access runs
-- THEN the Anthropic provider is used
-
-#### Scenario: Auto-detect from OPENAI_API_KEY
-- GIVEN `OPENAI_API_KEY` is set (and `ANTHROPIC_API_KEY` is not)
-- WHEN any command runs
-- THEN the OpenAI provider is used
-
-#### Scenario: No API key available
-- GIVEN no LLM provider API key is set
-- WHEN the user runs any command requiring LLM access
-- THEN a clear error is printed listing supported environment variables
-- AND exit code is 1
-
-#### Scenario: Explicit model override
-- GIVEN the `SKILLKIT_MODEL` environment variable is set to a specific model ID
-- WHEN any command runs
-- THEN that model is used instead of the default
+#### Scenario: Baseline lift
+- **WHEN** `skillet eval --trials 5 --baseline` runs
+- **THEN** each case executes five times with the skill and five times without, and output reports per-behavior lift with both pass rates
 
 ### Requirement: Zero User Dependencies
 
@@ -107,3 +50,12 @@ The system MUST NOT require the user to install any packages, tools, or runtimes
 - GIVEN a skill directory containing only `SKILL.md` and `evals/`
 - WHEN the user runs `npx skillkit eval`
 - THEN no files are created in the skill directory (no node_modules, no lock files, no configs)
+
+### Requirement: JSON output convention
+
+Every command SHALL support `--json`, emitting exactly one JSON object on stdout with no ANSI escapes; human-readable prose goes to stderr. Exit codes: 0 success, 1 failure (including validation errors and eval failures).
+
+#### Scenario: Machine-readable validate
+- **WHEN** `skillet validate --json` runs on an invalid skill
+- **THEN** stdout is a single JSON object listing issues with severity, path, and message, and the exit code is 1
+

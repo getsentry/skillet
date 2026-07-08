@@ -3,9 +3,7 @@
 ## Purpose
 
 Mechanical, no-LLM structural validation of skill artifacts: SKILL.md frontmatter and eval file structure.
-
 ## Requirements
-
 ### Requirement: SKILL.md structural validation
 
 The system SHALL validate that SKILL.md has valid YAML frontmatter with required fields (`name`, `description`), that `name` is non-empty, and that `description` is non-empty with reasonable length.
@@ -24,19 +22,15 @@ The system SHALL validate that SKILL.md has valid YAML frontmatter with required
 
 ### Requirement: Eval file structural validation
 
-The system SHALL validate that all files matching `evals/**/*.eval.yaml` parse as valid YAML with the expected structure (`evals` array, each entry has `name` and `turns`).
+The system SHALL validate that every file in `evals/cases/*.yaml` parses as YAML and conforms to the case schema: required `behavior` and `prompt` fields, `checks` entries limited to the supported types (`file_exists`, `shell`, `judge`) with non-empty values, `trials` a positive integer if present, and `timeout` a positive number if present. Unknown fields are warnings, not errors.
 
-#### Scenario: Valid eval files
-- **WHEN** all eval YAML files parse correctly with required fields
-- **THEN** validation passes with no eval file errors
+#### Scenario: Malformed YAML
+- **WHEN** a case file contains invalid YAML
+- **THEN** validation reports the file path and parse error
 
-#### Scenario: Malformed eval YAML
-- **WHEN** an eval file contains invalid YAML syntax
-- **THEN** validation reports an error with the file path and parse error
-
-#### Scenario: Missing required eval fields
-- **WHEN** an eval case is missing `name` or `turns`
-- **THEN** validation reports an error identifying the case and missing field
+#### Scenario: Unsupported check type
+- **WHEN** a case contains `regex: "foo.*"` as a check
+- **THEN** validation fails naming the file and listing the supported check types
 
 ### Requirement: No LLM calls in validation
 
@@ -45,3 +39,20 @@ Validation SHALL be a pure structural check with no LLM calls, completing in und
 #### Scenario: Offline validation
 - **WHEN** `skillkit validate` runs with no API keys configured
 - **THEN** validation completes successfully without errors about missing providers
+
+### Requirement: Spec grammar validation
+
+`skillet validate` SHALL validate `spec.md` against the skill-spec grammar: required sections present, every behavior has at least one scenario with WHEN/THEN bullets, heading depths are exact, and behavior identifiers are unique. Errors include the file, line, and a fix hint.
+
+#### Scenario: Fix hint on error
+- **WHEN** a spec has a `### Scenario:` (three hashes) under a behavior
+- **THEN** the error message states scenarios require exactly four hashes and shows the offending line number
+
+### Requirement: Coverage validation
+
+Validation SHALL cross-check `spec.md` against `evals/cases/`: unknown `behavior` references are errors; behaviors without any eval case are warnings; fixture slugs referenced by cases must exist.
+
+#### Scenario: Full-skill validation summary
+- **WHEN** `skillet validate` runs on a complete skill
+- **THEN** output summarizes spec validity, SKILL.md frontmatter validity, case validity, and behavior coverage in one report
+

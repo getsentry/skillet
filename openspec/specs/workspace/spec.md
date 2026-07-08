@@ -3,80 +3,40 @@
 ## Purpose
 
 Workspaces provide the filesystem context in which an eval case runs. Every agent tool invocation (bash, read, write, etc.) operates within the workspace directory. Two modes exist: setup script (creates a fresh temp directory) and cwd (uses an existing directory as-is). No other modes are supported.
-
 ## Requirements
-
 ### Requirement: Setup Script Mode
 
-When a workspace specifies a `setup` field, the system SHALL create a temporary directory and execute the setup script as a shell command within it before starting the agent.
+When an eval case specifies a `setup` field, the system SHALL create the workspace (fresh temp directory, with the case's fixture copied in first if declared) and execute the setup script with the workspace as working directory before spawning the agent. The script itself SHALL be materialized outside the workspace so it never appears in the workspace contents or its git state. Setup has a 30-second timeout; a non-zero exit marks the case errored without running the agent.
 
-#### Scenario: Basic setup with git repo
-- GIVEN a workspace config:
-  ```yaml
-  workspace:
-    setup: |
-      git init
-      echo "hello" > file.txt
-      git add -A && git commit -m "init"
-  ```
-- WHEN the eval case starts
-- THEN a new temporary directory is created
-- AND the setup script runs in that directory via `sh -c`
-- AND after setup, the directory contains an initialized git repo with file.txt committed
-- AND the agent's working directory is set to this temp directory
+#### Scenario: Setup runs after fixture copy
+- **WHEN** a case declares both `fixture: git-repo` and a `setup` script containing `git add -A && git commit -m init`
+- **THEN** the fixture files are present when setup runs, and the resulting commit contains only fixture files — never the setup script itself
 
 #### Scenario: Setup script failure
-- GIVEN a workspace setup script that exits with non-zero code
-- WHEN the eval case starts
-- THEN the eval case fails immediately with the setup error
-- AND no agent interaction occurs
-
-#### Scenario: Cleanup after eval
-- GIVEN a workspace created via setup script
-- WHEN the eval case completes (pass or fail)
-- THEN the temporary directory is deleted
-
-### Requirement: CWD Mode
-
-When a workspace specifies a `cwd` field, the system SHALL use that path as the agent's working directory without creating or modifying anything.
-
-#### Scenario: Absolute path
-- GIVEN a workspace config `{ cwd: "/Users/greg/code/sentry" }`
-- WHEN the eval case starts
-- THEN the agent's working directory is set to `/Users/greg/code/sentry`
-- AND no temp directory is created
-
-#### Scenario: Environment variable expansion
-- GIVEN a workspace config `{ cwd: "$SENTRY_REPO" }`
-- WHEN `SENTRY_REPO` is set to `/Users/greg/code/sentry`
-- THEN the agent's working directory is set to `/Users/greg/code/sentry`
-
-#### Scenario: Missing environment variable
-- GIVEN a workspace config `{ cwd: "$SENTRY_REPO" }`
-- WHEN `SENTRY_REPO` is not set
-- THEN the eval case is skipped with reason "workspace cwd: SENTRY_REPO not set"
-
-#### Scenario: Path does not exist
-- GIVEN a workspace config `{ cwd: "/nonexistent/path" }`
-- WHEN the eval case starts
-- THEN the eval case is skipped with reason "workspace cwd: path does not exist"
-
-### Requirement: Default Workspace
-
-When no workspace is specified, the system SHALL create an empty temporary directory.
-
-#### Scenario: No workspace field
-- GIVEN an eval case with no `workspace` field
-- WHEN the eval case starts
-- THEN a fresh empty temp directory is created and used
-- AND it is cleaned up after the case completes
+- **WHEN** the setup script exits non-zero
+- **THEN** the case is marked errored with the script output, the agent is not spawned, and remaining cases still run
 
 ### Requirement: Workspace Isolation
 
-Each eval case SHALL get its own workspace instance. Setup-mode workspaces MUST NOT share state between cases.
+Each trial of each case SHALL run in its own fresh temporary directory, removed after the run unless `--keep-workspaces` is passed. Trials never share state; baseline trials use separate workspaces from skill trials.
 
-#### Scenario: Two cases with same setup
-- GIVEN two eval cases both using `setup: "echo test > file.txt"`
-- WHEN both cases run
-- THEN each gets its own temp directory
-- AND modifications made by one case's agent do not affect the other
+#### Scenario: Trials isolated
+- **WHEN** a case runs with `--trials 3`
+- **THEN** three independent workspaces are created and each is torn down after its trial
+
+#### Scenario: Keep for debugging
+- **WHEN** `skillet eval --keep-workspaces` runs
+- **THEN** workspace paths are printed per case and left on disk
+
+### Requirement: Fixture materialization
+
+When a case declares `fixture: <slug>`, the contents of `evals/fixtures/<slug>/` SHALL be copied into the fresh workspace before setup runs. A missing fixture slug is a validation error, caught before any case runs.
+
+#### Scenario: Fixture copied
+- **WHEN** a case declares `fixture: monorepo` and `evals/fixtures/monorepo/` contains files
+- **THEN** those files exist in the workspace when the agent starts
+
+#### Scenario: Unknown fixture
+- **WHEN** a case references a fixture slug with no matching directory
+- **THEN** `skillet validate` and `skillet eval` fail before spawning any agent, naming the case and the missing fixture
+

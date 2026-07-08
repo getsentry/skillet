@@ -3,9 +3,7 @@
 ## Purpose
 
 The skill loader reads a skill's SKILL.md file and its associated references, then constructs the system prompt context that the agent uses during evaluation. It handles frontmatter parsing, reference file discovery, and prompt assembly.
-
 ## Requirements
-
 ### Requirement: Skill Root Discovery
 
 The system SHALL locate the skill root by finding the nearest directory containing a `SKILL.md` file, searching from the provided path upward.
@@ -51,49 +49,15 @@ The system SHALL parse YAML frontmatter from `SKILL.md` to extract skill metadat
 - THEN the entire file content is treated as the skill body
 - AND name defaults to the directory name
 
-### Requirement: Reference File Loading
-
-When the skill body references files (via relative paths in markdown), the system SHALL make those files available to the agent via tools. The system MUST NOT eagerly load all references into the system prompt — the agent reads them on demand, as skills instruct.
-
-#### Scenario: Skill references a patterns file
-- GIVEN SKILL.md contains "Read `references/patterns.md`"
-- WHEN the agent is initialized
-- THEN `references/patterns.md` is accessible via the read tool relative to the skill root
-- AND it is NOT automatically included in the system prompt
-
-#### Scenario: Skill has scripts directory
-- GIVEN a skill with `scripts/validate.py`
-- WHEN the agent requests to run `scripts/validate.py`
-- THEN the script is accessible relative to the skill root
-
-### Requirement: System Prompt Assembly
-
-The system SHALL construct the agent's system prompt by including the full SKILL.md content (minus frontmatter) as the primary instructions.
-
-#### Scenario: Prompt includes skill body
-- GIVEN a SKILL.md with frontmatter and a body containing "# Security Review\nIdentify exploitable vulnerabilities..."
-- WHEN the system prompt is assembled
-- THEN the body content is included as the agent's primary instructions
-
 ### Requirement: Skill Directory Structure
 
-The system SHALL recognize the following conventional structure but MUST NOT require any directory beyond `SKILL.md` existing.
+A skill directory SHALL contain `spec.md` (source of truth), `SKILL.md` (agent-rendered), optional `references/*.md`, and `evals/` with `cases/*.yaml` and `fixtures/<slug>/`. Skillet commands locate the skill root by finding the nearest ancestor directory containing either `spec.md` or `SKILL.md`.
 
-```
-my-skill/
-  SKILL.md           # required
-  references/        # optional — reference files the skill reads on demand
-  scripts/           # optional — executable scripts the skill invokes
-  evals/             # optional — eval files (only used by skillkit eval)
-    *.eval.yaml
-```
+#### Scenario: Complete skill layout
+- **WHEN** `skillet status` runs on a directory with spec.md, SKILL.md, and evals/cases/
+- **THEN** all artifacts are discovered and reported without configuration
 
-#### Scenario: Minimal skill
-- GIVEN a directory with only `SKILL.md`
-- WHEN loaded
-- THEN the skill loads successfully with no references or scripts
+#### Scenario: Legacy skill detected
+- **WHEN** a directory contains SKILL.md and a legacy `spec.yaml` but no `spec.md`
+- **THEN** status reports the skill as legacy and points to the `/skillet:migrate` workflow
 
-#### Scenario: Full skill with all directories
-- GIVEN a skill with `references/`, `scripts/`, and `evals/`
-- WHEN loaded
-- THEN all directories are accessible to the agent via tools

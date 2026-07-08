@@ -3,83 +3,24 @@
 ## Purpose
 
 The LLM judge evaluates agent output against natural language criteria when structural checks alone are insufficient. It provides a score from 0.0 to 1.0, compared against a configurable threshold. The judge is a separate LLM call from the agent under test — it receives the agent's output and the criteria string, and grades the result.
-
 ## Requirements
+### Requirement: Harness-executed judge
 
-### Requirement: Judge results in normalized format
+A `judge:` check SHALL be graded by invoking the configured harness CLI with a grading prompt containing the criterion, the case prompt, the agent transcript, and a listing of workspace changes. The judge invocation runs in a directory isolated from the eval workspace and MUST NOT modify the workspace. The verdict is parsed as pass/fail plus a one-paragraph reasoning.
 
-Judge results SHALL fold into the normalized eval result structure. The judge output (grade, score, reasoning) SHALL appear under the `judge` field of each case result, alongside `session`, `usage`, `checks`, and `errors`.
+#### Scenario: Judge passes
+- **WHEN** a judge check's criterion is satisfied by the transcript and workspace state
+- **THEN** the harness-run judge returns a pass verdict and the check passes
 
-#### Scenario: Judge result in JSON output
-- **WHEN** `skillkit eval --json` runs a case with criteria
-- **THEN** the case result `judge` field contains `{ grade, score, reasoning }`
+#### Scenario: Unparseable verdict
+- **WHEN** the judge output cannot be parsed into a verdict
+- **THEN** the check is retried once, and if still unparseable the case is marked errored (not failed) with the raw judge output attached
 
-#### Scenario: Judge invocation logic unchanged
-- **WHEN** an eval case has `criteria` and all structural `checks` pass
-- **THEN** the LLM judge is invoked with the same A-E rubric as v1
+### Requirement: Judge only after deterministic checks
 
-### Requirement: Judge Invocation
+Judge checks SHALL run only when all deterministic checks in the case have passed, to avoid spending agent invocations grading already-failed cases.
 
-The judge SHALL be invoked only when a `criteria` field is present on the eval case, and only after all structural `checks` have passed.
+#### Scenario: Deterministic failure skips judge
+- **WHEN** a `file_exists` check fails
+- **THEN** the case's judge checks are skipped and reported as skipped
 
-#### Scenario: Criteria present, checks pass
-- GIVEN an eval case with passing `checks` and a `criteria` string
-- WHEN the checks phase completes
-- THEN the judge is invoked with the agent output and criteria
-
-#### Scenario: Criteria present, checks fail
-- GIVEN an eval case where a structural check fails
-- WHEN the checks phase completes
-- THEN the judge is NOT invoked
-- AND the case fails with the check failure
-
-#### Scenario: No criteria
-- GIVEN an eval case with `checks` but no `criteria`
-- WHEN all checks pass
-- THEN the case passes without invoking the judge
-
-### Requirement: Judge Prompt
-
-The judge SHALL receive a structured prompt containing the agent's full text output and the criteria string. The judge SHALL return a letter grade (A-E) which maps to a numeric score.
-
-#### Scenario: Judge grades output
-- GIVEN agent output "Created commit: feat(auth): Add JWT validation" and criteria "The commit message follows conventional commit format with an accurate description"
-- WHEN the judge evaluates
-- THEN it returns a grade from A to E
-- AND the grade maps to a score: A=1.0, B=0.75, C=0.5, D=0.25, E=0.0
-
-### Requirement: Threshold Comparison
-
-The system SHALL compare the judge's score against the eval case's threshold (default 0.75) to determine pass/fail.
-
-#### Scenario: Score meets threshold
-- GIVEN a judge score of 0.75 and a threshold of 0.75
-- THEN the criteria check passes
-
-#### Scenario: Score below threshold
-- GIVEN a judge score of 0.5 and a threshold of 0.75
-- THEN the criteria check fails
-- AND the failure report includes the judge's score and reasoning
-
-### Requirement: Judge Model Selection
-
-The system SHALL use the same LLM provider as the agent by default, but MUST allow override via `SKILLKIT_JUDGE_MODEL` environment variable.
-
-#### Scenario: Default judge model
-- GIVEN no `SKILLKIT_JUDGE_MODEL` set
-- WHEN the judge is invoked
-- THEN it uses the same provider as the agent
-
-#### Scenario: Explicit judge model
-- GIVEN `SKILLKIT_JUDGE_MODEL=openai/gpt-4o`
-- WHEN the judge is invoked
-- THEN it uses GPT-4o regardless of the agent's model
-
-### Requirement: Judge Output in Results
-
-The system SHALL include the judge's reasoning in eval results for debugging.
-
-#### Scenario: Failed criteria with reasoning
-- GIVEN a case that fails the judge evaluation
-- WHEN results are reported
-- THEN the output includes the judge's letter grade, numeric score, and the reasoning text explaining why
