@@ -141,7 +141,7 @@ Caveat: on macOS, Claude Code keeps OAuth credentials in the Keychain, which can
 | `skillet status [path]` | Artifact state and the single next step, derived from disk |
 | `skillet instructions <spec\|skill\|evals>` | Template + writing rules for one artifact (what the workflows consume) |
 | `skillet validate [path]` | Spec grammar, SKILL.md frontmatter, case schema, coverage — exit 1 on errors |
-| `skillet eval [path] [--case id] [--trials n] [--baseline] [--harness x] [--keep-workspaces]` | Run cases through the harness; per-behavior pass rates and lift |
+| `skillet eval [path] [--case id] [--behavior id] [--trials n] [--baseline] [--harness x] [--sandbox docker] [--verbose] [--keep-workspaces]` | Run cases through the harness; per-behavior pass rates and lift |
 | `skillet show [path]` | Pretty-print the parsed spec with coverage |
 
 Every command takes `--json`: one JSON object on stdout, prose on stderr, exit 0/1.

@@ -1,7 +1,12 @@
 # skill-spec Specification
 
 ## Purpose
-TBD - created by archiving change thin-cli-redesign. Update Purpose after archive.
+
+`spec.md` is the per-skill source of truth: intent, SHOULD/SHOULD NOT
+triggers, behaviors with WHEN/THEN scenarios, and MUST NOT constraints
+in a strict, tiny markdown grammar. SKILL.md and eval cases derive
+from it; humans review intent by reading its diffs; behavior ids are
+the join keys eval cases reference.
 ## Requirements
 ### Requirement: spec.md as source of truth
 

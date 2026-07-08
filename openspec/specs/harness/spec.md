@@ -1,7 +1,13 @@
 # harness Specification
 
 ## Purpose
-TBD - created by archiving change thin-cli-redesign. Update Purpose after archive.
+
+Evals execute skills by spawning real coding-agent CLIs (codex by
+default, claude built-in, anything via a command template) in the
+trial workspace. Skillet has no agent loop of its own; the harness
+owns invocation, skill installation per agent's native mechanism,
+transcript capture, timeouts, and the opt-in docker sandbox that
+wraps every invocation for untrusted skills.
 ## Requirements
 ### Requirement: Pluggable agent-CLI harness
 

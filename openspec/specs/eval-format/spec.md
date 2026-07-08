@@ -2,26 +2,14 @@
 
 ## Purpose
 
-Eval files define test cases for agent skills. They live in a
-skill's `evals/` directory as TypeScript files (`*.eval.ts`) and
-run under vitest via the harness-first
-`describeEval(name, opts, (it) => { ... })` API mirrored from
-[getsentry/vitest-evals#41](https://github.com/getsentry/vitest-evals/pull/41).
+Eval cases are declarative YAML files under a skill's `evals/cases/`,
+one case per file, linked to a spec.md behavior by slug. Checks assert
+workspace artifacts (file_exists, shell) or semantic criteria (judge,
+graded through the harness); regex/substring matching against
+transcripts is deliberately unsupported — it tests the assertion's
+grammar, not the agent's behavior. Cases are plain data humans write
+and edit directly; skillet never generates or overwrites them.
 
-The format is harness-first, code-shaped, and judge-first:
-
-- The deliverable is real `expect(...)` assertions on
-  deterministic shapes plus named LLM-rubric judges via
-  `await expect(result).toSatisfyJudge(NameJudge)` for semantic
-  checks.
-- Regex/substring matching against `result.session.outputText`
-  (the agent's free-form chat reply) is **banned** — the agent
-  paraphrases between runs and regex on free-form text tests the
-  assertion's grammar more than the agent's behavior.
-
-Generated eval files are durable: skillet generates each one
-once when the corresponding spec entry has no eval file yet, and
-leaves existing files untouched. Hand edits stick.
 ## Requirements
 ### Requirement: Declarative YAML eval cases
 

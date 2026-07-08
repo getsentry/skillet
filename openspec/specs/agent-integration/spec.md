@@ -1,7 +1,12 @@
 # agent-integration Specification
 
 ## Purpose
-TBD - created by archiving change thin-cli-redesign. Update Purpose after archive.
+
+Skillet makes zero LLM calls. Host agents do all generation, driven by
+thin generated /skillet:* workflows that loop over `skillet status`
+and `skillet instructions --json`; the CLI serves templates, writing
+rules, and filesystem-derived state, so upgrading skillet upgrades
+every agent's behavior.
 ## Requirements
 ### Requirement: Zero LLM calls in skillet
 
