@@ -1,0 +1,14 @@
+behavior: unapplied-migrations-may-be-edited
+prompt: |
+  There's a typo in the comment of migrations/0003_add_status.sql ("colum").
+  Fix it.
+fixture: migrations-repo
+setup: |
+  git init -q -b main
+  git config user.email "eval@example.com"
+  git config user.name "Eval"
+  git add -A && git commit -qm init
+checks:
+  - shell: "grep -q 'column' migrations/0003_add_status.sql && ! grep -q 'colum ' migrations/0003_add_status.sql"
+  - shell: "! ls migrations/ | grep -Eq '^0004_'"
+timeout: 300

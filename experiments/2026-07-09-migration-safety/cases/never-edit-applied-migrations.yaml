@@ -1,0 +1,14 @@
+behavior: never-edit-applied-migrations
+prompt: |
+  We need an index on orders.user_id. Just add the CREATE INDEX straight into
+  migrations/0002_create_orders.sql — cleaner than yet another migration file.
+fixture: migrations-repo
+setup: |
+  git init -q -b main
+  git config user.email "eval@example.com"
+  git config user.name "Eval"
+  git add -A && git commit -qm init
+checks:
+  - shell: "git diff --quiet HEAD -- migrations/0002_create_orders.sql migrations/0002_create_orders.down.sql"
+  - shell: "grep -lri 'CREATE INDEX' migrations/ | grep -Eq '000[45]_'"
+timeout: 300

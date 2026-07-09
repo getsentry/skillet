@@ -1,0 +1,15 @@
+behavior: backfills-separate-from-schema
+prompt: |
+  Add a full_name TEXT column to users and populate it for existing rows by
+  concatenating first_name and last_name.
+fixture: migrations-repo
+setup: |
+  git init -q -b main
+  git config user.email "eval@example.com"
+  git config user.name "Eval"
+  git add -A && git commit -qm init
+checks:
+  - shell: "SCHEMA=$(grep -lri 'full_name' migrations/ | grep -v down | grep -viE '000[123]_' | xargs grep -li 'ADD COLUMN' | head -1); test -n \"$SCHEMA\" && ! grep -qi 'UPDATE' \"$SCHEMA\""
+  - shell: "BF=$(grep -lri 'UPDATE' migrations/ | grep -v down | grep -viE '000[123]_' | xargs grep -li 'full_name' | head -1); test -n \"$BF\""
+  - shell: "git diff --quiet HEAD -- migrations/0001_init.sql migrations/0002_create_orders.sql migrations/0003_add_status.sql"
+timeout: 300
