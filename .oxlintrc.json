@@ -37,6 +37,7 @@
     "max-lines-per-function": "off",
     "max-params": "off",
     "max-depth": "off",
+    "import/max-dependencies": "off",
     "init-declarations": "off",
     "arrow-body-style": "off",
     "prefer-destructuring": "off",

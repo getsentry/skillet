@@ -1,3 +1,5 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
   HarnessConfigError,
@@ -27,6 +29,8 @@ Options:
   --sandbox <mode>    docker: run every harness invocation in a container
                       (none: force direct). Default from .skillet.yaml.
   --keep-workspaces   Leave trial workspaces on disk for debugging
+  --out <dir>         Persist each case's result as <dir>/<case-id>.json as it
+                      finishes; existing files are reused (resume after a kill)
   --dry               No agent: run checks against the pristine workspace;
                       any check that passes there is vacuous and flagged
   --verbose           Print full transcripts for non-passing trials
@@ -79,6 +83,7 @@ export const run = async (argv: string[]): Promise<number> => {
       harness: { type: "string" },
       sandbox: { type: "string" },
       "keep-workspaces": { type: "boolean" },
+      out: { type: "string" },
       dry: { type: "boolean" },
       verbose: { type: "boolean" },
       json: { type: "boolean" },
@@ -174,10 +179,28 @@ export const run = async (argv: string[]): Promise<number> => {
     return 0;
   }
 
+  const outDir = values.out != null ? resolve(values.out) : null;
+  const cached: CaseResult[] = [];
+  if (outDir != null) {
+    mkdirSync(outDir, { recursive: true });
+    const remaining = [];
+    for (const c of cases) {
+      const cachedPath = join(outDir, `${c.id}.json`);
+      if (existsSync(cachedPath)) {
+        const parsed: unknown = JSON.parse(readFileSync(cachedPath, "utf8"));
+        cached.push(parsed as CaseResult);
+        info(`  ${c.id}: cached (${cachedPath})`);
+      } else {
+        remaining.push(c);
+      }
+    }
+    cases = remaining;
+  }
+
   info(
     `Running ${cases.length} case(s) via ${harness.name}${sandbox != null ? " [docker sandbox]" : ""}${values.baseline === true ? " (with baseline)" : ""}...`,
   );
-  const results = await runCases(cases, {
+  const fresh = await runCases(cases, {
     skillRoot: root,
     harness,
     sandbox,
@@ -187,7 +210,13 @@ export const run = async (argv: string[]): Promise<number> => {
     onProgress: (message) => {
       info(`  ${message}`);
     },
+    ...(outDir != null && {
+      onCaseDone: (result: CaseResult) => {
+        writeFileSync(join(outDir, `${result.id}.json`), `${JSON.stringify(result, null, 2)}\n`);
+      },
+    }),
   });
+  const results = [...cached, ...fresh];
 
   const behaviors = summarizeByBehavior(results);
   const allTrials = results.flatMap((r) => r.trials);

@@ -18,6 +18,8 @@ export interface RunOptions {
   baseline?: boolean;
   keepWorkspaces?: boolean;
   onProgress?: (message: string) => void;
+  /** Fires as each case finishes — the hook --out uses to persist incrementally. */
+  onCaseDone?: (result: CaseResult) => void;
 }
 
 const errorTrial = (message: string): TrialResult => ({
@@ -246,12 +248,14 @@ export const runCases = async (cases: EvalCase[], opts: RunOptions): Promise<Cas
       }
     }
 
-    results.push({
+    const result: CaseResult = {
       id: evalCase.id,
       behavior: evalCase.behavior,
       trials,
       ...(opts.baseline === true && { baselineTrials }),
-    });
+    };
+    opts.onCaseDone?.(result);
+    results.push(result);
   }
   return results;
 };
