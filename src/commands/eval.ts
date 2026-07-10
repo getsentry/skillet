@@ -149,30 +149,29 @@ export const run = async (argv: string[]): Promise<number> => {
     if (values.json === true) {
       const payload: DryJson = { ok, cases: dry };
       emitJson(payload);
-      return ok ? 0 : 1;
+      return 0;
     }
     for (const c of dry) {
       const judges = c.judges > 0 ? ` (${c.judges} judge check(s) not dry-runnable)` : "";
       if (c.vacuous) {
+        print(`  ⚠ ${c.id} — a do-nothing agent would pass this case${judges}`);
         print(
-          `  ✗ ${c.id} — a do-nothing agent would pass: every deterministic check passes on the pristine workspace${judges}`,
+          `      fine if it deliberately tests that the agent does NOT act; otherwise tighten the checks`,
         );
       } else {
         print(`  ✓ ${c.id} — requires the agent to act${judges}`);
       }
       for (const check of c.pristinePass) {
-        print(
-          `      note: passes pristine (fine if it's an invariant guard): ${check.kind}: ${check.value}`,
-        );
+        print(`      passes pristine (invariant guard?): ${check.kind}: ${check.value}`);
       }
     }
     print(``);
     print(
       ok
         ? "Dry run clean: no case passes with a do-nothing agent."
-        : "Vacuous cases found — tighten their checks so doing nothing fails.",
+        : "Review the ⚠ cases: suppression-style cases are expected there; anything else is a vacuous eval.",
     );
-    return ok ? 0 : 1;
+    return 0;
   }
 
   info(
