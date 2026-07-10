@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { ResolvedHarness } from "../harness/types.js";
 import type { EvalCase } from "./case.js";
 import { summarizeByBehavior, type TrialResult } from "./results.js";
-import { runCases } from "./runner.js";
+import { dryRun, runCases } from "./runner.js";
 
 const dirs: string[] = [];
 const makeSkillRoot = (): string => {
@@ -115,6 +115,44 @@ const trial = (status: TrialResult["status"]): TrialResult => {
   const base = { checks: [], transcript: "", durationMs: 0 };
   return status === "error" ? { ...base, status, error: "boom" } : { ...base, status };
 };
+
+describe("dryRun", () => {
+  it("flags a case as vacuous when every deterministic check passes pristine", () => {
+    const results = dryRun(
+      [
+        makeCase({
+          id: "vacuous",
+          setup: "touch already-there.txt",
+          checks: [
+            { kind: "file_exists", value: "already-there.txt" },
+            { kind: "judge", value: "cannot dry-run" },
+          ],
+        }),
+      ],
+      makeSkillRoot(),
+    );
+    expect(results[0]?.vacuous).toBe(true);
+    expect(results[0]?.pristinePass).toEqual([{ kind: "file_exists", value: "already-there.txt" }]);
+    expect(results[0]?.judges).toBe(1);
+  });
+
+  it("allows invariant guards as long as some check demands agent work", () => {
+    const results = dryRun(
+      [
+        makeCase({
+          setup: "touch invariant.txt",
+          checks: [
+            { kind: "file_exists", value: "invariant.txt" },
+            { kind: "file_exists", value: "agent-must-make-this.txt" },
+          ],
+        }),
+      ],
+      makeSkillRoot(),
+    );
+    expect(results[0]?.vacuous).toBe(false);
+    expect(results[0]?.pristinePass).toHaveLength(1);
+  });
+});
 
 describe("summarizeByBehavior", () => {
   it("computes pass rates and baseline lift per behavior", () => {

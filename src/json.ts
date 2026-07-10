@@ -39,6 +39,18 @@ export interface EvalJson {
   cases: CaseResult[];
 }
 
+export interface DryJson {
+  ok: boolean;
+  cases: {
+    id: string;
+    behavior: string;
+    pristinePass: { kind: string; value: string }[];
+    deterministic: number;
+    judges: number;
+    vacuous: boolean;
+  }[];
+}
+
 export interface ShowJson {
   root: string;
   spec: ParsedSpec;

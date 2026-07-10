@@ -3,7 +3,7 @@ import type { SandboxConfig } from "../harness/sandbox.js";
 import { installSkill } from "../harness/install.js";
 import { runHarness } from "../harness/run.js";
 import type { ResolvedHarness } from "../harness/types.js";
-import type { EvalCase } from "./case.js";
+import type { Check, EvalCase } from "./case.js";
 import { type CheckResult, runCheck } from "./checks.js";
 import type { CaseResult, TrialResult } from "./results.js";
 import { SetupError, createWorkspace } from "./workspace.js";
@@ -180,6 +180,53 @@ const runTrialWithRetry = async (
     return runTrial(evalCase, opts, withSkill);
   }
   return first;
+};
+
+export interface DryCaseResult {
+  id: string;
+  behavior: string;
+  /** Deterministic checks that pass with no agent run (invariant guards, or bugs). */
+  pristinePass: Check[];
+  deterministic: number;
+  /** Judge checks can't be dry-run; reported so nobody assumes they were. */
+  judges: number;
+  /** True when a do-nothing agent would pass this case — the eval proves nothing. */
+  vacuous: boolean;
+}
+
+/**
+ * Run every deterministic check against the pristine workspace, no
+ * agent involved. Individual pristine-passers are fine (invariant
+ * guards like "existing files unchanged" pass by design) — the defect
+ * is a case where ALL of them pass, because then a do-nothing agent
+ * scores a pass.
+ */
+export const dryRun = (cases: EvalCase[], skillRoot: string): DryCaseResult[] => {
+  const results: DryCaseResult[] = [];
+  for (const evalCase of cases) {
+    const workspace = createWorkspace({
+      skillRoot,
+      ...(evalCase.fixture != null && { fixture: evalCase.fixture }),
+      ...(evalCase.setup != null && { setup: evalCase.setup }),
+    });
+    try {
+      const deterministic = evalCase.checks.filter((c) => c.kind !== "judge");
+      const pristinePass = deterministic.filter(
+        (check) => runCheck(check, workspace.dir).status === "pass",
+      );
+      results.push({
+        id: evalCase.id,
+        behavior: evalCase.behavior,
+        pristinePass,
+        deterministic: deterministic.length,
+        judges: evalCase.checks.length - deterministic.length,
+        vacuous: deterministic.length > 0 && pristinePass.length === deterministic.length,
+      });
+    } finally {
+      workspace.cleanup();
+    }
+  }
+  return results;
 };
 
 /** Run a list of cases through the harness, serially. */

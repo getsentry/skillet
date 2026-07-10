@@ -7,10 +7,10 @@ import {
 } from "../harness/config.js";
 import { requireSandbox, resolveSandbox, type SandboxConfig } from "../harness/sandbox.js";
 import type { ResolvedHarness } from "../harness/types.js";
-import type { EvalJson, EvalSummary } from "../json.js";
+import type { DryJson, EvalJson, EvalSummary } from "../json.js";
 import { emitJson, fail, info, print } from "../output.js";
 import { passRate, summarizeByBehavior, type CaseResult } from "../evals/results.js";
-import { runCases } from "../evals/runner.js";
+import { dryRun, runCases } from "../evals/runner.js";
 import { validateSkill } from "../validate.js";
 import { resolveSkillRoot } from "./shared.js";
 
@@ -27,6 +27,8 @@ Options:
   --sandbox <mode>    docker: run every harness invocation in a container
                       (none: force direct). Default from .skillet.yaml.
   --keep-workspaces   Leave trial workspaces on disk for debugging
+  --dry               No agent: run checks against the pristine workspace;
+                      any check that passes there is vacuous and flagged
   --verbose           Print full transcripts for non-passing trials
   --json              Machine-readable results on stdout
 
@@ -77,6 +79,7 @@ export const run = async (argv: string[]): Promise<number> => {
       harness: { type: "string" },
       sandbox: { type: "string" },
       "keep-workspaces": { type: "boolean" },
+      dry: { type: "boolean" },
       verbose: { type: "boolean" },
       json: { type: "boolean" },
       help: { type: "boolean", short: "h" },
@@ -138,6 +141,38 @@ export const run = async (argv: string[]): Promise<number> => {
   }
   if (cases.length === 0) {
     return fail("no eval cases found under evals/cases/");
+  }
+
+  if (values.dry === true) {
+    const dry = dryRun(cases, root);
+    const ok = dry.every((c) => !c.vacuous);
+    if (values.json === true) {
+      const payload: DryJson = { ok, cases: dry };
+      emitJson(payload);
+      return ok ? 0 : 1;
+    }
+    for (const c of dry) {
+      const judges = c.judges > 0 ? ` (${c.judges} judge check(s) not dry-runnable)` : "";
+      if (c.vacuous) {
+        print(
+          `  ✗ ${c.id} — a do-nothing agent would pass: every deterministic check passes on the pristine workspace${judges}`,
+        );
+      } else {
+        print(`  ✓ ${c.id} — requires the agent to act${judges}`);
+      }
+      for (const check of c.pristinePass) {
+        print(
+          `      note: passes pristine (fine if it's an invariant guard): ${check.kind}: ${check.value}`,
+        );
+      }
+    }
+    print(``);
+    print(
+      ok
+        ? "Dry run clean: no case passes with a do-nothing agent."
+        : "Vacuous cases found — tighten their checks so doing nothing fails.",
+    );
+    return ok ? 0 : 1;
   }
 
   info(
