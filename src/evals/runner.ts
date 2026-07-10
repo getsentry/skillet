@@ -88,6 +88,18 @@ const runTrial = async (
         ...kept,
       };
     }
+    if (run.exitCode !== 0) {
+      // The agent CLI died (auth, network, startup) — checks would
+      // grade an empty run as a skill failure, so this is an error.
+      return {
+        status: "error",
+        checks: [],
+        transcript: run.transcript,
+        durationMs: run.durationMs,
+        error: `harness exited with code ${run.exitCode}: ${run.transcript.trim().slice(-200)}`,
+        ...kept,
+      };
+    }
 
     const deterministic = evalCase.checks.filter((c) => c.kind !== "judge");
     const judges = evalCase.checks.filter((c) => c.kind === "judge");
@@ -152,6 +164,24 @@ const runTrial = async (
   }
 };
 
+/**
+ * Harness startup failures (nonzero exit before the agent did any
+ * work) are transient often enough that one automatic retry is the
+ * right default; a second failure surfaces as the trial's error.
+ */
+const runTrialWithRetry = async (
+  evalCase: EvalCase,
+  opts: RunOptions,
+  withSkill: boolean,
+): Promise<TrialResult> => {
+  const first = await runTrial(evalCase, opts, withSkill);
+  if (first.status === "error" && first.error.startsWith("harness exited with code")) {
+    opts.onProgress?.(`${evalCase.id}: harness startup failure, retrying once`);
+    return runTrial(evalCase, opts, withSkill);
+  }
+  return first;
+};
+
 /** Run a list of cases through the harness, serially. */
 export const runCases = async (cases: EvalCase[], opts: RunOptions): Promise<CaseResult[]> => {
   const results: CaseResult[] = [];
@@ -162,10 +192,10 @@ export const runCases = async (cases: EvalCase[], opts: RunOptions): Promise<Cas
 
     for (let i = 0; i < trialCount; i++) {
       opts.onProgress?.(`${evalCase.id}: trial ${i + 1}/${trialCount}`);
-      trials.push(await runTrial(evalCase, opts, true));
+      trials.push(await runTrialWithRetry(evalCase, opts, true));
       if (opts.baseline === true) {
         opts.onProgress?.(`${evalCase.id}: baseline trial ${i + 1}/${trialCount}`);
-        baselineTrials.push(await runTrial(evalCase, opts, false));
+        baselineTrials.push(await runTrialWithRetry(evalCase, opts, false));
       }
     }
 

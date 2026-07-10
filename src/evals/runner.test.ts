@@ -82,6 +82,23 @@ describe("runCases", () => {
     expect(checks.find((c) => c.kind === "judge")?.status).toBe("skipped");
   });
 
+  it("treats a nonzero harness exit as an error, not a skill failure", async () => {
+    const dying: ResolvedHarness = {
+      name: "dying",
+      kind: "custom",
+      binary: "sh",
+      command: "echo boot failure >&2; false # {workspace} {prompt}",
+    };
+    const results = await runCases([makeCase({})], {
+      skillRoot: makeSkillRoot(),
+      harness: dying,
+    });
+    const trial = results[0]?.trials[0];
+    expect(trial?.status).toBe("error");
+    expect(trial?.status === "error" && trial.error).toContain("harness exited with code 1");
+    expect(trial?.checks).toEqual([]);
+  });
+
   it("runs baseline trials without the skill and honors --trials", async () => {
     const results = await runCases([makeCase({})], {
       skillRoot: makeSkillRoot(),
