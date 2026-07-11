@@ -19,7 +19,7 @@ export interface SandboxConfig {
   env: string[];
 }
 
-export const DEFAULT_IMAGE = "skillet-eval";
+const DEFAULT_IMAGE = "skillet-eval";
 const DEFAULT_AUTH_CANDIDATES = ["~/.codex", "~/.claude", "~/.claude.json"];
 
 const expandHome = (path: string): string => {

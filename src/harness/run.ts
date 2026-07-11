@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import {
   CONTAINER_SCRATCH,
   CONTAINER_WORKSPACE,
@@ -86,7 +86,7 @@ export const runHarness = async (
   workspace: string,
   prompt: string,
   timeoutSeconds: number,
-  sandbox?: SandboxConfig | null,
+  sandbox?: SandboxConfig,
 ): Promise<HarnessRun> => {
   const scratchDir = mkdtempSync(join(tmpdir(), "skillet-run-"));
   let invocation: Invocation;
@@ -96,7 +96,7 @@ export const runHarness = async (
     invocation = {
       ...wrapped,
       ...(inner.lastMessageFile != null && {
-        lastMessageFile: join(scratchDir, "last-message.txt"),
+        lastMessageFile: join(scratchDir, basename(inner.lastMessageFile)),
       }),
     };
   } else {

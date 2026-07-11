@@ -3,8 +3,6 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import type { Check, CheckKind } from "./case.js";
 
-export type CheckStatus = "pass" | "fail" | "skipped" | "error";
-
 /**
  * Pass may carry output (judges attach their reasoning); fail and
  * error always explain themselves; skipped never does.
@@ -15,7 +13,7 @@ export type CheckResult = { kind: CheckKind; value: string } & (
   | { status: "skipped" }
 );
 
-export const SHELL_CHECK_TIMEOUT_MS = 60_000;
+const SHELL_CHECK_TIMEOUT_MS = 60_000;
 
 /**
  * Run one deterministic check inside the workspace. Judge checks are

@@ -1,10 +1,7 @@
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
-
-const isRecord = (v: unknown): v is Record<string, unknown> => {
-  return v != null && typeof v === "object" && !Array.isArray(v);
-};
+import { isRecord } from "../guards.js";
 
 /**
  * Parse YAML frontmatter delimited by --- lines.

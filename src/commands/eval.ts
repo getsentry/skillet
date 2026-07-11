@@ -248,7 +248,7 @@ export const run = async (argv: string[]): Promise<number> => {
   const fresh = await runCases(cases, {
     skillRoot: root,
     harness,
-    sandbox,
+    ...(sandbox != null && { sandbox }),
     ...(trials != null && { trials }),
     ...(values.baseline === true && { baseline: true }),
     ...(values["keep-workspaces"] === true && { keepWorkspaces: true }),

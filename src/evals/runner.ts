@@ -13,14 +13,17 @@ export interface RunOptions {
   harness: ResolvedHarness;
   /** Overrides each case's own trials when set (--trials). */
   trials?: number;
-  /** Non-null wraps every harness invocation in a container. */
-  sandbox?: SandboxConfig | null;
+  /** Present wraps every harness invocation in a container. */
+  sandbox?: SandboxConfig;
   baseline?: boolean;
   keepWorkspaces?: boolean;
   onProgress?: (message: string) => void;
-  /** Fires as each case finishes — the hook --out uses to persist incrementally. */
+  /** Fires as each case finishes, so results can be persisted incrementally. */
   onCaseDone?: (result: CaseResult) => void;
 }
+
+/** Error prefix shared by the message and the retry check keyed on it. */
+const HARNESS_EXIT_PREFIX = "harness exited with code";
 
 const errorTrial = (message: string): TrialResult => ({
   status: "error",
@@ -38,7 +41,7 @@ const errorTrial = (message: string): TrialResult => ({
 const runTrial = async (
   evalCase: EvalCase,
   opts: RunOptions,
-  withSkill: boolean,
+  variant: "skill" | "baseline",
 ): Promise<TrialResult> => {
   let workspace;
   try {
@@ -55,9 +58,10 @@ const runTrial = async (
   // consolidated list at the end instead of scroll-away progress lines.
   const kept = opts.keepWorkspaces === true ? { workspace: workspace.dir } : {};
 
-  const installation = withSkill
-    ? installSkill(opts.harness, opts.skillRoot, workspace.dir)
-    : { cleanup: (): void => {} };
+  const installation =
+    variant === "skill"
+      ? installSkill(opts.harness, opts.skillRoot, workspace.dir)
+      : { cleanup: (): void => {} };
 
   try {
     // Heartbeat: a silent multi-minute agent run is indistinguishable
@@ -98,7 +102,7 @@ const runTrial = async (
         checks: [],
         transcript: run.transcript,
         durationMs: run.durationMs,
-        error: `harness exited with code ${run.exitCode}: ${run.transcript.trim().slice(-200)}`,
+        error: `${HARNESS_EXIT_PREFIX} ${run.exitCode}: ${run.transcript.trim().slice(-200)}`,
         ...kept,
       };
     }
@@ -121,21 +125,12 @@ const runTrial = async (
         workspace.dir,
         opts.sandbox,
       );
-      if (verdict.status === "pass") {
-        checkResults.push({
-          kind: "judge",
-          value: judgeCheck.value,
-          status: "pass",
-          output: verdict.reasoning,
-        });
-      } else {
-        checkResults.push({
-          kind: "judge",
-          value: judgeCheck.value,
-          status: verdict.status,
-          output: verdict.reasoning,
-        });
-      }
+      checkResults.push({
+        kind: "judge",
+        value: judgeCheck.value,
+        status: verdict.status,
+        output: verdict.reasoning,
+      });
     }
 
     const errored = checkResults.find((c) => c.status === "error");
@@ -174,12 +169,12 @@ const runTrial = async (
 const runTrialWithRetry = async (
   evalCase: EvalCase,
   opts: RunOptions,
-  withSkill: boolean,
+  variant: "skill" | "baseline",
 ): Promise<TrialResult> => {
-  const first = await runTrial(evalCase, opts, withSkill);
-  if (first.status === "error" && first.error.startsWith("harness exited with code")) {
+  const first = await runTrial(evalCase, opts, variant);
+  if (first.status === "error" && first.error.startsWith(HARNESS_EXIT_PREFIX)) {
     opts.onProgress?.(`${evalCase.id}: harness startup failure, retrying once`);
-    return runTrial(evalCase, opts, withSkill);
+    return runTrial(evalCase, opts, variant);
   }
   return first;
 };
@@ -262,10 +257,10 @@ export const runCases = async (cases: EvalCase[], opts: RunOptions): Promise<Cas
 
     for (let i = 0; i < trialCount; i++) {
       opts.onProgress?.(`${evalCase.id}: trial ${i + 1}/${trialCount}`);
-      trials.push(await runTrialWithRetry(evalCase, opts, true));
+      trials.push(await runTrialWithRetry(evalCase, opts, "skill"));
       if (opts.baseline === true) {
         opts.onProgress?.(`${evalCase.id}: baseline trial ${i + 1}/${trialCount}`);
-        baselineTrials.push(await runTrialWithRetry(evalCase, opts, false));
+        baselineTrials.push(await runTrialWithRetry(evalCase, opts, "baseline"));
       }
     }
 

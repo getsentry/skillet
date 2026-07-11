@@ -11,7 +11,7 @@ export interface JudgeVerdict {
   reasoning: string;
 }
 
-export const JUDGE_TIMEOUT_SECONDS = 120;
+const JUDGE_TIMEOUT_SECONDS = 120;
 
 const MAX_FILE_BYTES = 4000;
 const MAX_TOTAL_BYTES = 32_000;
@@ -149,7 +149,7 @@ export const runJudge = async (
   casePrompt: string,
   transcript: string,
   workspace: string,
-  sandbox?: SandboxConfig | null,
+  sandbox?: SandboxConfig,
 ): Promise<JudgeVerdict> => {
   const prompt = buildJudgePrompt(criterion, casePrompt, transcript, describeWorkspace(workspace));
 

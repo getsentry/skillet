@@ -17,7 +17,7 @@ export interface ValidationReport {
 }
 
 /** SKILL.md frontmatter rules (validation spec). */
-export const validateSkillMd = (root: string): Issue[] => {
+const validateSkillMd = (root: string): Issue[] => {
   const path = join(root, "SKILL.md");
   if (!existsSync(path)) {
     return [
@@ -84,17 +84,7 @@ export const validateSkill = (root: string): ValidationReport => {
   const skillIssues = validateSkillMd(root);
   const { cases, issues: caseIssues } = loadCases(root);
   const coverageIssues =
-    parsedSpec != null
-      ? checkCoverage(
-          parsedSpec,
-          cases.map((c) => ({
-            file: c.file,
-            behavior: c.behavior,
-            ...(c.fixture != null && { fixture: c.fixture }),
-          })),
-          listFixtures(root),
-        )
-      : [];
+    parsedSpec != null ? checkCoverage(parsedSpec, cases, listFixtures(root)) : [];
 
   const all = [...specIssues, ...skillIssues, ...caseIssues, ...coverageIssues];
   return {

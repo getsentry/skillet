@@ -1,9 +1,10 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import { parse as parseYaml } from "yaml";
+import { isRecord } from "../guards.js";
 import type { Issue } from "../spec/types.js";
 
-export const CHECK_KINDS = ["file_exists", "shell", "judge"] as const;
+const CHECK_KINDS = ["file_exists", "shell", "judge"] as const;
 export type CheckKind = (typeof CHECK_KINDS)[number];
 
 export interface Check {
@@ -30,7 +31,7 @@ export interface CaseLoadResult {
   issues: Issue[];
 }
 
-export const DEFAULT_TIMEOUT_SECONDS = 300;
+const DEFAULT_TIMEOUT_SECONDS = 300;
 
 const KNOWN_FIELDS = new Set([
   "behavior",
@@ -41,10 +42,6 @@ const KNOWN_FIELDS = new Set([
   "trials",
   "timeout",
 ]);
-
-const isRecord = (v: unknown): v is Record<string, unknown> => {
-  return v != null && typeof v === "object" && !Array.isArray(v);
-};
 
 /**
  * Parse and validate one case file's content (validation spec, "Eval

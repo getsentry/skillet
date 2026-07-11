@@ -3,7 +3,7 @@ import { chmodSync, cpSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-export const SETUP_TIMEOUT_MS = 30_000;
+const SETUP_TIMEOUT_MS = 30_000;
 
 export class SetupError extends Error {
   constructor(message: string) {

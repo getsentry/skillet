@@ -71,7 +71,7 @@ Rules that keep evals honest:
 
 After writing: 'skillet validate' (schema + coverage), then 'skillet eval' to run.`;
 
-/** The evals template is prose-only; the schema is in the instructions. */
+/** Minimal YAML case skeleton; the full schema lives in EVALS_INSTRUCTIONS. */
 const EVALS_TEMPLATE = `behavior: <behavior-id>
 prompt: |
   <realistic user ask>
@@ -101,4 +101,5 @@ const PAYLOADS: Record<ArtifactId, Instructions> = {
   },
 };
 
+/** The template + writing rules payload for one artifact. */
 export const instructionsFor = (artifact: ArtifactId): Instructions => PAYLOADS[artifact];

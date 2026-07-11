@@ -1,7 +1,5 @@
 import type { CheckResult } from "./checks.js";
 
-export type TrialStatus = "pass" | "fail" | "error";
-
 interface TrialBase {
   checks: CheckResult[];
   transcript: string;

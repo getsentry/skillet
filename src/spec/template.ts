@@ -1,6 +1,6 @@
 /**
  * The spec.md grammar in one place: section names, heading depths,
- * and the scaffold template `skillet new` writes.
+ * and the spec.md scaffold template.
  */
 
 export const SECTION_INTENT = "Intent";

@@ -23,16 +23,8 @@ export interface SkillStatus {
   next: string;
 }
 
-const mtime = (path: string): number => {
-  try {
-    return statSync(path).mtimeMs;
-  } catch {
-    return 0;
-  }
-};
-
 /** Short content hash of spec.md — survives clones, unlike mtimes. */
-export const specHash = (specPath: string): string => {
+const specHash = (specPath: string): string => {
   return createHash("sha256").update(readFileSync(specPath)).digest("hex").slice(0, 12);
 };
 
@@ -47,7 +39,7 @@ const skillIsStale = (skillPath: string, specPath: string, hash: string): boolea
   if (typeof recorded === "string" && recorded !== "") {
     return recorded !== hash;
   }
-  return mtime(skillPath) < mtime(specPath);
+  return statSync(skillPath).mtimeMs < statSync(specPath).mtimeMs;
 };
 
 /**
