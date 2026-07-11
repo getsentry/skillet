@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import {
@@ -10,6 +10,7 @@ import {
 import { requireSandbox, resolveSandbox, type SandboxConfig } from "../harness/sandbox.js";
 import type { ResolvedHarness } from "../harness/types.js";
 import type { DryJson, EvalJson, EvalSummary } from "../json.js";
+import { isRecord } from "../guards.js";
 import { emitJson, fail, info, print } from "../output.js";
 import { passRate, summarizeByBehavior, type CaseResult } from "../evals/results.js";
 import { dryRun, runCases } from "../evals/runner.js";
@@ -30,7 +31,8 @@ Options:
                       (none: force direct). Default from .skillet.yaml.
   --keep-workspaces   Leave trial workspaces on disk for debugging
   --out <dir>         Persist each case's result as <dir>/<case-id>.json as it
-                      finishes; existing files are reused (resume after a kill)
+                      finishes; existing files are reused as-is on the next run
+                      (resume after a kill — delete files to re-measure)
   --dry               No agent: run checks against the pristine workspace;
                       any check that passes there is vacuous and flagged
   --verbose           Print full transcripts for non-passing trials
@@ -40,6 +42,29 @@ Exit codes: 0 all trials passed, 1 otherwise.
 `;
 
 const percent = (rate: number): string => `${Math.round(rate * 100)}%`;
+
+/**
+ * Resume contract for --out: cached files are trusted as-is (run flags
+ * are not compared); anything unreadable or misshapen — e.g. truncated
+ * by a killed run — counts as absent and the case re-runs.
+ */
+const readCachedResult = (path: string): CaseResult | null => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(path, "utf8"));
+  } catch {
+    return null;
+  }
+  if (
+    !isRecord(parsed) ||
+    typeof parsed["id"] !== "string" ||
+    typeof parsed["behavior"] !== "string" ||
+    !Array.isArray(parsed["trials"])
+  ) {
+    return null;
+  }
+  return parsed as unknown as CaseResult;
+};
 
 const printCase = (result: CaseResult, verbose: boolean): void => {
   const rate = passRate(result.trials);
@@ -183,6 +208,13 @@ export const run = async (argv: string[]): Promise<number> => {
     return 0;
   }
 
+  // Install reads SKILL.md unconditionally, and validate only warns on
+  // its absence — guard here so the spec-first flow gets a next step
+  // instead of an ENOENT mid-trial.
+  if (!existsSync(join(root, "SKILL.md"))) {
+    return fail("SKILL.md not rendered yet — 'skillet instructions skill' shows how to write it");
+  }
+
   const outDir = values.out != null ? resolve(values.out) : null;
   const cached: CaseResult[] = [];
   if (outDir != null) {
@@ -190,11 +222,14 @@ export const run = async (argv: string[]): Promise<number> => {
     const remaining = [];
     for (const c of cases) {
       const cachedPath = join(outDir, `${c.id}.json`);
-      if (existsSync(cachedPath)) {
-        const parsed: unknown = JSON.parse(readFileSync(cachedPath, "utf8"));
-        cached.push(parsed as CaseResult);
+      const cachedResult = existsSync(cachedPath) ? readCachedResult(cachedPath) : null;
+      if (cachedResult != null) {
+        cached.push(cachedResult);
         info(`  ${c.id}: cached (${cachedPath})`);
       } else {
+        if (existsSync(cachedPath)) {
+          info(`  ${c.id}: cached file is corrupt — re-running (${cachedPath})`);
+        }
         remaining.push(c);
       }
     }
@@ -216,7 +251,10 @@ export const run = async (argv: string[]): Promise<number> => {
     },
     ...(outDir != null && {
       onCaseDone: (result: CaseResult) => {
-        writeFileSync(join(outDir, `${result.id}.json`), `${JSON.stringify(result, null, 2)}\n`);
+        // Write-then-rename so a killed run can't leave a truncated file.
+        const path = join(outDir, `${result.id}.json`);
+        writeFileSync(`${path}.tmp`, `${JSON.stringify(result, null, 2)}\n`);
+        renameSync(`${path}.tmp`, path);
       },
     }),
   });
