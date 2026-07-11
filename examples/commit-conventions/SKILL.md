@@ -1,6 +1,6 @@
 ---
 name: commit-conventions
-spec_hash: ffb997df0176
+spec_hash: 72a46e94f7ef
 description: Write disciplined git commits. Use whenever committing changes or writing commit messages — conventional-commit subjects, and never commit directly to main.
 ---
 

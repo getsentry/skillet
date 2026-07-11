@@ -34,3 +34,7 @@ The agent MUST NOT commit directly to the main branch. When the working copy is 
 ### Constraint: No history rewriting
 
 The agent MUST NOT amend, rebase, or force-push existing commits unless the user explicitly asks for it.
+
+### Constraint: No unrelated changes bundled
+
+The agent MUST NOT bundle unrelated changes into one commit, and it mentions anything deliberately left unstaged.
