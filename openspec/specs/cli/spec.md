@@ -28,7 +28,7 @@ The CLI SHALL support exactly seven commands, all mechanical (no LLM calls): `in
 
 ### Requirement: Eval Command
 
-`skillet eval [path]` SHALL run the skill's eval cases through the configured harness and report per-case and per-behavior results. It SHALL support `--case <id>` to run a single case, `--trials <n>` to run each case n times and report pass rates, `--baseline` to additionally run every trial without the skill installed and report per-behavior lift (skill pass rate minus baseline pass rate), and `--json` for machine-readable results.
+`skillet eval [path]` SHALL run the skill's eval cases through the configured harness and report per-case and per-behavior results. It SHALL support `--case <id>` and `--behavior <id>` to filter, `--trials <n>` to run each case n times and report pass rates, `--baseline` to additionally run every trial without the skill installed and report per-behavior lift (skill pass rate minus baseline pass rate), `--dry` to evaluate checks against the pristine workspace with no agent (flagging cases a do-nothing agent would pass), `--out <dir>` to persist each case's result as it finishes and resume from those files on rerun, `--verbose` to print transcripts for non-passing trials, `--keep-workspaces`, `--sandbox docker|none`, `--harness <name>`, and `--json` for machine-readable results.
 
 #### Scenario: Basic run
 - **WHEN** `skillet eval ./commit-helper` runs
@@ -37,6 +37,14 @@ The CLI SHALL support exactly seven commands, all mechanical (no LLM calls): `in
 #### Scenario: Trials reporting
 - **WHEN** `skillet eval --trials 5` runs
 - **THEN** each case executes five times and output reports pass rates (e.g. 4/5) per case
+
+#### Scenario: Dry run finds vacuous cases
+- **WHEN** `skillet eval --dry` runs on a case whose deterministic checks all pass against the untouched workspace
+- **THEN** the case is flagged as passable by a do-nothing agent, no agent is spawned, and the command exits 0 (advisory)
+
+#### Scenario: Interrupted run resumes
+- **WHEN** `skillet eval --out results/` is re-run after an interrupted run wrote some case files
+- **THEN** existing case results are loaded instead of re-run and only missing cases execute
 
 #### Scenario: Baseline lift
 - **WHEN** `skillet eval --trials 5 --baseline` runs
@@ -50,6 +58,14 @@ The system MUST NOT require the user to install any packages, tools, or runtimes
 - GIVEN a skill directory containing only `SKILL.md` and `evals/`
 - WHEN the user runs `npx skillkit eval`
 - THEN no files are created in the skill directory (no node_modules, no lock files, no configs)
+
+### Requirement: Version flag
+
+`skillet --version` (and `-v`) SHALL print the package version to stdout and exit 0.
+
+#### Scenario: Version probe
+- **WHEN** `skillet --version` runs
+- **THEN** stdout is the version string alone
 
 ### Requirement: JSON output convention
 

@@ -69,6 +69,22 @@ The system SHALL support an opt-in container sandbox: when activated via `skille
 - **WHEN** the sandbox config sets `network: false`
 - **THEN** the container runs with networking disabled
 
+### Requirement: Model selection on builtins
+
+Builtin harness names SHALL accept a `:model` suffix (`claude:sonnet`, `codex:gpt-5`) that passes the model override to the underlying CLI, so evals and judges need not run on the user's default (often most expensive) model.
+
+#### Scenario: Sonnet harness
+- **WHEN** `skillet eval --harness claude:sonnet` runs
+- **THEN** the agent CLI is invoked with the sonnet model override
+
+### Requirement: Startup failures are errors
+
+A harness process that exits nonzero SHALL yield a trial with status `error` carrying the transcript tail — never a `fail`, since no agent work was graded — and SHALL be retried once automatically before the error stands.
+
+#### Scenario: Agent CLI dies at startup
+- **WHEN** the harness binary exits nonzero before doing any work
+- **THEN** the trial is retried once, and if it fails again the trial is an error, not a skill failure
+
 ### Requirement: Transcript capture
 
 The harness SHALL capture the spawned agent's output (stdout/stderr) as a transcript, attach it to the case result, and enforce a per-case timeout (default 300 seconds, overridable per case).

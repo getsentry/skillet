@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.1.0
+
+### Features 🚀
+
+- Opt-in docker sandbox for eval runs (`--sandbox docker`, `sandbox:` config;
+  `sandbox/Dockerfile` ships the image recipe)
+- Model selection on builtin harnesses: `--harness claude:sonnet`, `codex:gpt-5`
+- `skillet eval --dry`: flags cases a do-nothing agent would pass, no agent runs
+- `skillet eval --out <dir>`: per-case results persisted as they finish; reruns
+  resume from disk
+- `--behavior` filter, `--verbose` transcripts, per-case timing, run heartbeat,
+  kept-workspace summary, `--version`
+
+### Fixes 🐛
+
+- Nonzero harness exit is a trial error (retried once), not a skill failure
+- Content-hash staleness via spec_hash frontmatter (mtime broke on git clone)
+- Unfilled template placeholders and checkless cases now fail validation
+- Clean usage errors instead of stack traces on unknown flags
+- Custom-harness config no longer interpolates into sh -c (injection class
+  banned by ast-grep rule)
+
+### Internal
+
+- Tooling consolidated to oxlint (zero-warnings-as-errors) + ast-grep + strict
+  tsc, wired into pre-commit hooks and CI
+- Discriminated unions across harness/check/trial/status types; --json outputs
+  pinned to wire types in src/json.ts
+
+
 ## 1.0.0
 
 ### Breaking — thin-CLI redesign 🔥
