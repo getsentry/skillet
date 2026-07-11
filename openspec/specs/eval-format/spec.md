@@ -13,7 +13,7 @@ and edit directly; skillet never generates or overwrites them.
 ## Requirements
 ### Requirement: Declarative YAML eval cases
 
-Eval cases SHALL be YAML files in `evals/cases/`, one case per file. A case has required fields `behavior` (a behavior identifier from spec.md) and `prompt` (the user message given to the agent under test), and optional fields `fixture` (a slug under `evals/fixtures/`), `setup` (a shell script run in the workspace before the agent), `checks` (list of check entries), `trials` (default 1), and `timeout` (seconds, default 300).
+Eval cases SHALL be YAML files in `evals/cases/`, one case per file. A case has required fields `behavior` (a behavior or constraint identifier from spec.md), `prompt` (the user message given to the agent under test), and `checks` (at least one check entry — a checkless case would pass vacuously), and optional fields `fixture` (a slug under `evals/fixtures/`), `setup` (a shell script run in the workspace before the agent), `trials` (default 1), and `timeout` (seconds, default 300).
 
 #### Scenario: Minimal case
 - **WHEN** a case file contains only `behavior:` and `prompt:` plus one check
@@ -46,17 +46,15 @@ Eval cases SHALL be plain data that humans can write and edit directly. Skillet 
 ## Output layout
 
 ```
-skills/<skill>/
-├── SKILL.md                     ← skill body (skill-writer output)
-├── spec.yaml                    ← source of truth
-├── references/                  ← skill-writer output
+<skill>/
+├── spec.md                      ← source of truth
+├── SKILL.md                     ← agent-rendered skill body
+├── references/                  ← optional detail files
 │   └── <topic>.md
 └── evals/
-    ├── _judges.ts               ← canonical deduped judges
-    ├── fixtures/                ← per-case workspace seeds
-    │   └── <case-slug>/
-    │       └── <rel-path>       ← real readable file
-    └── <entry-id>.eval.ts       ← per-behavior eval, imports
-                                   from _judges.js, calls
-                                   harness.useFixture(<slug>)
+    ├── cases/
+    │   └── <case-id>.yaml       ← one declarative case per file
+    └── fixtures/
+        └── <slug>/              ← per-case workspace seeds
+            └── <rel-path>       ← real readable file
 ```

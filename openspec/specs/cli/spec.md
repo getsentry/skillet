@@ -2,16 +2,16 @@
 
 ## Purpose
 
-`skillkit` is a self-contained CLI tool distributed as an npm package. It provides commands to create, improve, evaluate, and validate agent skills. Users invoke it via `npx skillkit <command>` with zero project-level dependencies — skillkit bundles everything needed.
+`skillet` is a self-contained CLI tool distributed as an npm package. It provides commands to create, improve, evaluate, and validate agent skills. Users invoke it via `npx @sentry/skillet <command>` with zero project-level dependencies — skillet bundles everything needed.
 ## Requirements
 ### Requirement: Package Distribution
 
-The system SHALL be distributed as an npm package with a `skillkit` binary entry point, installable and runnable via `npx skillkit` without any prior project setup.
+The system SHALL be distributed as an npm package with a `skillet` binary entry point, installable and runnable via `npx @sentry/skillet` without any prior project setup.
 
 #### Scenario: First-time usage via npx
 - GIVEN a user with Node.js installed and no local project
-- WHEN the user runs `npx skillkit eval path/to/skill`
-- THEN skillkit installs from npm, executes, and produces eval results
+- WHEN the user runs `npx @sentry/skillet eval path/to/skill`
+- THEN skillet installs from npm, executes, and produces eval results
 - AND no `node_modules` or `package.json` is created in the skill directory
 
 ### Requirement: CLI command surface
@@ -52,11 +52,11 @@ The CLI SHALL support exactly seven commands, all mechanical (no LLM calls): `in
 
 ### Requirement: Zero User Dependencies
 
-The system MUST NOT require the user to install any packages, tools, or runtimes beyond Node.js. All dependencies (AI SDK, YAML parser, tool implementations, judge logic) SHALL be bundled within the skillkit package.
+The system MUST NOT require the user to install any packages, tools, or runtimes beyond Node.js. All dependencies (the YAML parser and all tool logic) SHALL be bundled within the skillet package — skillet makes zero LLM calls, and judge grading goes through the harness CLI.
 
 #### Scenario: Skill directory stays clean
 - GIVEN a skill directory containing only `SKILL.md` and `evals/`
-- WHEN the user runs `npx skillkit eval`
+- WHEN the user runs `npx @sentry/skillet eval`
 - THEN no files are created in the skill directory (no node_modules, no lock files, no configs)
 
 ### Requirement: Version flag
@@ -69,7 +69,7 @@ The system MUST NOT require the user to install any packages, tools, or runtimes
 
 ### Requirement: JSON output convention
 
-Every command SHALL support `--json`, emitting exactly one JSON object on stdout with no ANSI escapes; human-readable prose goes to stderr. Exit codes: 0 success, 1 failure (including validation errors and eval failures).
+Every command SHALL support `--json`, emitting exactly one JSON object on stdout with no ANSI escapes; human-readable prose goes to stderr. Failure paths emit `{ok: false, error}` so scripted consumers never see empty stdout. Exit codes: 0 success, 1 failure (including validation errors and eval failures).
 
 #### Scenario: Machine-readable validate
 - **WHEN** `skillet validate --json` runs on an invalid skill

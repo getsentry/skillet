@@ -2,26 +2,26 @@
 
 ## Purpose
 
-The skill loader reads a skill's SKILL.md file and its associated references, then constructs the system prompt context that the agent uses during evaluation. It handles frontmatter parsing, reference file discovery, and prompt assembly.
+The skill loader locates a skill directory, parses SKILL.md frontmatter, and installs the skill into eval workspaces through each harness's native mechanism (`.claude/skills/` for claude, workspace AGENTS.md for codex, `skill_dir` for custom harnesses).
 ## Requirements
 ### Requirement: Skill Root Discovery
 
-The system SHALL locate the skill root by finding the nearest directory containing a `SKILL.md` file, searching from the provided path upward.
+The system SHALL locate the skill root by finding the nearest directory containing `spec.md` or `SKILL.md`, searching from the provided path upward.
 
 #### Scenario: Path is the skill directory
-- GIVEN `npx skillkit eval ./my-skill`
-- WHEN `./my-skill/SKILL.md` exists
+- GIVEN `skillet eval ./my-skill`
+- WHEN `./my-skill/spec.md` (or SKILL.md) exists
 - THEN the skill root is `./my-skill`
 
 #### Scenario: Path is inside the skill directory
-- GIVEN `npx skillkit eval ./my-skill/evals`
-- WHEN `./my-skill/SKILL.md` exists
+- GIVEN `skillet eval ./my-skill/evals`
+- WHEN `./my-skill/spec.md` (or SKILL.md) exists
 - THEN the skill root is `./my-skill`
 
-#### Scenario: No SKILL.md found
-- GIVEN a path with no `SKILL.md` in it or any parent
+#### Scenario: No skill found
+- GIVEN a path with no `spec.md` or `SKILL.md` in it or any parent
 - WHEN discovery runs
-- THEN the system reports "no SKILL.md found" and exits with code 1
+- THEN the system reports that no skill was found at or above the path and exits with code 1
 
 ### Requirement: Frontmatter Parsing
 
@@ -37,11 +37,6 @@ The system SHALL parse YAML frontmatter from `SKILL.md` to extract skill metadat
   ```
 - WHEN parsed
 - THEN `name` is "commit" and `description` is "Creates commits following Sentry conventions."
-
-#### Scenario: Frontmatter with allowed-tools
-- GIVEN frontmatter containing `allowed-tools: Read, Grep, Glob, Bash`
-- WHEN parsed
-- THEN the tool restriction is noted (for informational purposes in eval results)
 
 #### Scenario: No frontmatter
 - GIVEN a SKILL.md with no `---` delimited frontmatter

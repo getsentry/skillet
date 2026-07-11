@@ -37,7 +37,7 @@ The system SHALL validate that every file in `evals/cases/*.yaml` parses as YAML
 Validation SHALL be a pure structural check with no LLM calls, completing in under 1 second for typical skill directories.
 
 #### Scenario: Offline validation
-- **WHEN** `skillkit validate` runs with no API keys configured
+- **WHEN** `skillet validate` runs with no API keys configured
 - **THEN** validation completes successfully without errors about missing providers
 
 ### Requirement: Spec grammar validation
