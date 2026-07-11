@@ -179,7 +179,7 @@ export const run = async (argv: string[]): Promise<number> => {
 
   if (values.dry === true) {
     const dry = dryRun(cases, root);
-    const ok = dry.every((c) => !c.vacuous);
+    const ok = dry.every((c) => !c.vacuous && c.error == null);
     if (values.json === true) {
       const payload: DryJson = { ok, cases: dry };
       emitJson(payload);
@@ -207,7 +207,7 @@ export const run = async (argv: string[]): Promise<number> => {
     print(
       ok
         ? "Dry run clean: no case passes with a do-nothing agent."
-        : "Review the ⚠ cases: suppression-style cases are expected there; anything else is a vacuous eval.",
+        : "Review the flagged cases: suppression-style ⚠ cases are expected; ✗ setup failures and other vacuous cases need fixing.",
     );
     return 0;
   }

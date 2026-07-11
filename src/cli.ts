@@ -61,6 +61,9 @@ const isUsageError = (cause: unknown): cause is Error => {
 
 const main = async (): Promise<number> => {
   const [command, ...rest] = process.argv.slice(2);
+  // Dispatcher-level failures happen before any command parses flags,
+  // so honor the JSON contract by sniffing argv directly.
+  const json = rest.includes("--json");
 
   if (command == null) {
     info(HELP);
@@ -78,12 +81,12 @@ const main = async (): Promise<number> => {
 
   const removed = REMOVED_COMMANDS[command];
   if (removed != null) {
-    return fail(`'skillet ${command}' was removed in v1 — ${removed}`);
+    return fail(`'skillet ${command}' was removed in v1 — ${removed}`, { json });
   }
 
   const loader = COMMANDS[command];
   if (loader == null) {
-    return fail(`Unknown command '${command}'.\n\n${HELP}`);
+    return fail(`Unknown command '${command}'.\n\n${HELP}`, { json });
   }
 
   const mod = await loader();
@@ -91,7 +94,7 @@ const main = async (): Promise<number> => {
     return await mod.run(rest);
   } catch (cause) {
     if (isUsageError(cause)) {
-      return fail(`${cause.message}\nRun 'skillet ${command} --help' for flags.`);
+      return fail(`${cause.message}\nRun 'skillet ${command} --help' for flags.`, { json });
     }
     throw cause;
   }
