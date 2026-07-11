@@ -6,6 +6,7 @@
  * literal.
  */
 import type { BehaviorSummary, CaseResult } from "./evals/results.js";
+import type { DryCaseResult } from "./evals/runner.js";
 import type { Instructions } from "./instructions/content.js";
 import type { ToolId } from "./integration/generators.js";
 import type { Issue, ParsedSpec } from "./spec/types.js";
@@ -41,14 +42,7 @@ export interface EvalJson {
 
 export interface DryJson {
   ok: boolean;
-  cases: {
-    id: string;
-    behavior: string;
-    pristinePass: { kind: string; value: string }[];
-    deterministic: number;
-    judges: number;
-    vacuous: boolean;
-  }[];
+  cases: DryCaseResult[];
 }
 
 export interface ShowJson {

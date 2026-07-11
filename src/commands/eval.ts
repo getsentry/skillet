@@ -158,6 +158,10 @@ export const run = async (argv: string[]): Promise<number> => {
     }
     for (const c of dry) {
       const judges = c.judges > 0 ? ` (${c.judges} judge check(s) not dry-runnable)` : "";
+      if (c.error != null) {
+        print(`  ✗ ${c.id} — not dry-run: ${c.error}`);
+        continue;
+      }
       if (c.vacuous) {
         print(`  ⚠ ${c.id} — a do-nothing agent would pass this case${judges}`);
         print(

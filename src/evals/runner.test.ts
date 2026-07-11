@@ -136,6 +136,17 @@ describe("dryRun", () => {
     expect(results[0]?.judges).toBe(1);
   });
 
+  it("reports a setup failure on the case and keeps dry-running the rest", () => {
+    const results = dryRun(
+      [makeCase({ id: "broken", setup: "exit 3" }), makeCase({ id: "fine" })],
+      makeSkillRoot(),
+    );
+    expect(results[0]?.error).toContain("setup script failed");
+    expect(results[0]?.vacuous).toBe(false);
+    expect(results[1]?.id).toBe("fine");
+    expect(results[1]?.error).toBeUndefined();
+  });
+
   it("allows invariant guards as long as some check demands agent work", () => {
     const results = dryRun(
       [

@@ -194,6 +194,8 @@ export interface DryCaseResult {
   judges: number;
   /** True when a do-nothing agent would pass this case — the eval proves nothing. */
   vacuous: boolean;
+  /** Set when the workspace could not be built — the case was not dry-run. */
+  error?: string;
 }
 
 /**
@@ -206,11 +208,30 @@ export interface DryCaseResult {
 export const dryRun = (cases: EvalCase[], skillRoot: string): DryCaseResult[] => {
   const results: DryCaseResult[] = [];
   for (const evalCase of cases) {
-    const workspace = createWorkspace({
-      skillRoot,
-      ...(evalCase.fixture != null && { fixture: evalCase.fixture }),
-      ...(evalCase.setup != null && { setup: evalCase.setup }),
-    });
+    const deterministicCount = evalCase.checks.filter((c) => c.kind !== "judge").length;
+    const judgeCount = evalCase.checks.length - deterministicCount;
+    let workspace;
+    try {
+      workspace = createWorkspace({
+        skillRoot,
+        ...(evalCase.fixture != null && { fixture: evalCase.fixture }),
+        ...(evalCase.setup != null && { setup: evalCase.setup }),
+      });
+    } catch (error) {
+      if (error instanceof SetupError) {
+        results.push({
+          id: evalCase.id,
+          behavior: evalCase.behavior,
+          pristinePass: [],
+          deterministic: deterministicCount,
+          judges: judgeCount,
+          vacuous: false,
+          error: error.message,
+        });
+        continue;
+      }
+      throw error;
+    }
     try {
       const deterministic = evalCase.checks.filter((c) => c.kind !== "judge");
       const pristinePass = deterministic.filter(
@@ -221,7 +242,7 @@ export const dryRun = (cases: EvalCase[], skillRoot: string): DryCaseResult[] =>
         behavior: evalCase.behavior,
         pristinePass,
         deterministic: deterministic.length,
-        judges: evalCase.checks.length - deterministic.length,
+        judges: judgeCount,
         vacuous: deterministic.length > 0 && pristinePass.length === deterministic.length,
       });
     } finally {
