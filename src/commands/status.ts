@@ -3,10 +3,10 @@ import type { StatusJson } from "../json.js";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { findConfig } from "../harness/config.js";
-import { emitJson, print } from "../output.js";
+import { emitJson, fail, print } from "../output.js";
 import { findSkillRoot } from "../skill/frontmatter.js";
 import { skillStatus } from "../status.js";
-import { resolveSkillRoot } from "./shared.js";
+import { noSkillMessage } from "./shared.js";
 
 const HELP = `Usage: skillet status [path] [--json]
 
@@ -34,20 +34,29 @@ export const run = (argv: string[]): number => {
     return 0;
   }
 
+  const json = values.json === true;
   const start = resolve(positionals[0] ?? ".");
-  const root = existsSync(start) ? findSkillRoot(start) : null;
+  if (!existsSync(start)) {
+    return fail(`no such path: ${start}`, { json });
+  }
+  const root = findSkillRoot(start);
   if (root == null) {
-    if (existsSync(start) && findConfig(start) != null) {
+    if (findConfig(start) != null) {
+      const next = `'skillet new <name>' scaffolds one.`;
+      if (json) {
+        const payload: StatusJson = { root: null, next };
+        emitJson(payload);
+        return 0;
+      }
       print(`Project initialized (.skillet.yaml found); no skill at or above ${start}.`);
-      print(`Next: 'skillet new <name>' scaffolds one.`);
+      print(`Next: ${next}`);
       return 0;
     }
-    resolveSkillRoot(positionals[0]);
-    return 1;
+    return fail(noSkillMessage(start), { json });
   }
   const status = skillStatus(root);
 
-  if (values.json === true) {
+  if (json) {
     const payload: StatusJson = status;
     emitJson(payload);
     return 0;

@@ -16,9 +16,16 @@ export const info = (message: string): void => {
   process.stderr.write(`${message}\n`);
 };
 
-/** Report a failure on stderr and return the failure exit code. */
-export const fail = (message: string): number => {
+/**
+ * Report a failure on stderr and return the failure exit code. In
+ * --json mode the same failure also goes to stdout as the run's one
+ * JSON object, so scripted consumers never see empty output.
+ */
+export const fail = (message: string, opts?: { json?: boolean }): number => {
   process.stderr.write(`error: ${message}\n`);
+  if (opts?.json === true) {
+    emitJson({ ok: false, error: message });
+  }
   return 1;
 };
 

@@ -64,6 +64,9 @@ export const run = (argv: string[]): number => {
     if (unknown.length > 0) {
       return fail(
         `unknown tools: ${unknown.join(", ")} (supported: ${SUPPORTED_TOOLS.join(", ")})`,
+        {
+          json: values.json === true,
+        },
       );
     }
     tools = requested.filter((t): t is ToolId =>

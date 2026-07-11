@@ -42,11 +42,13 @@ export const run = (argv: string[]): number => {
   const name = positionals.join(" ");
   const slug = slugify(name);
   if (slug === "") {
-    return fail(`"${name}" does not produce a usable directory name`);
+    return fail(`"${name}" does not produce a usable directory name`, {
+      json: values.json === true,
+    });
   }
   const dir = resolve(values.path ?? slug);
   if (existsSync(join(dir, "spec.md"))) {
-    return fail(`${join(dir, "spec.md")} already exists`);
+    return fail(`${join(dir, "spec.md")} already exists`, { json: values.json === true });
   }
 
   mkdirSync(join(dir, "evals", "cases"), { recursive: true });

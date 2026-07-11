@@ -24,12 +24,13 @@ export const run = (argv: string[]): number => {
     return 0;
   }
 
-  const root = resolveSkillRoot(positionals[0]);
+  const json = values.json === true;
+  const root = resolveSkillRoot(positionals[0], { json });
   if (root == null) return 1;
   const report = validateSkill(root);
   const spec = report.parsedSpec;
   if (spec == null) {
-    return fail("spec.md is missing or unparseable — run 'skillet validate' for details");
+    return fail("spec.md is missing or unparseable — run 'skillet validate' for details", { json });
   }
 
   const coveredBy = new Map<string, string[]>();

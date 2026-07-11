@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { run } from "./eval.js";
 
 const SPEC = `# File Maker
@@ -58,6 +58,21 @@ describe("eval command", () => {
   it("fails fast with a next step when SKILL.md is not rendered yet", async () => {
     const root = makeSkill({ skillMd: false });
     expect(await run([root])).toBe(1);
+  });
+
+  it("emits one JSON error object on stdout when a --json run fails early", async () => {
+    const root = makeSkill({ skillMd: false });
+    const writes: string[] = [];
+    const spy = vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+      writes.push(String(chunk));
+      return true;
+    });
+    try {
+      expect(await run([root, "--json"])).toBe(1);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(JSON.parse(writes.join(""))).toMatchObject({ ok: false, error: expect.any(String) });
   });
 
   it("re-runs a case whose --out cache file is corrupt instead of crashing", async () => {

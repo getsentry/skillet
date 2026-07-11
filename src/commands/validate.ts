@@ -42,7 +42,7 @@ export const run = (argv: string[]): number => {
     return 0;
   }
 
-  const root = resolveSkillRoot(positionals[0]);
+  const root = resolveSkillRoot(positionals[0], { json: values.json === true });
   if (root == null) return 1;
   const report = validateSkill(root);
 

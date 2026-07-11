@@ -34,7 +34,9 @@ export const run = (argv: string[]): number => {
   // command takes [path] first, so don't punish that habit here.
   const artifact = ARTIFACTS.find((a) => positionals.includes(a));
   if (artifact == null) {
-    return fail(`instructions needs an artifact: ${ARTIFACTS.join(", ")}`);
+    return fail(`instructions needs an artifact: ${ARTIFACTS.join(", ")}`, {
+      json: values.json === true,
+    });
   }
   const pathArg = positionals.find((p) => p !== artifact);
 
@@ -44,7 +46,7 @@ export const run = (argv: string[]): number => {
   // optional context, not a requirement.
   let state = null;
   if (pathArg != null) {
-    const root = resolveSkillRoot(pathArg);
+    const root = resolveSkillRoot(pathArg, { json: values.json === true });
     if (root == null) return 1;
     state = skillStatus(root);
   }

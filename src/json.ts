@@ -12,7 +12,19 @@ import type { ToolId } from "./integration/generators.js";
 import type { Issue, ParsedSpec } from "./spec/types.js";
 import type { SkillStatus } from "./status.js";
 
-export type StatusJson = SkillStatus;
+/** What every command emits under --json when it fails before producing a result. */
+export interface ErrorJson {
+  ok: false;
+  error: string;
+}
+
+/** `skillet status` in an initialized project with no skill yet (root discriminates). */
+export interface NoSkillStatusJson {
+  root: null;
+  next: string;
+}
+
+export type StatusJson = SkillStatus | NoSkillStatusJson;
 
 export interface ValidateJson {
   ok: boolean;

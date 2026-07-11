@@ -121,12 +121,13 @@ export const run = async (argv: string[]): Promise<number> => {
     return 0;
   }
 
-  const root = resolveSkillRoot(positionals[0]);
+  const json = values.json === true;
+  const root = resolveSkillRoot(positionals[0], { json });
   if (root == null) return 1;
 
   const trials = values.trials != null ? Number(values.trials) : undefined;
   if (trials != null && (!Number.isInteger(trials) || trials < 1)) {
-    return fail("--trials must be a positive integer");
+    return fail("--trials must be a positive integer", { json });
   }
 
   let harness: ResolvedHarness;
@@ -141,14 +142,14 @@ export const run = async (argv: string[]): Promise<number> => {
       requireBinary(harness);
     }
   } catch (error) {
-    if (error instanceof HarnessConfigError) return fail(error.message);
+    if (error instanceof HarnessConfigError) return fail(error.message, { json });
     throw error;
   }
 
   // Validate before spending any agent invocations.
   const report = validateSkill(root);
   if (!report.ok) {
-    return fail("skill is invalid — run 'skillet validate' and fix the errors first");
+    return fail("skill is invalid — run 'skillet validate' and fix the errors first", { json });
   }
 
   let cases = report.evalCases;
@@ -157,6 +158,7 @@ export const run = async (argv: string[]): Promise<number> => {
     if (cases.length === 0) {
       return fail(
         `no case named "${values.case}" — available: ${report.evalCases.map((c) => c.id).join(", ")}`,
+        { json },
       );
     }
   }
@@ -166,11 +168,12 @@ export const run = async (argv: string[]): Promise<number> => {
       const behaviors = [...new Set(report.evalCases.map((c) => c.behavior))];
       return fail(
         `no cases cover behavior "${values.behavior}" — covered: ${behaviors.join(", ")}`,
+        { json },
       );
     }
   }
   if (cases.length === 0) {
-    return fail("no eval cases found under evals/cases/");
+    return fail("no eval cases found under evals/cases/", { json });
   }
 
   if (values.dry === true) {
@@ -212,7 +215,9 @@ export const run = async (argv: string[]): Promise<number> => {
   // its absence — guard here so the spec-first flow gets a next step
   // instead of an ENOENT mid-trial.
   if (!existsSync(join(root, "SKILL.md"))) {
-    return fail("SKILL.md not rendered yet — 'skillet instructions skill' shows how to write it");
+    return fail("SKILL.md not rendered yet — 'skillet instructions skill' shows how to write it", {
+      json,
+    });
   }
 
   const outDir = values.out != null ? resolve(values.out) : null;
