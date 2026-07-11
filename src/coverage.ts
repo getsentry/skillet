@@ -11,7 +11,9 @@ export interface CaseRef {
 /**
  * Cross-check spec behaviors against eval cases (skill-spec spec,
  * "Behavior-to-eval coverage"): unknown behavior refs and missing
- * fixtures are errors; uncovered behaviors are warnings.
+ * fixtures are errors; uncovered behaviors are warnings. Constraint
+ * ids are valid linkage keys too (suppression-style cases), but only
+ * behaviors demand coverage.
  */
 export const checkCoverage = (
   spec: ParsedSpec,
@@ -20,18 +22,20 @@ export const checkCoverage = (
 ): Issue[] => {
   const issues: Issue[] = [];
   const behaviorIds = new Set(spec.behaviors.map((b) => b.id));
+  const constraintIds = new Set(spec.constraints.map((c) => c.id));
   const covered = new Set<string>();
 
   for (const c of cases) {
     if (behaviorIds.has(c.behavior)) {
       covered.add(c.behavior);
-    } else {
+    } else if (!constraintIds.has(c.behavior)) {
+      const known = [...behaviorIds, ...constraintIds];
       issues.push({
         severity: "error",
         message: `${c.file}: references unknown behavior "${c.behavior}"`,
         hint:
-          behaviorIds.size > 0
-            ? `Known behaviors: ${[...behaviorIds].join(", ")}.`
+          known.length > 0
+            ? `Known behaviors and constraints: ${known.join(", ")}.`
             : "The spec has no behaviors yet.",
       });
     }

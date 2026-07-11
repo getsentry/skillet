@@ -10,7 +10,7 @@ const spec: ParsedSpec = {
     { id: "alpha", name: "Alpha", line: 10, text: "", scenarios: [] },
     { id: "beta", name: "Beta", line: 20, text: "", scenarios: [] },
   ],
-  constraints: [],
+  constraints: [{ id: "no-force-push", name: "No force push", line: 30, text: "" }],
 };
 
 describe("checkCoverage", () => {
@@ -31,6 +31,19 @@ describe("checkCoverage", () => {
     expect(err?.message).toContain("x.yaml");
     expect(err?.message).toContain('"gamma"');
     expect(err?.hint).toContain("alpha");
+  });
+
+  it("accepts constraint ids as linkage keys without demanding coverage", () => {
+    const issues = checkCoverage(
+      spec,
+      [
+        { file: "a.yaml", behavior: "alpha" },
+        { file: "b.yaml", behavior: "beta" },
+        { file: "c.yaml", behavior: "no-force-push" },
+      ],
+      new Set(),
+    );
+    expect(issues).toEqual([]);
   });
 
   it("errors on missing fixtures and passes on present ones", () => {
