@@ -19,7 +19,7 @@ Co-Authored-By: (agent model name) <email>
 | Task          | Command                                 |
 | ------------- | --------------------------------------- |
 | Typecheck     | `npm run typecheck`                     |
-| Lint          | `npm run lint` (oxlint, type-aware)     |
+| Lint          | `npm run lint` (oxlint + ast-grep)      |
 | Format check  | `npm run format` (oxfmt --check)        |
 | Format fix    | `npm run format:fix`                    |
 | Unit tests    | `npm run test` (vitest, no LLM/network) |
@@ -34,7 +34,7 @@ Co-Authored-By: (agent model name) <email>
 - Per-skill artifacts: `spec.md` is the source of truth; `SKILL.md` and `evals/cases/*.yaml` are derived by agents and validated by the CLI. Skillet never regenerates or overwrites eval cases.
 - Unit tests live next to their modules (`*.test.ts`) and must run offline in milliseconds. Anything spawning a real harness CLI is manual/dogfood territory (`examples/`), not the test suite.
 - Don't bypass hooks (`--no-verify`), don't `--force-push` to main, don't amend already-pushed commits without asking.
-- Lint baseline: pre-existing warnings are allowed; new errors are not. Run `npm run lint` and confirm error count does not increase before committing.
+- Lint gate: `npm run lint` runs oxlint with `--deny-warnings` plus ast-grep — it must be completely clean before committing.
 - Prefer hard cutover over backwards-compat shims unless the change crosses a published surface.
 - Minimize defensive programming — no fallbacks for systems expected to work. Trust internal contracts; only validate at system boundaries (user input, external APIs, spawned processes).
 - Keep public surfaces small: fewer exported types/functions, fewer integration points, explicit contracts.

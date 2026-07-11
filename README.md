@@ -22,6 +22,7 @@ skillet init --tools claude      # /skillet:* workflows; add codex via --tools c
 
 ```bash
 skillet new commit-conventions   # scaffold spec.md + evals/ layout
+cd commit-conventions
 # fill in spec.md by hand, or ask your agent: /skillet:propose
 # then have the agent render SKILL.md + eval cases: /skillet:render
 skillet validate                 # grammar, frontmatter, case schema, coverage — no LLM
@@ -97,7 +98,7 @@ timeout: 300
 
 ## Harnesses
 
-The default harness is `codex` (`codex exec`); `claude` (`claude -p`) is built in. Pick per run with `--harness`, or configure any CLI in `.skillet.yaml`:
+The default harness is `codex` (`codex exec`); `claude` (`claude -p`) is built in. Pick per run with `--harness`, add a model with a suffix (`--harness claude:sonnet`, `harness: codex:gpt-5` in config), or configure any CLI in `.skillet.yaml`:
 
 ```yaml
 harness:
@@ -141,14 +142,14 @@ Caveat: on macOS, Claude Code keeps OAuth credentials in the Keychain, which can
 | `skillet status [path]` | Artifact state and the single next step, derived from disk |
 | `skillet instructions <spec\|skill\|evals>` | Template + writing rules for one artifact (what the workflows consume) |
 | `skillet validate [path]` | Spec grammar, SKILL.md frontmatter, case schema, coverage — exit 1 on errors |
-| `skillet eval [path] [--case id] [--behavior id] [--trials n] [--baseline] [--harness x] [--sandbox docker] [--verbose] [--keep-workspaces]` | Run cases through the harness; per-behavior pass rates and lift |
+| `skillet eval [path] [--case id] [--behavior id] [--trials n] [--baseline] [--harness x] [--sandbox docker] [--dry] [--out dir] [--verbose] [--keep-workspaces]` | Run cases through the harness; per-behavior pass rates and lift. `--dry` finds cases a do-nothing agent would pass; `--out` persists per-case results incrementally and resumes interrupted runs |
 | `skillet show [path]` | Pretty-print the parsed spec with coverage |
 
-Every command takes `--json`: one JSON object on stdout, prose on stderr, exit 0/1.
+Every command takes `--json`: one JSON object on stdout (failures emit `{ok: false, error}`), prose on stderr, exit 0/1.
 
 ## Agent workflows
 
-`skillet init` generates four thin workflows that script your agent into the `skillet status` / `skillet instructions --json` loop:
+`skillet init` generates four thin workflows that script your agent into the `skillet status` / `skillet instructions --json` loop (codex names them `/skillet-<id>` — its prompts don't allow colons):
 
 - **`/skillet:propose`** — interview the user, write spec.md
 - **`/skillet:render`** — render SKILL.md + eval cases from the spec

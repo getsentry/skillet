@@ -7,7 +7,7 @@ How a skill is built and proven end-to-end. Authoritative reference for the arti
 ```
 my-skill/
   spec.md              # source of truth: intent, triggers, behaviors+scenarios, constraints
-  SKILL.md             # agent-rendered instruction text (frontmatter: name, description)
+  SKILL.md             # agent-rendered instruction text (frontmatter: name, description, spec_hash)
   references/*.md      # optional detail files linked from SKILL.md
   evals/
     cases/<id>.yaml    # one declarative case per file, linked to a behavior by slug
@@ -29,7 +29,7 @@ skillet validate              # grammar: behaviors have scenarios, slugs unique,
      |                        #   guided by: skillet instructions skill|evals --json
 skillet validate              # + frontmatter, case schema, behavior<->case coverage
      |
-skillet eval [--trials N] [--baseline]
+skillet eval [--trials N] [--baseline] [--dry] [--out dir]
      |                        # per case x trial: fresh workspace -> fixture copy -> setup
      |                        #   -> harness agent runs prompt -> deterministic checks
      |                        #   -> judge checks (harness-graded, only if deterministic pass)
@@ -39,7 +39,7 @@ skillet eval [--trials N] [--baseline]
 (loop until behaviors hold and lift is positive)
 ```
 
-`skillet status` reports where in this flow a skill is, purely from files on disk (presence + spec.md mtime vs SKILL.md). Legacy skills (a `spec.yaml`, or a `SKILL.md` with no `spec.md`) are detected and routed to `/skillet:migrate`.
+`skillet status` reports where in this flow a skill is, purely from files on disk (presence + the spec_hash recorded in SKILL.md vs the hash of spec.md; mtime fallback when no hash is recorded). Legacy skills (a `spec.yaml`, or a `SKILL.md` with no `spec.md`) are detected and routed to `/skillet:migrate`.
 
 ## Eval execution detail
 
