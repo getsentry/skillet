@@ -36,8 +36,9 @@ const specHash = (specPath: string): string => {
 const skillIsStale = (skillPath: string, specPath: string, hash: string): boolean => {
   const { meta } = parseFrontmatter(readFileSync(skillPath, "utf8"));
   const recorded = meta["spec_hash"];
-  if (typeof recorded === "string" && recorded !== "") {
-    return recorded !== hash;
+  // String() because an unquoted all-digit hash parses as a YAML number.
+  if ((typeof recorded === "string" || typeof recorded === "number") && recorded !== "") {
+    return String(recorded) !== hash;
   }
   return statSync(skillPath).mtimeMs < statSync(specPath).mtimeMs;
 };

@@ -52,6 +52,7 @@ describe("installSkill", () => {
     const agentsMd = readFileSync(join(workspace, "AGENTS.md"), "utf8");
     expect(agentsMd).toContain("Body text");
     const staged = /live at (\S+)\//.exec(agentsMd)?.[1] ?? "";
+    expect(existsSync(staged)).toBe(true);
     expect(staged.startsWith(workspace)).toBe(false);
     expect(existsSync(join(staged, "evals"))).toBe(false);
     installation.cleanup();

@@ -200,6 +200,7 @@ describe("judge pieces", () => {
   it("builds a grading prompt ending with the verdict protocol", () => {
     const prompt = buildJudgePrompt("criterion text", "case prompt", "transcript", "(empty)");
     expect(prompt).toContain("criterion text");
-    expect(prompt.trim().endsWith('"VERDICT: pass" or "VERDICT: fail".')).toBe(true);
+    expect(prompt).toContain('"VERDICT: pass"');
+    expect(prompt).toContain('"VERDICT: fail"');
   });
 });

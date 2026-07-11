@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -100,14 +100,26 @@ describe("runCases", () => {
   });
 
   it("runs baseline trials without the skill and honors --trials", async () => {
-    const results = await runCases([makeCase({})], {
-      skillRoot: makeSkillRoot(),
-      harness: fakeAgent,
-      trials: 3,
-      baseline: true,
-    });
+    // A skill-dir-installing harness makes skill presence observable:
+    // the check passes only when the skill was installed, so baseline
+    // trials proving "fail" proves they ran skill-less.
+    const skillRoot = makeSkillRoot();
+    writeFileSync(join(skillRoot, "SKILL.md"), "---\nname: s\ndescription: d\n---\n");
+    const installing: ResolvedHarness = {
+      name: "installing",
+      kind: "custom",
+      binary: "sh",
+      command: "true # {workspace} {prompt}",
+      skillDir: "{workspace}/.skill",
+    };
+    const results = await runCases(
+      [makeCase({ checks: [{ kind: "file_exists", value: ".skill/SKILL.md" }] })],
+      { skillRoot, harness: installing, trials: 3, baseline: true },
+    );
     expect(results[0]?.trials).toHaveLength(3);
     expect(results[0]?.baselineTrials).toHaveLength(3);
+    expect(results[0]?.trials.every((t) => t.status === "pass")).toBe(true);
+    expect(results[0]?.baselineTrials?.every((t) => t.status === "fail")).toBe(true);
   });
 });
 

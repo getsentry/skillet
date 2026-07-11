@@ -48,7 +48,7 @@ describe("createWorkspace", () => {
     });
     dirs.push(ws.dir);
     const listing = readFileSync(join(ws.dir, "listing.txt"), "utf8");
-    expect(listing).not.toContain("setup.sh");
+    expect(listing.split("\n").filter((l) => l !== "")).toEqual([".", "..", ".git", "listing.txt"]);
     const staged = execFileSync("git", ["status", "--porcelain"], { cwd: ws.dir }).toString();
     expect(staged).not.toContain("setup.sh");
   });
