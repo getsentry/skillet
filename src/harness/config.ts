@@ -51,21 +51,26 @@ export const loadConfig = (skillRoot: string): Record<string, unknown> => {
 };
 
 /**
- * Turn a config `harness:` value into a ResolvedHarness (harness spec,
- * "Custom harness via command template"). Accepts a builtin name or a
- * mapping with a command template.
+ * "claude:sonnet" selects the claude builtin running the sonnet model.
+ * Split on the first colon only — model ids may contain colons.
  */
-/** "claude:sonnet" selects the claude builtin running the sonnet model. */
 const parseBuiltin = (value: string): ResolvedHarness | null => {
-  const [name, model] = value.split(":", 2);
-  const builtin = name != null ? BUILTINS[name] : undefined;
+  const sep = value.indexOf(":");
+  const name = sep === -1 ? value : value.slice(0, sep);
+  const model = sep === -1 ? "" : value.slice(sep + 1);
+  const builtin = BUILTINS[name];
   if (builtin == null) return null;
-  if (model != null && model !== "") {
+  if (model !== "") {
     return { ...builtin, name: value, model };
   }
   return builtin;
 };
 
+/**
+ * Turn a config `harness:` value into a ResolvedHarness (harness spec,
+ * "Custom harness via command template"). Accepts a builtin name or a
+ * mapping with a command template.
+ */
 export const parseHarness = (value: unknown): ResolvedHarness => {
   if (typeof value === "string") {
     const builtin = parseBuiltin(value);

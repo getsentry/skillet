@@ -26,7 +26,8 @@ Options:
   --behavior <id>     Run only the cases covering one behavior
   --trials <n>        Run each case n times and report pass rates
   --baseline          Also run every trial without the skill; report lift
-  --harness <name>    Override the harness (codex, claude)
+  --harness <name>    Override the harness (codex, claude), optionally
+                      with a model, e.g. claude:sonnet or codex:gpt-5
   --sandbox <mode>    docker: run every harness invocation in a container
                       (none: force direct). Default from .skillet.yaml.
   --keep-workspaces   Leave trial workspaces on disk for debugging

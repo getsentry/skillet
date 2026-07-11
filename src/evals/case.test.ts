@@ -73,6 +73,15 @@ describe("parseCase", () => {
     expect(msgs.some((m) => m.includes('"timeout"'))).toBe(true);
   });
 
+  it("rejects a non-finite timeout", () => {
+    const { evalCase, issues } = parseCase(
+      "evals/cases/x.yaml",
+      "behavior: b\nprompt: p\ntimeout: .inf\nchecks:\n  - file_exists: out.txt\n",
+    );
+    expect(evalCase).toBeNull();
+    expect(issues.some((i) => i.message.includes('"timeout"'))).toBe(true);
+  });
+
   it("warns on unknown fields and rejects checkless cases", () => {
     const { evalCase, issues } = parseCase(
       "evals/cases/x.yaml",

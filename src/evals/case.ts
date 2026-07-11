@@ -151,9 +151,14 @@ export const parseCase = (
     error('"trials" must be a positive integer');
   }
   const rawTimeout = data["timeout"] ?? DEFAULT_TIMEOUT_SECONDS;
-  const timeout = typeof rawTimeout === "number" && rawTimeout > 0 ? rawTimeout : null;
+  // Number.isFinite: YAML `.inf` would validate and then overflow
+  // setTimeout, killing every trial after ~1ms.
+  const timeout =
+    typeof rawTimeout === "number" && Number.isFinite(rawTimeout) && rawTimeout > 0
+      ? rawTimeout
+      : null;
   if (timeout == null) {
-    error('"timeout" must be a positive number of seconds');
+    error('"timeout" must be a positive finite number of seconds');
   }
 
   const fixture = data["fixture"];

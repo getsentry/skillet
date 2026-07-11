@@ -45,6 +45,13 @@ describe("parseHarness", () => {
     expect(() => parseHarness("cursor:fast")).toThrow(HarnessConfigError);
   });
 
+  it("keeps colons inside the model id", () => {
+    expect(parseHarness("claude:vertex:sonnet-4")).toMatchObject({
+      kind: "claude",
+      model: "vertex:sonnet-4",
+    });
+  });
+
   it("resolves a custom command template", () => {
     const harness = parseHarness({
       command: "myagent run --dir {workspace} {prompt}",
