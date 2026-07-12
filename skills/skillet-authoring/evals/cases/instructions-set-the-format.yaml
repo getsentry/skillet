@@ -1,0 +1,8 @@
+behavior: instructions-set-the-format
+fixture: rendered-no-evals
+prompt: |
+  Add eval cases for the agent skill in half-baked/.
+  The skillet CLI is on PATH.
+checks:
+  - shell: find half-baked/evals/cases -name '*.yaml' | grep -q .
+  - shell: skillet validate half-baked

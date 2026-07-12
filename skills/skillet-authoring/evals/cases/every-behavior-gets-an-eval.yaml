@@ -1,0 +1,10 @@
+behavior: every-behavior-gets-an-eval
+prompt: |
+  Create a complete agent skill (including its evals) in a new directory
+  named tidy-imports that makes agents sort and deduplicate import blocks
+  in files they edit. The skillet CLI is on PATH.
+timeout: 600
+checks:
+  - shell: skillet validate tidy-imports
+  - shell: '! skillet validate tidy-imports 2>&1 | grep -q "has no eval case"'
+  - shell: find tidy-imports/evals/cases -name '*.yaml' | grep -q .

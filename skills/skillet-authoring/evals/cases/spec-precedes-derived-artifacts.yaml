@@ -1,0 +1,13 @@
+behavior: spec-precedes-derived-artifacts
+prompt: |
+  Create an agent skill in a new directory named changelog-discipline that
+  makes agents add a CHANGELOG entry for any user-facing change.
+  The skillet CLI is on PATH.
+timeout: 600
+checks:
+  - file_exists: changelog-discipline/spec.md
+  - shell: skillet validate changelog-discipline
+  - judge: >
+      spec.md was written (and validated) before SKILL.md was rendered, and
+      any SKILL.md present is derived from the spec's behaviors rather than
+      written independently of it.

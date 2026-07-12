@@ -1,0 +1,11 @@
+behavior: status-drives-the-flow
+fixture: half-built
+prompt: |
+  Continue building the agent skill in half-baked/ — take it to its next step.
+  The skillet CLI is on PATH.
+checks:
+  - file_exists: half-baked/SKILL.md
+  - judge: >
+      The agent determined the skill's state through skillet (status and/or
+      instructions commands) and rendered SKILL.md from the existing spec.md,
+      rather than rewriting the spec, starting over, or guessing the state.
