@@ -11,7 +11,7 @@ const HELP = `skillet — spec-driven agent skills with mechanical evals
 Usage: skillet <command> [args]
 
 Commands:
-  init          Scaffold project and agent tool integrations
+  init          Install the skillet-authoring skill for your agents
   new <name>    Scaffold a skill directory with a spec.md template
   status        Show artifact state for a skill
   instructions  Serve artifact templates and writing instructions

@@ -10,6 +10,7 @@ const HELP = `Usage: skillet new <name> [--path <dir>] [--json]
 
 Scaffold a skill directory with a templated spec.md and evals/ layout.
 The directory is named by the slugified skill name unless --path is given.
+After filling in spec.md, 'skillet status' shows what to produce next.
 `;
 
 const titleCase = (slug: string): string => {

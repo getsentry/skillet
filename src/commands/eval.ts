@@ -19,7 +19,8 @@ import { resolveSkillRoot } from "./shared.js";
 
 const HELP = `Usage: skillet eval [path] [options]
 
-Run the skill's eval cases through the configured harness.
+Run the skill's eval cases through the configured harness
+(default: codex; one trial per case unless --trials or the case says otherwise).
 
 Options:
   --case <id>         Run a single case
