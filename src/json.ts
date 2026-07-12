@@ -1,14 +1,13 @@
 /**
  * The wire types behind every `--json` output. These are the machine
- * interface the generated /skillet:* workflows consume — changing a
- * field here is a breaking change for agent consumers, so each command
- * pins its payload to one of these instead of emitting an ad-hoc
- * literal.
+ * interface agents and the skillet-authoring skill consume — changing
+ * a field here is a breaking change for agent consumers, so each
+ * command pins its payload to one of these instead of emitting an
+ * ad-hoc literal.
  */
 import type { BehaviorSummary, CaseResult } from "./evals/results.js";
 import type { DryCaseResult } from "./evals/runner.js";
 import type { Instructions } from "./instructions/content.js";
-import type { ToolId } from "./integration/generators.js";
 import type { Issue, ParsedSpec } from "./spec/types.js";
 import type { SkillStatus } from "./status.js";
 
@@ -74,8 +73,8 @@ export interface NewJson {
 }
 
 export interface InitJson {
-  root: string;
-  configCreated: boolean;
-  configPath: string;
-  files: { tool: ToolId; path: string; skipped: boolean }[];
+  status: "already-installed" | "installed" | "skipped";
+  skill: string;
+  source: string;
+  scope: "user";
 }

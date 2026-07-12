@@ -1,105 +1,112 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { resolve, join } from "node:path";
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { createInterface } from "node:readline/promises";
 import { parseArgs } from "node:util";
 import type { InitJson } from "../json.js";
 import { emitJson, fail, info, print } from "../output.js";
-import { CONFIG_FILE } from "../harness/config.js";
-import { SUPPORTED_TOOLS, generateTool, type ToolId } from "../integration/generators.js";
-import { VERSION } from "../version.js";
 
-const HELP = `Usage: skillet init [path] [--tools <ids|all|none>] [--force] [--json]
+const SKILL = "skillet-authoring";
+const SOURCE = "getsentry/skillet";
 
-Scaffold skillet in a project: a commented .skillet.yaml (if missing)
-and the /skillet:* workflow files for your agents.
+const HELP = `Usage: skillet init [--no-prompt] [--json]
 
-  --tools    Comma-separated: ${SUPPORTED_TOOLS.join(", ")} (default: claude).
-             'all' generates every integration, 'none' skips them.
-             Note: codex prompts are written to $CODEX_HOME/prompts (global).
-  --force    Overwrite previously generated workflow files (after upgrades).
+Install the ${SKILL} skill for your agents via @sentry/dotagents in
+user scope (~/.agents), so asking any agent to create or improve a
+skill lands on skillet. Asks before touching anything; --no-prompt
+skips the confirmation (for agents and scripts).
+
+Prefer to manage it yourself? Add the skill with dotagents directly
+(project scope: 'npx @sentry/dotagents add ${SOURCE} ${SKILL}'), or
+install skills/${SKILL} from the skillet repo by any other means.
 `;
 
-const CONFIG_TEMPLATE = `# skillet configuration — see 'skillet eval --help'
-# harness: codex        # codex (default) | claude | custom mapping:
-# harness:
-#   name: my-agent
-#   command: "my-agent run --dir {workspace} {prompt}"
-#   skill_dir: "{workspace}/.my-agent/skills"
-#
-# Containerize harness runs (for untrusted skills / CI):
-# sandbox:
-#   enabled: true        # or opt in per run: skillet eval --sandbox docker
-#   image: skillet-eval  # build recipe: sandbox/Dockerfile in the skillet repo
-#   network: true
-`;
+const SELF_MANAGED = `To manage it yourself instead:
+  npx @sentry/dotagents add ${SOURCE} ${SKILL} && npx @sentry/dotagents install
+  (project scope; add --user for global) — or install skills/${SKILL}
+  from the skillet repo by any other means.`;
 
-/** `skillet init` — scaffold .skillet.yaml and per-tool workflow files. */
-export const run = (argv: string[]): number => {
-  const { values, positionals } = parseArgs({
+/** Cheap presence probe — dotagents owns the file, we only detect. */
+const alreadyInstalled = (): boolean => {
+  const toml = join(homedir(), ".agents", "agents.toml");
+  return existsSync(toml) && readFileSync(toml, "utf8").includes(SKILL);
+};
+
+const payload = (status: InitJson["status"]): InitJson => ({
+  status,
+  skill: SKILL,
+  source: SOURCE,
+  scope: "user",
+});
+
+/** `skillet init` — set up the authoring skill via dotagents (user scope). */
+export const run = async (argv: string[]): Promise<number> => {
+  const { values } = parseArgs({
     args: argv,
     options: {
-      tools: { type: "string" },
-      force: { type: "boolean" },
+      "no-prompt": { type: "boolean" },
       json: { type: "boolean" },
       help: { type: "boolean", short: "h" },
     },
-    allowPositionals: true,
   });
   if (values.help === true) {
     print(HELP.trimEnd());
     return 0;
   }
+  const json = values.json === true;
 
-  const projectRoot = resolve(positionals[0] ?? ".");
-  mkdirSync(projectRoot, { recursive: true });
-
-  const toolsArg = values.tools ?? "claude";
-  let tools: ToolId[];
-  if (toolsArg === "none") {
-    tools = [];
-  } else if (toolsArg === "all") {
-    tools = [...SUPPORTED_TOOLS];
-  } else {
-    const requested = toolsArg.split(",").map((t) => t.trim());
-    const unknown = requested.filter((t) => !(SUPPORTED_TOOLS as readonly string[]).includes(t));
-    if (unknown.length > 0) {
-      return fail(
-        `unknown tools: ${unknown.join(", ")} (supported: ${SUPPORTED_TOOLS.join(", ")})`,
-        {
-          json: values.json === true,
-        },
-      );
+  if (alreadyInstalled()) {
+    if (json) {
+      emitJson(payload("already-installed"));
+    } else {
+      info(`${SKILL} is already installed in ~/.agents — nothing to do.`);
     }
-    tools = requested.filter((t): t is ToolId =>
-      (SUPPORTED_TOOLS as readonly string[]).includes(t),
-    );
-  }
-
-  const configPath = join(projectRoot, CONFIG_FILE);
-  const configCreated = !existsSync(configPath);
-  if (configCreated) {
-    writeFileSync(configPath, CONFIG_TEMPLATE);
-  }
-
-  const generated = tools.flatMap((tool) =>
-    generateTool(tool, projectRoot, VERSION, values.force === true).map((file) => ({
-      tool,
-      ...file,
-    })),
-  );
-
-  if (values.json === true) {
-    const payload: InitJson = { root: projectRoot, configCreated, configPath, files: generated };
-    emitJson(payload);
     return 0;
   }
 
-  if (configCreated) {
-    info(`Created ${configPath}`);
+  let consented = values["no-prompt"] === true;
+  if (!consented) {
+    if (json || !process.stdin.isTTY) {
+      // Non-interactive without explicit consent: explain and do nothing.
+      info(`skillet init installs ${SKILL} for all your agents via`);
+      info(`'npx @sentry/dotagents --user' (writes ~/.agents and agent configs).`);
+      info(`Re-run with --no-prompt to proceed non-interactively.`);
+      info(SELF_MANAGED);
+      if (json) emitJson(payload("skipped"));
+      return 0;
+    }
+    const rl = createInterface({ input: process.stdin, output: process.stderr });
+    const answer = await rl.question(
+      `Install ${SKILL} for all your agents via @sentry/dotagents (user scope, ~/.agents)? [Y/n] `,
+    );
+    rl.close();
+    consented = ["", "y", "yes"].includes(answer.trim().toLowerCase());
+    if (!consented) {
+      info(SELF_MANAGED);
+      return 0;
+    }
   }
-  for (const file of generated) {
-    info(`${file.skipped ? "kept   " : "wrote  "} ${file.path}`);
+
+  try {
+    for (const args of [["add", SOURCE, SKILL], ["install"]]) {
+      execFileSync("npx", ["-y", "@sentry/dotagents", "--user", ...args], {
+        stdio: ["ignore", 2, 2],
+        timeout: 300_000,
+      });
+    }
+  } catch {
+    return fail(
+      `dotagents setup failed — run it directly to see why: npx @sentry/dotagents --user add ${SOURCE} ${SKILL}`,
+      { json },
+    );
   }
-  info(`\nWorkflows: /skillet:propose -> /skillet:render -> skillet eval -> /skillet:improve`);
-  info(`Start a skill with 'skillet new <name>'.`);
+
+  if (json) {
+    emitJson(payload("installed"));
+  } else {
+    info(`${SKILL} installed for all your agents (user scope, ~/.agents).`);
+    info(`Try it: ask your agent to create a skill. 'skillet new <name>' scaffolds one by hand.`);
+  }
   return 0;
 };

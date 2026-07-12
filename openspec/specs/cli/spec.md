@@ -16,7 +16,7 @@ The system SHALL be distributed as an npm package with a `skillet` binary entry 
 
 ### Requirement: CLI command surface
 
-The CLI SHALL support exactly seven commands, all mechanical (no LLM calls): `init` (scaffold project/tool integrations), `new <name>` (scaffold a skill directory with a spec.md template), `status` (artifact state for a skill), `instructions <artifact>` (serve templates and writing instructions to agents), `validate` (structural validation), `eval` (run eval cases through the harness), and `show` (pretty-print a skill's spec and coverage). The commands `create`, `improve`, `spec`, `add-eval`, `resume`, `compare`, and `install` are removed.
+The CLI SHALL support exactly seven commands, all mechanical (no LLM calls): `init` (set up the authoring skill via @sentry/dotagents), `new <name>` (scaffold a skill directory with a spec.md template), `status` (artifact state for a skill), `instructions <artifact>` (serve templates and writing instructions to agents), `validate` (structural validation), `eval` (run eval cases through the harness), and `show` (pretty-print a skill's spec and coverage). The commands `create`, `improve`, `spec`, `add-eval`, `resume`, `compare`, and `install` are removed.
 
 #### Scenario: New skill scaffold
 - **WHEN** `skillet new commit-helper` runs

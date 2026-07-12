@@ -26,18 +26,18 @@ describe("skillStatus next-step ladder", () => {
     expect(skillStatus(makeRoot()).next).toContain("Write spec.md");
   });
 
-  it("points legacy spec.yaml at the migrate workflow", () => {
+  it("directs legacy spec.yaml toward a spec.md preserving its intent", () => {
     const root = makeRoot();
     writeFileSync(join(root, "spec.yaml"), "intent: old\n");
     const status = skillStatus(root);
     expect(status.legacy.specYaml).toBe(true);
-    expect(status.next).toContain("migrate");
+    expect(status.next).toContain("preserving its intent");
   });
 
-  it("points a bare SKILL.md at the migrate workflow", () => {
+  it("directs a bare SKILL.md toward deriving spec.md from it", () => {
     const root = makeRoot();
     writeFileSync(join(root, "SKILL.md"), skillMd());
-    expect(skillStatus(root).next).toContain("migrate");
+    expect(skillStatus(root).next).toContain("derive spec.md");
   });
 
   it("asks to render SKILL.md once spec.md exists", () => {

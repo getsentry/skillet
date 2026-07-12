@@ -14,18 +14,18 @@ my-skill/
     fixtures/<slug>/   # starting workspace states for cases
 ```
 
-Who writes what: **humans and host agents** write all artifacts (via the `/skillet:*` workflows and `skillet instructions`); **skillet** scaffolds, validates, serves instructions, and runs evals. Skillet never calls an LLM and never overwrites an existing artifact.
+Who writes what: **humans and host agents** write all artifacts (via the skillet-authoring skill and `skillet instructions`); **skillet** scaffolds, validates, serves instructions, and runs evals. Skillet never calls an LLM and never overwrites an existing artifact.
 
 ## The flow
 
 ```
 skillet new <name>            # scaffold spec.md template + evals/ layout
      |
-/skillet:propose              # host agent interviews the user, writes spec.md
+agent authors spec.md         # host agent interviews the user, writes spec.md
      |                        #   guided by: skillet instructions spec --json
 skillet validate              # grammar: behaviors have scenarios, slugs unique, WHEN/THEN present
      |
-/skillet:render               # host agent writes SKILL.md (+references) and eval cases
+agent renders artifacts       # host agent writes SKILL.md (+references) and eval cases
      |                        #   guided by: skillet instructions skill|evals --json
 skillet validate              # + frontmatter, case schema, behavior<->case coverage
      |
@@ -34,12 +34,12 @@ skillet eval [--trials N] [--baseline] [--dry] [--out dir]
      |                        #   -> harness agent runs prompt -> deterministic checks
      |                        #   -> judge checks (harness-graded, only if deterministic pass)
      |                        # --baseline repeats trials without the skill; reports lift
-/skillet:improve              # host agent diagnoses failures -> fixes spec, SKILL.md, or case
+agent improves                # host agent diagnoses failures -> fixes spec, SKILL.md, or case
      |
 (loop until behaviors hold and lift is positive)
 ```
 
-`skillet status` reports where in this flow a skill is, purely from files on disk (presence + the spec_hash recorded in SKILL.md vs the hash of spec.md; mtime fallback when no hash is recorded). Legacy skills (a `spec.yaml`, or a `SKILL.md` with no `spec.md`) are detected and routed to `/skillet:migrate`.
+`skillet status` reports where in this flow a skill is, purely from files on disk (presence + the spec_hash recorded in SKILL.md vs the hash of spec.md; mtime fallback when no hash is recorded). Legacy skills (a `spec.yaml`, or a `SKILL.md` with no `spec.md`) are detected and status directs the migration.
 
 ## Eval execution detail
 

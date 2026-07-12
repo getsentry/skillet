@@ -70,9 +70,11 @@ export const skillStatus = (root: string): SkillStatus => {
 
   let next: string;
   if (!specPresent && legacy.specYaml) {
-    next = "Legacy spec.yaml detected — run the /skillet:migrate workflow to produce spec.md.";
+    next =
+      "Legacy spec.yaml detected — write spec.md preserving its intent ('skillet instructions spec' has the format).";
   } else if (!specPresent && skillPresent) {
-    next = "SKILL.md exists without a spec — run /skillet:migrate to derive spec.md from it.";
+    next =
+      "SKILL.md exists without a spec — derive spec.md from it ('skillet instructions spec' has the format).";
   } else if (!specPresent) {
     next = "Write spec.md ('skillet instructions spec' has the template and rules).";
   } else if (!skillPresent) {
@@ -82,7 +84,8 @@ export const skillStatus = (root: string): SkillStatus => {
   } else if (caseCount === 0) {
     next = "Add eval cases for the spec behaviors ('skillet instructions evals').";
   } else {
-    next = "Run 'skillet validate' and 'skillet eval' — iterate via /skillet:improve.";
+    next =
+      "Run 'skillet validate' and 'skillet eval'; diagnose failures from 'skillet eval --json' transcripts.";
   }
 
   return { root, spec, skill, evals, legacy, next };

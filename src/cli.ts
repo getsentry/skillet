@@ -26,13 +26,14 @@ Exit codes: 0 success, 1 failure. --json prints one JSON object on stdout.
 /** v0 commands and where their job moved (cli spec, "Removed command"). */
 const REMOVED_COMMANDS: Record<string, string> = {
   create:
-    "authoring is agent-driven now — run /skillet:propose in your agent, or 'skillet new <name>' to scaffold by hand",
-  improve: "run /skillet:improve in your agent; it reads 'skillet eval --json' failures",
-  spec: "spec.md is edited directly — /skillet:propose writes it, 'skillet validate' checks it",
+    "authoring is agent-driven now — ask your agent (the skillet-authoring skill drives it), or 'skillet new <name>' to scaffold by hand",
+  improve:
+    "ask your agent to fix failing evals; 'skillet eval --json' carries the failure transcripts",
+  spec: "spec.md is edited directly — 'skillet instructions spec' has the format, 'skillet validate' checks it",
   "add-eval": "add a YAML case under evals/cases/ ('skillet instructions evals' has the template)",
   resume: "there are no sessions to resume; workflow state lives on disk ('skillet status')",
   compare: "use 'skillet eval --baseline' to compare with and without the skill",
-  install: "'skillet init --tools <ids>' generates agent integrations",
+  install: "'skillet init' sets up the authoring skill for your agents via @sentry/dotagents",
 };
 
 interface CommandModule {

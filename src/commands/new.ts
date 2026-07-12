@@ -67,7 +67,9 @@ export const run = (argv: string[]): number => {
   }
 
   info(`Created skill scaffold at ${dir}/`);
-  info(`  spec.md            — fill in intent, triggers, behaviors (or run /skillet:propose)`);
+  info(
+    `  spec.md            — fill in intent, triggers, behaviors ('skillet instructions spec' has the rules)`,
+  );
   info(`  evals/cases/       — one YAML case per behavior`);
   info(`  evals/fixtures/    — starting workspaces for cases`);
   info(`Next: edit ${basename(dir)}/spec.md, then 'skillet status' shows what to produce next.`);

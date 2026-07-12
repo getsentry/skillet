@@ -9,8 +9,8 @@ const HELP = `Usage: skillet instructions <spec|skill|evals> [path] [--json]\n  
 
 Serve the template, writing instructions, and output path for one
 artifact, plus the skill's current state. This is the machine
-interface agent workflows consume — the generated /skillet:* commands
-call it instead of embedding guidance.
+interface agents consume — the skillet-authoring skill calls it
+instead of embedding guidance.
 `;
 
 const ARTIFACTS: ArtifactId[] = ["spec", "skill", "evals"];

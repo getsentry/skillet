@@ -77,7 +77,7 @@ export const validateSkill = (root: string): ValidationReport => {
     specIssues.push({
       severity: "error",
       message: "spec.md not found",
-      hint: "Every skill needs a spec — 'skillet new' scaffolds one, /skillet:migrate imports legacy skills.",
+      hint: "Every skill needs a spec — 'skillet new' scaffolds one; legacy skills get one via 'skillet instructions spec'.",
     });
   }
 

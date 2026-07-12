@@ -8,14 +8,15 @@ Skillet is a small CLI that manages three artifacts per skill and proves the ski
 - **`SKILL.md`** — the instruction text agents load, rendered from the spec by *your* coding agent.
 - **`evals/cases/*.yaml`** — declarative eval cases that run the skill through a **real coding agent** (codex or claude CLI, or any CLI you configure) in a fresh workspace and check what it actually did.
 
-Skillet itself makes **zero LLM calls**. It scaffolds, validates, serves writing instructions to your agent, and runs evals mechanically. All generation happens in the coding agent you already use, driven by generated `/skillet:*` workflows — so upgrading skillet upgrades every agent's behavior, and nothing here needs an API key.
+Skillet itself makes **zero LLM calls**. It scaffolds, validates, serves writing instructions to your agent, and runs evals mechanically. All generation happens in the coding agent you already use, driven by the `skillet-authoring` skill — so upgrading skillet upgrades every agent's behavior, and nothing here needs an API key.
 
 ## Install
 
 ```bash
 npm install -g @sentry/skillet   # or: npx @sentry/skillet
-skillet init --tools claude      # /skillet:* workflows; add codex via --tools claude,codex
-                                 # (codex prompts are global: $CODEX_HOME/prompts)
+skillet init                     # installs the skillet-authoring skill for all your
+                                 # agents via @sentry/dotagents (user scope, ~/.agents);
+                                 # asks first — or manage it yourself, see below
 ```
 
 ## Quickstart
@@ -23,8 +24,8 @@ skillet init --tools claude      # /skillet:* workflows; add codex via --tools c
 ```bash
 skillet new commit-conventions   # scaffold spec.md + evals/ layout
 cd commit-conventions
-# fill in spec.md by hand, or ask your agent: /skillet:propose
-# then have the agent render SKILL.md + eval cases: /skillet:render
+# fill in spec.md by hand, or ask your agent to author it (skillet-authoring skill)
+# then have the agent render SKILL.md + eval cases
 skillet validate                 # grammar, frontmatter, case schema, coverage — no LLM
 skillet eval --trials 3 --baseline
 ```
@@ -137,25 +138,28 @@ Caveat: on macOS, Claude Code keeps OAuth credentials in the Keychain, which can
 
 | Command | What it does |
 |---|---|
-| `skillet init [--tools claude,codex] [--force]` | Scaffold `.skillet.yaml` + agent workflow files |
+| `skillet init [--no-prompt]` | Install the skillet-authoring skill for your agents via @sentry/dotagents (user scope; asks first) |
 | `skillet new <name>` | Scaffold a skill directory with a templated spec.md |
 | `skillet status [path]` | Artifact state and the single next step, derived from disk |
-| `skillet instructions <spec\|skill\|evals>` | Template + writing rules for one artifact (what the workflows consume) |
+| `skillet instructions <spec\|skill\|evals>` | Template + writing rules for one artifact (what the authoring skill consumes) |
 | `skillet validate [path]` | Spec grammar, SKILL.md frontmatter, case schema, coverage — exit 1 on errors |
 | `skillet eval [path] [--case id] [--behavior id] [--trials n] [--baseline] [--harness x] [--sandbox docker] [--dry] [--out dir] [--verbose] [--keep-workspaces]` | Run cases through the harness; per-behavior pass rates and lift. `--dry` finds cases a do-nothing agent would pass; `--out` persists per-case results incrementally and resumes interrupted runs |
 | `skillet show [path]` | Pretty-print the parsed spec with coverage |
 
 Every command takes `--json`: one JSON object on stdout (failures emit `{ok: false, error}`), prose on stderr, exit 0/1.
 
-## Agent workflows
+## Agent integration
 
-`skillet init` generates four thin workflows that script your agent into the `skillet status` / `skillet instructions --json` loop (codex names them `/skillet-<id>` — its prompts don't allow colons):
+Skillet's authoring workflow ships as a skill: [`skills/skillet-authoring/`](skills/skillet-authoring/) — itself a spec-driven skillet skill, with evals. Once installed, asking your agent to create, improve, or migrate a skill lands on the `skillet status` / `skillet instructions --json` loop automatically.
 
-- **`/skillet:propose`** — interview the user, write spec.md
-- **`/skillet:render`** — render SKILL.md + eval cases from the spec
-- **`/skillet:improve`** — diagnose failing evals into spec/skill/eval fixes and re-run
-- **`/skillet:migrate`** — convert a legacy `spec.yaml` or bare SKILL.md skill
+`skillet init` installs it for every agent dotagents supports (claude, codex, cursor, opencode) in user scope, and always asks before writing. Prefer to own delivery? Skip init entirely:
+
+```bash
+npx @sentry/dotagents add getsentry/skillet skillet-authoring && npx @sentry/dotagents install
+```
+
+(project scope; add `--user` for global) — or install `skills/skillet-authoring/` by any other means.
 
 ## Migrating from skillet v0
 
-The v0 formats (`spec.yaml`, generated `evals/*.eval.ts`, the `create`/`improve`/`spec` commands, and all `SKILLET_*` env vars) are gone. `skillet status` detects legacy skills and points at `/skillet:migrate`, which converts intent to `spec.md` and eval intent to YAML cases. See `examples/commit-conventions/` for a complete current-format skill.
+The v0 formats (`spec.yaml`, generated `evals/*.eval.ts`, the `create`/`improve`/`spec` commands, and all `SKILLET_*` env vars) are gone. `skillet status` detects legacy skills and directs the migration: intent converts to `spec.md` and eval intent to YAML cases. See `examples/commit-conventions/` for a complete current-format skill.
