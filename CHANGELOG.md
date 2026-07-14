@@ -1,9 +1,21 @@
 # Changelog
 
-## 1.1.0
+## 1.2.0
+
+(1.1.0 was tagged in package.json but never published; its changes ship here.)
 
 ### Features 🚀
 
+- Evals run through an embedded Vitest + vitest-evals engine: cases compile to
+  generated tests bound to a CLI-spawning harness (no API keys), checks are
+  native assertions, judges go through vitest-evals' judge pipeline. New
+  `skillet eval --report <file>` emits a Vitest JSON artifact for
+  `npx vitest-evals serve` and the getsentry/vitest-evals GitHub Action
+- `skillet init` installs the in-repo `skillet-authoring` skill for all your
+  agents via `@sentry/dotagents` (user scope, consent-first, `--no-prompt`
+  for automation); generated `/skillet:*` workflow files are gone
+- The authoring workflow ships as a dogfooded skill (`skills/skillet-authoring`)
+  with its own spec, rendered SKILL.md, and eval coverage
 - Opt-in docker sandbox for eval runs (`--sandbox docker`, `sandbox:` config;
   `sandbox/Dockerfile` ships the image recipe)
 - Model selection on builtin harnesses: `--harness claude:sonnet`, `codex:gpt-5`
