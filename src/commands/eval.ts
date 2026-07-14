@@ -13,7 +13,9 @@ import type { DryJson, EvalJson, EvalSummary } from "../json.js";
 import { isRecord } from "../guards.js";
 import { emitJson, fail, info, print } from "../output.js";
 import { passRate, summarizeByBehavior, type CaseResult } from "../evals/results.js";
-import { dryRun, runCases } from "../evals/runner.js";
+import { dryRun } from "../evals/runner.js";
+import { runEngine } from "../engine/orchestrate.js";
+import type { WorkerCase } from "../engine/types.js";
 import { validateSkill } from "../validate.js";
 import { resolveSkillRoot } from "./shared.js";
 
@@ -35,6 +37,9 @@ Options:
   --out <dir>         Persist each case's result as <dir>/<case-id>.json as it
                       finishes; existing files are reused as-is on the next run
                       (resume after a kill — delete files to re-measure)
+  --report <file>     Also write a Vitest JSON report artifact — inspect it
+                      with 'npx vitest-evals serve <file>' or publish it via
+                      the getsentry/vitest-evals GitHub Action
   --dry               No agent: run checks against the pristine workspace;
                       any check that passes there is vacuous and flagged
   --verbose           Print full transcripts for non-passing trials
@@ -111,6 +116,7 @@ export const run = async (argv: string[]): Promise<number> => {
       sandbox: { type: "string" },
       "keep-workspaces": { type: "boolean" },
       out: { type: "string" },
+      report: { type: "string" },
       dry: { type: "boolean" },
       verbose: { type: "boolean" },
       json: { type: "boolean" },
@@ -246,16 +252,20 @@ export const run = async (argv: string[]): Promise<number> => {
   info(
     `Running ${cases.length} case(s) via ${harness.name}${sandbox != null ? " [docker sandbox]" : ""}${values.baseline === true ? " (with baseline)" : ""}...`,
   );
-  const fresh = await runCases(cases, {
-    skillRoot: root,
+  const workerCases: WorkerCase[] = cases.map((evalCase) => ({
+    evalCase,
     harness,
     ...(sandbox != null && { sandbox }),
-    ...(trials != null && { trials }),
-    ...(values.baseline === true && { baseline: true }),
-    ...(values["keep-workspaces"] === true && { keepWorkspaces: true }),
+    skillRoot: root,
+    trials: trials ?? evalCase.trials,
+    baseline: values.baseline === true,
+    keepWorkspaces: values["keep-workspaces"] === true,
+  }));
+  const fresh = await runEngine(workerCases, {
     onProgress: (message) => {
       info(`  ${message}`);
     },
+    ...(values.report != null && { reportFile: resolve(values.report) }),
     ...(outDir != null && {
       onCaseDone: (result: CaseResult) => {
         // Write-then-rename so a killed run can't leave a truncated file.

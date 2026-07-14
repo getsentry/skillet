@@ -40,6 +40,8 @@ Behaviors:
 
 Zero lift is a finding too: it means your agent already does this without the skill (note that harness CLIs still load your global agent config, so baseline measures *your configured agent*, not a bare model).
 
+Under the hood, evals run through an embedded [vitest-evals](https://github.com/getsentry/vitest-evals) engine — no config or extra dependencies on your side. Add `--report results.json` to get a Vitest JSON artifact you can inspect locally (`npx vitest-evals serve results.json`) or publish in CI with the `getsentry/vitest-evals` GitHub Action.
+
 ## The spec
 
 ```markdown
