@@ -1,110 +1,118 @@
-# Skill Lifecycle
+# How Skillet Works
 
-How a skill is built and proven end-to-end. Authoritative reference for the artifact flow — what exists, who writes it, and what checks it.
+This is the detailed reference for Skillet's artifact flow, eval execution, harnesses, and source layout. Start with [`README.md`](README.md) if you only need to create or run a skill.
 
-## The artifacts
+## Artifacts
 
-```
+```text
 my-skill/
-  spec.md              # source of truth: intent, triggers, behaviors+scenarios, constraints
-  SKILL.md             # agent-rendered instruction text (frontmatter: name, description, spec_hash)
-  references/*.md      # optional detail files linked from SKILL.md
+  spec.md
+  SKILL.md
+  references/*.md
   evals/
-    cases/<id>.yaml    # one declarative case per file, linked to a behavior by slug
-    fixtures/<slug>/   # starting workspace states for cases
+    cases/<id>.yaml
+    fixtures/<slug>/
 ```
 
-Who writes what: **humans and host agents** write all artifacts (via the skillet-authoring skill and `skillet instructions`); **skillet** scaffolds, validates, serves instructions, and runs evals. Skillet never calls an LLM and never overwrites an existing artifact.
+| Artifact | Role |
+|---|---|
+| `spec.md` | Source of truth for intent, triggers, behaviors, scenarios, and constraints |
+| `SKILL.md` | Agent instructions derived from the spec |
+| `references/*.md` | Optional detail linked from `SKILL.md` |
+| `evals/cases/*.yaml` | Cases linked to spec behaviors by slug |
+| `evals/fixtures/*` | Optional starting workspaces for cases |
 
-## The flow
+Humans and host agents write these artifacts. Skillet creates the initial layout, serves format instructions, validates the files, and runs evals. It never calls a model API directly and never overwrites an existing skill artifact.
 
-```
-skillet new <name>            # scaffold spec.md template + evals/ layout
-     |
-agent authors spec.md         # host agent interviews the user, writes spec.md
-     |                        #   guided by: skillet instructions spec --json
-skillet validate              # grammar: behaviors have scenarios, slugs unique, WHEN/THEN present
-     |
-agent renders artifacts       # host agent writes SKILL.md (+references) and eval cases
-     |                        #   guided by: skillet instructions skill|evals --json
-skillet validate              # + frontmatter, case schema, behavior<->case coverage
-     |
-skillet eval [--trials N] [--baseline] [--dry] [--out dir]
-     |                        # per case x trial: fresh workspace -> fixture copy -> setup
-     |                        #   -> harness agent runs prompt -> deterministic checks
-     |                        #   -> judge checks (harness-graded, only if deterministic pass)
-     |                        # --baseline repeats trials without the skill; reports lift
-agent improves                # host agent diagnoses failures -> fixes spec, SKILL.md, or case
-     |
-(loop until behaviors hold and lift is positive)
-```
+## Artifact flow
 
-`skillet status` reports where in this flow a skill is, purely from files on disk (presence + the spec_hash recorded in SKILL.md vs the hash of spec.md; mtime fallback when no hash is recorded). Legacy skills (a `spec.yaml`, or a `SKILL.md` with no `spec.md`) are detected and status directs the migration.
+1. Run `skillet new <name>` to create `spec.md` and the eval directories.
+2. Write `spec.md`, using `skillet instructions spec --json` for the current grammar and template.
+3. Run `skillet validate` to catch invalid or incomplete behaviors.
+4. Write `SKILL.md` and eval cases, using `skillet instructions skill --json` and `skillet instructions evals --json`.
+5. Run `skillet validate` again to check frontmatter, schemas, stale artifacts, and behavior coverage.
+6. Run `skillet eval --dry` to catch cases that require no agent work.
+7. Run `skillet eval --trials 3 --baseline` to measure reliability and lift.
+8. Diagnose failures at the right layer: change the spec when the intent is wrong, `SKILL.md` when the instructions are weak, or the case when the test is unfair.
 
-## Eval execution detail
+`skillet status` derives the current state entirely from disk. It compares the hash recorded in `SKILL.md` with the current `spec.md` and reports one next step.
 
-`skillet eval` compiles cases into generated test files in a temp directory and runs them through an embedded Vitest + [vitest-evals](https://github.com/getsentry/vitest-evals) engine (`src/engine/`) — one vitest test per trial, serially, invisible to the user (no config, nothing written to the skill directory). `--report <file>` additionally writes a Vitest JSON report artifact for `npx vitest-evals serve` and the `getsentry/vitest-evals` GitHub Action.
+## Eval execution
 
-Per trial (see `src/engine/worker.ts`):
+`skillet eval` compiles each case into an embedded Vitest test and runs it through [vitest-evals](https://github.com/getsentry/vitest-evals). Generated files live in a temporary directory; nothing is added to the skill.
 
-1. `mkdtemp` workspace; copy `evals/fixtures/<slug>/` in when the case declares `fixture:`.
-2. Run `setup:` with cwd = workspace; the script itself is staged outside the workspace so it can never appear in workspace contents or git state. 30s timeout; non-zero exit → trial `error`, agent never spawns.
-3. Install the skill using the harness's native mechanism — `.claude/skills/` (claude), workspace `AGENTS.md` + staged skill dir (codex), `skill_dir` template (custom). Baseline trials skip this step.
-4. Spawn the harness CLI on the case prompt (per-case `timeout:`, default 300s; kill reaps the whole process group). Capture transcript + final message. Direct execution with full access is the default (trusting your own skill); with `--sandbox docker` the invocation — judges included — is wrapped in a container with the workspace mounted at `/workspace`.
-5. Run `file_exists` / `shell` checks in the workspace as native test assertions. If all pass, grade each `judge:` check through a vitest-evals judge whose judge harness runs the same agent CLI in an isolated directory with a grading prompt (criterion + case prompt + transcript + bounded workspace dump) and a strict trailing `VERDICT: pass|fail` protocol — one retry, then `error` (never a silent fail).
-6. Trial status: `pass` (all checks pass), `fail` (a check failed), `error` (setup/timeout/judge-parse trouble). Workspaces are removed unless `--keep-workspaces`.
+Each trial follows the same sequence:
 
-Results roll up per behavior: pass rate over all trials of all covering cases, plus baseline pass rate and **lift** when `--baseline` ran.
+1. Create a fresh temporary workspace and copy the case fixture, if configured.
+2. Run the case's `setup` script. A non-zero exit or timeout ends the trial as an error.
+3. Install the skill using the selected harness's native mechanism. Baseline trials skip this step.
+4. Run the agent CLI on the case prompt and capture its transcript and final response.
+5. Run deterministic `file_exists` and `shell` checks against the workspace.
+6. If deterministic checks pass, run each `judge` criterion through an isolated grading invocation.
+7. Record the trial as `pass`, `fail`, or `error`, then remove the workspace unless `--keep-workspaces` is set.
 
-Baseline caveat: harness CLIs still load the user's global configuration, so baseline measures *your configured agent without this skill*, not a bare model. That is usually the comparison you want; keep it in mind when reading lift.
+Results are grouped by behavior. With `--baseline`, Skillet reports the pass rate without the skill and the difference between the two rates as lift.
+
+The baseline still includes the user's global agent configuration. It measures your configured agent without this skill, not a bare model.
+
+Use `--report <file>` to write a Vitest JSON report for `npx vitest-evals serve` or the `getsentry/vitest-evals` GitHub Action.
 
 ## Harness configuration
 
-The default harness is `codex` (`codex exec`); `claude` (`claude -p`) is built in. Pick per run with `--harness`, add a model with a suffix (`--harness claude:sonnet`, `harness: codex:gpt-5` in config), or configure any CLI in `.skillet.yaml`:
+The default harness is Codex (`codex exec`). Claude Code (`claude -p`) is also built in.
+
+```bash
+skillet eval --harness codex
+skillet eval --harness claude:sonnet
+```
+
+Configure another CLI in `.skillet.yaml`:
 
 ```yaml
 harness:
   name: my-agent
   command: "my-agent run --dir {workspace} {prompt}"
-  skill_dir: "{workspace}/.my-agent/skills"   # where the skill gets installed
+  skill_dir: "{workspace}/.my-agent/skills"
 ```
 
-Skill installation uses each agent's native mechanism: `.claude/skills/` for claude, the workspace `AGENTS.md` for codex (which has no skill mechanism), `skill_dir` for custom harnesses. `--baseline` runs the same trials with no installation at all.
+Claude skills are installed under `.claude/skills/`. Codex receives the skill through a workspace `AGENTS.md`. Custom harnesses use `skill_dir`. Baseline trials run with no skill installation.
 
 ## Sandboxed evals
 
-By default, harness agents run **directly on your machine with full access** (codex `--dangerously-bypass-approvals-and-sandbox`, claude `--dangerously-skip-permissions`). Workspaces are disposable tempdirs, but the agent itself is not confined — the default trusts that you wrote the skill and evals you're running. Agent-native sandboxes aren't used because they distort the measurement (codex's own sandbox blocks `git commit`, which reads as a skill failure).
+By default, Codex runs with `--dangerously-bypass-approvals-and-sandbox` and Claude Code runs with `--dangerously-skip-permissions`. The workspace is disposable, but the agent process has access to the host machine.
 
-For skills you don't trust — or CI — wrap every harness invocation (trials *and* judges) in a container:
+For untrusted skills or CI, run the agent and judge processes in Docker:
 
 ```bash
-docker build -t skillet-eval sandbox/   # once; recipe ships in this repo
+docker build -t skillet-eval sandbox/
 skillet eval --sandbox docker
 ```
 
-The agent keeps full freedom *inside* the container while the host stays untouched; checks still run on the host against the mounted workspace, so results are identical in shape. Configure in `.skillet.yaml`:
+The container mounts the trial workspace at `/workspace`. Checks still run on the host against that mounted workspace.
+
+Configure sandbox defaults in `.skillet.yaml`:
 
 ```yaml
 sandbox:
-  enabled: true            # or opt in per run with --sandbox docker
+  enabled: true
   image: skillet-eval
-  mount_auth: ["~/.codex", "~/.claude", "~/.claude.json"]   # default: whichever exist
-  network: true            # false -> --network none
-  env: ["ANTHROPIC_API_KEY"]   # host env passed through by name
+  mount_auth: ["~/.codex", "~/.claude", "~/.claude.json"]
+  network: true
+  env: ["ANTHROPIC_API_KEY"]
 ```
 
-Caveat: on macOS, Claude Code keeps OAuth credentials in the Keychain, which can't be mounted — use the codex harness in the sandbox, or pass `ANTHROPIC_API_KEY` through `env`.
+On macOS, Claude Code OAuth credentials live in Keychain and cannot be mounted into Docker. Use Codex in the sandbox or pass `ANTHROPIC_API_KEY` through `env`.
 
-## Where things live in src/
+## Source layout
 
 | Concern | Module |
 |---|---|
-| spec grammar, parser, template | `src/spec/` |
-| SKILL.md frontmatter + skill-root discovery | `src/skill/` |
-| behavior↔case coverage | `src/coverage.ts` |
-| case schema, workspace, checks, dry-run, lift | `src/evals/` |
-| harness config/spawn/install/judge | `src/harness/` |
-| vitest-evals engine (compile/worker/orchestrate) | `src/engine/` |
-| instructions payloads | `src/instructions/content.ts` |
-| state + validation aggregators | `src/status.ts`, `src/validate.ts` |
-| CLI dispatch + commands | `src/cli.ts`, `src/commands/` |
+| Spec grammar, parser, template, and slugs | `src/spec/` |
+| `SKILL.md` frontmatter and skill discovery | `src/skill/` |
+| Behavior-to-case coverage | `src/coverage.ts` |
+| Case schema, workspace checks, dry runs, and results | `src/evals/` |
+| Harness config, process execution, installation, and judges | `src/harness/` |
+| Vitest compilation, workers, and orchestration | `src/engine/` |
+| Authoring instructions | `src/instructions/` |
+| Cross-artifact status and validation | `src/status.ts`, `src/validate.ts` |
+| CLI commands | `src/cli.ts`, `src/commands/` |
