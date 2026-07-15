@@ -58,6 +58,43 @@ Results roll up per behavior: pass rate over all trials of all covering cases, p
 
 Baseline caveat: harness CLIs still load the user's global configuration, so baseline measures *your configured agent without this skill*, not a bare model. That is usually the comparison you want; keep it in mind when reading lift.
 
+## Harness configuration
+
+The default harness is `codex` (`codex exec`); `claude` (`claude -p`) is built in. Pick per run with `--harness`, add a model with a suffix (`--harness claude:sonnet`, `harness: codex:gpt-5` in config), or configure any CLI in `.skillet.yaml`:
+
+```yaml
+harness:
+  name: my-agent
+  command: "my-agent run --dir {workspace} {prompt}"
+  skill_dir: "{workspace}/.my-agent/skills"   # where the skill gets installed
+```
+
+Skill installation uses each agent's native mechanism: `.claude/skills/` for claude, the workspace `AGENTS.md` for codex (which has no skill mechanism), `skill_dir` for custom harnesses. `--baseline` runs the same trials with no installation at all.
+
+## Sandboxed evals
+
+By default, harness agents run **directly on your machine with full access** (codex `--dangerously-bypass-approvals-and-sandbox`, claude `--dangerously-skip-permissions`). Workspaces are disposable tempdirs, but the agent itself is not confined — the default trusts that you wrote the skill and evals you're running. Agent-native sandboxes aren't used because they distort the measurement (codex's own sandbox blocks `git commit`, which reads as a skill failure).
+
+For skills you don't trust — or CI — wrap every harness invocation (trials *and* judges) in a container:
+
+```bash
+docker build -t skillet-eval sandbox/   # once; recipe ships in this repo
+skillet eval --sandbox docker
+```
+
+The agent keeps full freedom *inside* the container while the host stays untouched; checks still run on the host against the mounted workspace, so results are identical in shape. Configure in `.skillet.yaml`:
+
+```yaml
+sandbox:
+  enabled: true            # or opt in per run with --sandbox docker
+  image: skillet-eval
+  mount_auth: ["~/.codex", "~/.claude", "~/.claude.json"]   # default: whichever exist
+  network: true            # false -> --network none
+  env: ["ANTHROPIC_API_KEY"]   # host env passed through by name
+```
+
+Caveat: on macOS, Claude Code keeps OAuth credentials in the Keychain, which can't be mounted — use the codex harness in the sandbox, or pass `ANTHROPIC_API_KEY` through `env`.
+
 ## Where things live in src/
 
 | Concern | Module |

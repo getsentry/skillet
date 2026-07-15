@@ -14,7 +14,7 @@ Skills are built spec-first with the skillet CLI (`skillet`, or `npx @sentry/ski
 2. Write `spec.md` before anything derived. If the user's intent, triggers, or edge cases are ambiguous, ask 2–4 pointed questions instead of inventing answers.
 3. For every artifact you write (`spec`, `skill`, `evals`), fetch the format first — `skillet instructions <artifact> <dir> --json` — and follow its template and rules exactly.
 4. Run `skillet validate <dir>` after each artifact and fix every error before moving on. Cover every behavior with at least one eval case; validate warns about uncovered behaviors — clear those warnings before calling the skill complete.
-5. Prove it: `skillet eval <dir> --trials 3 --baseline` measures per-behavior lift, and `--dry` catches cases a do-nothing agent would pass.
+5. Prove it: `skillet eval <dir> --trials 3 --baseline` measures per-behavior lift, and `--dry` catches cases a do-nothing agent would pass. Add `--report <file>` when the user wants a shareable run artifact (`npx vitest-evals serve <file>` renders it).
 
 ## When evals fail
 

@@ -1,36 +1,37 @@
 # Skillet
 
-Spec-driven agent skills with mechanical evals.
+Spec-driven agent skills, proven by evals.
 
-Skillet is a small CLI that manages three artifacts per skill and proves the skill works:
+A skill is instruction text your coding agent loads (`SKILL.md`). Skillet makes skills trustworthy by deriving them from a reviewable contract and testing them against a real agent:
 
-- **`spec.md`** — the source of truth: intent, triggers, behaviors with WHEN/THEN scenarios, and constraints, in a strict-but-tiny markdown grammar humans review in PRs.
-- **`SKILL.md`** — the instruction text agents load, rendered from the spec by *your* coding agent.
-- **`evals/cases/*.yaml`** — declarative eval cases that run the skill through a **real coding agent** (codex or claude CLI, or any CLI you configure) in a fresh workspace and check what it actually did.
+- **`spec.md`** — the source of truth: intent, triggers, behaviors with WHEN/THEN scenarios, constraints. A tiny markdown grammar humans review in PRs.
+- **`SKILL.md`** — the instruction text, rendered from the spec by *your* agent.
+- **`evals/cases/*.yaml`** — declarative cases that run the skill through a real coding-agent CLI (codex, claude, or any CLI) in a fresh workspace and check what it actually did.
 
-Skillet itself makes **zero LLM calls**. It scaffolds, validates, serves writing instructions to your agent, and runs evals mechanically. All generation happens in the coding agent you already use, driven by the `skillet-authoring` skill — so upgrading skillet upgrades every agent's behavior, and nothing here needs an API key.
+Skillet itself makes **zero LLM calls** and needs **no API keys** — agent CLIs carry their own auth, and all writing happens in the agent you already use.
 
-## Install
+## Getting started
 
 ```bash
-npm install -g @sentry/skillet   # or: npx @sentry/skillet
-skillet init                     # installs the skillet-authoring skill for all your
-                                 # agents via @sentry/dotagents (user scope, ~/.agents);
-                                 # asks first — or manage it yourself, see below
+npm install -g @sentry/skillet   # or use npx @sentry/skillet everywhere
+skillet init
 ```
 
-## Quickstart
+`skillet init` installs the **skillet-authoring** skill for all your agents via [@sentry/dotagents](https://github.com/getsentry/dotagents) (user scope, asks first). From then on, skill work is conversational — ask your agent:
+
+> "Create a skill that enforces our commit conventions."
+
+The authoring skill drives the whole loop: it scaffolds with `skillet new`, interviews you for the spec, renders SKILL.md, writes eval cases, and iterates until `skillet validate` and `skillet eval` are green. You review the spec diff; the evals prove the rest.
+
+Prefer to manage installation yourself? `npx @sentry/dotagents add getsentry/skillet skillet-authoring && npx @sentry/dotagents install` (project scope; `--user` for global), or copy [`skills/skillet-authoring/`](skills/skillet-authoring/) anywhere your agents look.
+
+## The point: measured lift
 
 ```bash
-skillet new commit-conventions   # scaffold spec.md + evals/ layout
-cd commit-conventions
-# fill in spec.md by hand, or ask your agent to author it (skillet-authoring skill)
-# then have the agent render SKILL.md + eval cases
-skillet validate                 # grammar, frontmatter, case schema, coverage — no LLM
 skillet eval --trials 3 --baseline
 ```
 
-The last command is the point of the tool: every case runs through a real agent *with* the skill installed and (with `--baseline`) *without* it, and skillet reports per-behavior pass rates and **lift** — the difference the skill actually makes. Illustrative output:
+Every case runs through a real agent *with* the skill installed and *without* it:
 
 ```
 Behaviors:
@@ -38,47 +39,26 @@ Behaviors:
   branch-safety:        100% (3/3) | baseline 0%  | lift +100%
 ```
 
-Zero lift is a finding too: it means your agent already does this without the skill (note that harness CLIs still load your global agent config, so baseline measures *your configured agent*, not a bare model).
+**Lift** is the difference the skill actually makes. Zero lift is a finding too — your agent already behaved that way. (Harness CLIs load your global agent config, so baseline measures *your configured agent*, not a bare model.)
 
-Under the hood, evals run through an embedded [vitest-evals](https://github.com/getsentry/vitest-evals) engine — no config or extra dependencies on your side. Add `--report results.json` to get a Vitest JSON artifact you can inspect locally (`npx vitest-evals serve results.json`) or publish in CI with the `getsentry/vitest-evals` GitHub Action.
+Evals run through an embedded [vitest-evals](https://github.com/getsentry/vitest-evals) engine — no config or dependencies in your skill directory. `--report results.json` writes an artifact for `npx vitest-evals serve` (local report UI) or the `getsentry/vitest-evals` GitHub Action (CI summaries).
 
-## The spec
+## What the artifacts look like
+
+A behavior in `spec.md`:
 
 ```markdown
-# Commit Conventions
-
-## Intent
-
-Make the agent produce disciplined git commits...
-
-## Triggers
-
-- **SHOULD** trigger when the user asks to commit changes
-- **SHOULD NOT** trigger when the user asks to review a diff
-
-## Behaviors
-
 ### Behavior: Conventional subject
 
-The agent SHALL write commit subjects as `<type>(<scope>): <description>`...
+The agent SHALL write commit subjects as `<type>(<scope>): <description>`.
 
 #### Scenario: Committing a staged bug fix
 
 - **WHEN** the workspace has a staged bug fix and the user asks to commit
 - **THEN** the commit subject starts with `fix` and stays under 70 characters
-
-## Constraints
-
-### Constraint: No history rewriting
-
-The agent MUST NOT amend, rebase, or force-push unless explicitly asked.
 ```
 
-Rules the validator enforces: every behavior has at least one scenario (`####`, exactly four hashes), behavior names slugify to unique ids (`conventional-subject`), and every scenario has WHEN/THEN bullets. Errors come with line numbers and fix hints.
-
-## Evals
-
-One YAML file per case in `evals/cases/`, linked to a spec behavior by id:
+Its eval case in `evals/cases/conventional-subject.yaml`:
 
 ```yaml
 behavior: conventional-subject
@@ -87,81 +67,32 @@ prompt: |
 setup: |
   git init -q -b main && git add -A ...
 checks:
-  - shell: git log -1 --format=%s | grep -Eq '^(feat|fix|chore)...'
-  - file_exists: some/artifact
+  - shell: git log -1 --format=%s | grep -Eq '^(feat|fix|chore)'
   - judge: The commit message accurately describes the null-check fix.
-trials: 1
-timeout: 300
 ```
 
-- Each trial gets a **fresh temp workspace**: the optional `fixture:` directory (`evals/fixtures/<slug>/`) is copied in, then `setup:` runs (the script itself never enters the workspace).
-- `file_exists` and `shell` checks run in the workspace after the agent finishes — check artifacts, not phrasing. Transcript regexing is deliberately unsupported.
-- `judge:` checks are graded by the same harness CLI with a strict pass/fail verdict protocol, and only run after all deterministic checks pass. No API keys, no thresholds; repeatability comes from `--trials`.
-- A behavior with no case is a validation warning; a case referencing an unknown behavior or missing fixture is an error.
-
-## Harnesses
-
-The default harness is `codex` (`codex exec`); `claude` (`claude -p`) is built in. Pick per run with `--harness`, add a model with a suffix (`--harness claude:sonnet`, `harness: codex:gpt-5` in config), or configure any CLI in `.skillet.yaml`:
-
-```yaml
-harness:
-  name: my-agent
-  command: "my-agent run --dir {workspace} {prompt}"
-  skill_dir: "{workspace}/.my-agent/skills"   # where the skill gets installed
-```
-
-Skill installation uses each agent's native mechanism: `.claude/skills/` for claude, the workspace `AGENTS.md` for codex (which has no skill mechanism), `skill_dir` for custom harnesses. `--baseline` runs the same trials with no installation at all.
-
-## Sandboxed evals
-
-By default, harness agents run **directly on your machine with full access** (codex `--dangerously-bypass-approvals-and-sandbox`, claude `--dangerously-skip-permissions`). Workspaces are disposable tempdirs, but the agent itself is not confined — the default trusts that you wrote the skill and evals you're running. Agent-native sandboxes aren't used because they distort the measurement (codex's own sandbox blocks `git commit`, which reads as a skill failure).
-
-For skills you don't trust — or CI — wrap every harness invocation (trials *and* judges) in a container instead:
-
-```bash
-docker build -t skillet-eval sandbox/   # once; recipe ships in this repo
-skillet eval --sandbox docker
-```
-
-The agent keeps full freedom *inside* the container while the host stays untouched; checks still run on the host against the mounted workspace, so results are identical in shape. Configure in `.skillet.yaml`:
-
-```yaml
-sandbox:
-  enabled: true            # or opt in per run with --sandbox docker
-  image: skillet-eval
-  mount_auth: ["~/.codex", "~/.claude", "~/.claude.json"]   # default: whichever exist
-  network: true            # false -> --network none
-  env: ["ANTHROPIC_API_KEY"]   # host env passed through by name
-```
-
-Caveat: on macOS, Claude Code keeps OAuth credentials in the Keychain, which can't be mounted — use the codex harness in the sandbox, or pass `ANTHROPIC_API_KEY` through `env`.
+Checks grade the **workspace**, never the transcript: `file_exists` and `shell` (exit 0 = pass) run after the agent finishes; `judge:` criteria are graded by the same harness CLI with a strict pass/fail protocol, only after deterministic checks pass. `skillet eval --dry` flags cases a do-nothing agent would pass. See [`examples/commit-conventions/`](examples/commit-conventions/) for a complete skill.
 
 ## Commands
 
 | Command | What it does |
 |---|---|
-| `skillet init [--no-prompt]` | Install the skillet-authoring skill for your agents via @sentry/dotagents (user scope; asks first) |
+| `skillet init [--no-prompt]` | Install the authoring skill for your agents (asks first) |
 | `skillet new <name>` | Scaffold a skill directory with a templated spec.md |
-| `skillet status [path]` | Artifact state and the single next step, derived from disk |
-| `skillet instructions <spec\|skill\|evals>` | Template + writing rules for one artifact (what the authoring skill consumes) |
-| `skillet validate [path]` | Spec grammar, SKILL.md frontmatter, case schema, coverage — exit 1 on errors |
-| `skillet eval [path] [--case id] [--behavior id] [--trials n] [--baseline] [--harness x] [--sandbox docker] [--dry] [--out dir] [--verbose] [--keep-workspaces]` | Run cases through the harness; per-behavior pass rates and lift. `--dry` finds cases a do-nothing agent would pass; `--out` persists per-case results incrementally and resumes interrupted runs |
+| `skillet status [path]` | Artifact state + the single next step, from disk |
+| `skillet instructions <spec\|skill\|evals>` | Template and writing rules for one artifact |
+| `skillet validate [path]` | Grammar, frontmatter, case schema, coverage — no LLM |
+| `skillet eval [path]` | Run cases through the harness; pass rates and lift |
 | `skillet show [path]` | Pretty-print the parsed spec with coverage |
 
-Every command takes `--json`: one JSON object on stdout (failures emit `{ok: false, error}`), prose on stderr, exit 0/1.
+Every command takes `--json` (one object on stdout, prose on stderr, exit 0/1) — that machine interface is how the authoring skill drives the tool. Run `skillet <command> --help` for flags; `eval` supports `--case`, `--behavior`, `--trials`, `--baseline`, `--harness codex|claude|custom[:model]`, `--sandbox docker`, `--dry`, `--out <dir>` (resumable runs), `--report <file>`, `--verbose`, `--keep-workspaces`.
 
-## Agent integration
+## Harnesses and sandboxing
 
-Skillet's authoring workflow ships as a skill: [`skills/skillet-authoring/`](skills/skillet-authoring/) — itself a spec-driven skillet skill, with evals. Once installed, asking your agent to create, improve, or migrate a skill lands on the `skillet status` / `skillet instructions --json` loop automatically.
+Default harness is `codex`; `claude` is built in; any CLI works via `.skillet.yaml` (`command: "my-agent run --dir {workspace} {prompt}"`). Add a model suffix to either builtin (`--harness claude:sonnet`).
 
-`skillet init` installs it for every agent dotagents supports (claude, codex, cursor, opencode) in user scope, and always asks before writing. Prefer to own delivery? Skip init entirely:
-
-```bash
-npx @sentry/dotagents add getsentry/skillet skillet-authoring && npx @sentry/dotagents install
-```
-
-(project scope; add `--user` for global) — or install `skills/skillet-authoring/` by any other means.
+By default agents run directly on your machine with full access — fine for skills you wrote. For untrusted skills or CI, `skillet eval --sandbox docker` wraps every harness invocation (judges included) in a container. Details, config, and the macOS keychain caveat: [LIFECYCLE.md](LIFECYCLE.md).
 
 ## Migrating from skillet v0
 
-The v0 formats (`spec.yaml`, generated `evals/*.eval.ts`, the `create`/`improve`/`spec` commands, and all `SKILLET_*` env vars) are gone. `skillet status` detects legacy skills and directs the migration: intent converts to `spec.md` and eval intent to YAML cases. See `examples/commit-conventions/` for a complete current-format skill.
+The v0 formats (`spec.yaml`, generated `evals/*.eval.ts`, the `create`/`improve`/`spec` commands) are gone. `skillet status` detects legacy skills and directs the migration.

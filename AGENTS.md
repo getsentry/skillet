@@ -30,7 +30,7 @@ Co-Authored-By: (agent model name) <email>
 ## Key Conventions
 
 - Use OpenSpec for non-trivial changes. New work goes under `openspec/changes/<slug>/` with `proposal.md`, `design.md`, `tasks.md`, and `specs/<capability>/spec.md` deltas. Validate with `npx openspec validate <id> --strict` before committing.
-- **Skillet makes zero LLM calls.** The CLI is a file/state manager, validator, and mechanical eval runner. All generation happens in host agents via the generated `/skillet:*` workflows. Do not add provider SDKs, API-key handling, or in-process agent loops.
+- **Skillet makes zero LLM calls.** The CLI is a file/state manager, validator, and mechanical eval runner. All generation happens in host agents, driven by the `skills/skillet-authoring` skill and `skillet instructions --json`. Do not add provider SDKs, API-key handling, or in-process agent loops.
 - Per-skill artifacts: `spec.md` is the source of truth; `SKILL.md` and `evals/cases/*.yaml` are derived by agents and validated by the CLI. Skillet never regenerates or overwrites eval cases.
 - Unit tests live next to their modules (`*.test.ts`) and must run offline in milliseconds. Anything spawning a real harness CLI is manual/dogfood territory (`examples/`), not the test suite.
 - Don't bypass hooks (`--no-verify`), don't `--force-push` to main, don't amend already-pushed commits without asking.
@@ -65,10 +65,10 @@ Co-Authored-By: (agent model name) <email>
 The end-to-end artifact flow is documented in `LIFECYCLE.md`. Module ownership:
 
 - `src/spec/` — the spec.md grammar: template, single-pass parser with line-accurate issues, slugs.
-- `src/evals/` — case schema (`case.ts`), workspace lifecycle (`workspace.ts`), deterministic checks (`checks.ts`), the trial runner (`runner.ts`), and result/lift math (`results.ts`).
-- `src/harness/` — everything that spawns agent CLIs: config resolution (`config.ts`), invocation building + process control (`run.ts`), skill installation per adapter (`install.ts`), the harness-executed judge (`judge.ts`).
+- `src/evals/` — case schema (`case.ts`), workspace lifecycle (`workspace.ts`), deterministic checks (`checks.ts`), agentless dry-run analysis (`runner.ts`), and result/lift math (`results.ts`).
+- `src/engine/` — the embedded Vitest + vitest-evals eval engine: case compilation to generated test files (`compile.ts`), the in-worker harness/judge/test registration (`worker.ts`, bundled separately to `dist/worker.js`), programmatic orchestration + result reassembly (`orchestrate.ts`).
+- `src/harness/` — everything that spawns agent CLIs: config resolution (`config.ts`), invocation building + process control (`run.ts`), skill installation per adapter (`install.ts`), the judge prompt/verdict protocol (`judge.ts`).
 - `src/instructions/` — the writing guidance served by `skillet instructions` (hard budget: ≤200 lines per artifact).
-- `src/integration/` — generated workflow content and per-tool file generators.
 - `src/commands/` — one file per CLI command; `src/cli.ts` is a lazy dispatch table.
 - `src/status.ts` / `src/validate.ts` — the two cross-artifact aggregators (state from disk; full-skill validation report).
 - Use `openspec/specs/<capability>/spec.md` as the canonical capability description. Don't duplicate spec content into AGENTS.md.
