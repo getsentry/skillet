@@ -42,7 +42,9 @@ for (const file of walk(distRoot).filter((path) => /\.(?:html|md)$/.test(path)))
     const path = target.startsWith("/")
       ? join(distRoot, target)
       : resolve(dirname(file), target);
-    const candidates = [path, `${path}.html`, join(path, "index.html")];
+    const candidates = file.endsWith(".md")
+      ? [path]
+      : [path, `${path}.html`, join(path, "index.html")];
     if (!candidates.some((candidate) => existsSync(candidate) && statSync(candidate).isFile())) {
       missingLinks.push(`${relative(distRoot, file)} -> ${href}`);
     }
