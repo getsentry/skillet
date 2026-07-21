@@ -27,9 +27,13 @@ if (missingRoutes.length > 0) {
 }
 
 const missingLinks = [];
-for (const file of walk(distRoot).filter((path) => path.endsWith(".html"))) {
-  const html = readFileSync(file, "utf8");
-  for (const match of html.matchAll(/href="([^"]+)"/g)) {
+for (const file of walk(distRoot).filter((path) => /\.(?:html|md)$/.test(path))) {
+  const content = readFileSync(file, "utf8");
+  const links = file.endsWith(".html")
+    ? content.matchAll(/href="([^"]+)"/g)
+    : content.matchAll(/!?\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g);
+
+  for (const match of links) {
     const href = match[1];
     if (/^(?:https?:|mailto:|#|javascript:)/.test(href)) continue;
     const target = href.split(/[?#]/)[0];
