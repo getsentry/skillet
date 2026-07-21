@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.3.0
+
+### Features 🚀
+
+- Eval-writing guidance now prefers executable proof and exact workspace state
+  over grep-based guesses about implementation shape. Semantic requirements can
+  use a judge without adding weak deterministic gates that skip valid judging.
+
+### Documentation 📚
+
+- Reworked the README around the install, authoring, validation, and evaluation
+  workflow, including a direct link for installing the skillet-authoring skill
+  outside the default dotagents location.
+- Simplified the lifecycle reference and removed obsolete migration guidance.
+
 ## 1.2.0
 
 (1.1.0 was tagged in package.json but never published; its changes ship here.)
