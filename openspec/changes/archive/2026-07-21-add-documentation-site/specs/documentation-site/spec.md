@@ -50,9 +50,14 @@ The docs project SHALL include Vercel configuration for a static Astro build whi
 
 ### Requirement: Documentation validation
 
-CI SHALL install the documentation project independently and run Astro validation and a production build.
+CI SHALL install the documentation project independently, run Astro validation and a production build, verify agent-readable Markdown routes, and reject broken local links.
 
 #### Scenario: Invalid documentation change
 
 - **WHEN** a documentation change introduces an Astro type error or broken production build
 - **THEN** the repository CI workflow fails before merge
+
+#### Scenario: Generated documentation contract breaks
+
+- **WHEN** a documentation change removes an expected Markdown route or introduces a broken local link
+- **THEN** the documentation build fails before merge

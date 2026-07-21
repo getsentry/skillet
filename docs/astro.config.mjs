@@ -6,7 +6,6 @@ import { sentryAgentMarkdown } from "@sentry/starlight-theme/agent-markdown";
 import { defineConfig } from "astro/config";
 
 export default defineConfig({
-  site: "https://skillet.sentry.dev",
   devToolbar: { enabled: false },
   integrations: [
     starlight({

@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro check && astro build",
+    "build": "astro check && astro build && node scripts/finalize-build.mjs",
     "preview": "astro preview",
-    "check": "astro check && astro build"
+    "check": "npm run build"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",

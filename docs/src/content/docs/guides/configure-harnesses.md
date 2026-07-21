@@ -59,7 +59,7 @@ The command must include both placeholders:
 
 `skill_dir` is optional. When present, Skillet installs the skill there before running the command.
 
-Custom commands are tokenized and spawned directly. Do not rely on shell operators such as pipes, redirects, or command substitution in the template.
+Skillet shell-quotes the `{workspace}` and `{prompt}` values, substitutes them into the template, and executes the result through `sh -c`. Shell operators such as pipes and redirects are available in the static template text.
 
 ## Skill Installation by Harness
 
