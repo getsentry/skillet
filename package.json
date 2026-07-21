@@ -8,6 +8,9 @@
   },
   "scripts": {
     "build": "node build.js",
+    "docs:build": "npm --prefix docs run build",
+    "docs:check": "npm --prefix docs run check",
+    "docs:dev": "npm --prefix docs run dev",
     "prepublishOnly": "npm run build",
     "prepare": "git config core.hooksPath .githooks",
     "dev": "node build.js --watch",

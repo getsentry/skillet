@@ -1,0 +1,28 @@
+# Skillet
+
+Skillet builds agent skills from a reviewable specification and evaluates them through real coding-agent CLIs.
+
+## Start Here
+
+- [Overview](https://skillet.sentry.dev/index.md)
+- [Quickstart](https://skillet.sentry.dev/quickstart.md)
+- [Create Your First Skill](https://skillet.sentry.dev/first-skill.md)
+
+## Concepts
+
+- [Artifact Lifecycle](https://skillet.sentry.dev/concepts/artifact-lifecycle.md)
+- [Specifications](https://skillet.sentry.dev/concepts/specifications.md)
+- [Evaluations and Lift](https://skillet.sentry.dev/concepts/evaluations-and-lift.md)
+
+## Guides
+
+- [Write Agent Instructions](https://skillet.sentry.dev/guides/write-agent-instructions.md)
+- [Write Honest Evals](https://skillet.sentry.dev/guides/write-honest-evals.md)
+- [Configure Harnesses](https://skillet.sentry.dev/guides/configure-harnesses.md)
+- [Sandbox and CI](https://skillet.sentry.dev/guides/sandbox-and-ci.md)
+
+## Reference
+
+- [CLI](https://skillet.sentry.dev/reference/cli.md)
+- [Eval Case YAML](https://skillet.sentry.dev/reference/eval-case.md)
+- [.skillet.yaml](https://skillet.sentry.dev/reference/configuration.md)
