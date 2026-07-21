@@ -54,7 +54,7 @@ Case schema:
   setup: |                               # optional — shell run in the workspace before the agent
   checks:                                # what proves the behavior happened
     - file_exists: <path>
-    - shell: <command>                   # exit 0 = pass, runs in the workspace
+    - shell: <command>                   # direct proof; exit 0 = pass
     - judge: <criterion>                 # LLM-graded through the harness
   trials: 1                              # optional
   timeout: 300                           # optional, seconds
@@ -62,7 +62,10 @@ Case schema:
 Rules that keep evals honest:
 - Derive each case from a spec scenario: the WHEN becomes fixture/setup + prompt, the THEN becomes checks.
 - Prompts are realistic user asks. Never quote the skill's own wording or name the expected artifact — a prompt that says "create marker.txt" tests reading comprehension, not the skill.
-- Prefer deterministic checks (file_exists, shell) — grep committed files, inspect git state, run the produced code. Use at most ONE judge check per case, only for genuinely semantic questions ("the explanation names the root cause"), and phrase the criterion as an objectively checkable statement.
+- Use deterministic checks only when they directly prove an observable requirement. Prefer running tests or produced code, typechecking/building, and inspecting exact filesystem or git state.
+- Do not use grep or string presence as a proxy for semantic correctness, architecture, or API choice. A deterministic check is invalid if a correct alternative could fail it or an incorrect implementation could pass by adding the expected text. Text checks are appropriate only when the exact text or forbidden syntax is itself the requirement.
+- Deterministic checks run before judges, and any deterministic failure skips the judge. Keep only high-confidence deterministic gates; do not add weak shell checks merely to make a case appear more deterministic.
+- Use at most ONE judge check per case for design quality, relationships between code, intent, or other semantic properties. Phrase it as a complete, objectively assessable description of the required outcome. A judge-only case is valid when no direct deterministic proof exists.
 - The workspace after the run is the whole observable record for deterministic checks; transcripts are only visible to judges. Check artifacts, not phrasing.
 - Skill installation itself adds files to the workspace (.claude/ for claude, AGENTS.md for codex). Never assert repo-wide cleanliness; assert that the specific files you care about are unchanged (e.g. git status --porcelain -- . ':(exclude).claude' ':(exclude)AGENTS.md').
 - Fixtures are committed starting states (a repo, a codebase excerpt); setup is for cheap dynamic state (git init, timestamps). Fixture directories must exist — validation fails on dangling slugs.
