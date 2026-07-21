@@ -1,6 +1,6 @@
 # Skillet
 
-Build agent skills from a reviewable spec, then prove they change agent behavior.
+Build agent skills from a reviewable spec, evaluate their behavior, and improve them over time.
 
 A Skillet skill has three parts:
 
@@ -28,14 +28,13 @@ skillet init
 
 `skillet init` uses [dotagents](https://github.com/getsentry/dotagents) to install the skill in user scope under `~/.agents`. If your agent reads skills from somewhere else, copy the [`skills/skillet-authoring`](https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring) directory directly into that location.
 
-To install with dotagents in the current project instead:
+To install the authoring skill with dotagents directly:
 
 ```bash
-npx @sentry/dotagents add getsentry/skillet skillet-authoring
-npx @sentry/dotagents install
+npx -y @sentry/dotagents --user add getsentry/skillet skillet-authoring
 ```
 
-Use `npx @sentry/dotagents --user ...` for a global installation.
+`add` records and installs the skill immediately. Run `npx -y @sentry/dotagents --user install` later to refresh it.
 
 ## Create a skill
 

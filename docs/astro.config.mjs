@@ -1,0 +1,67 @@
+import starlight from "@astrojs/starlight";
+import sentryStarlightTheme, {
+  monochromeCodeTheme,
+} from "@sentry/starlight-theme";
+import { sentryAgentMarkdown } from "@sentry/starlight-theme/agent-markdown";
+import { defineConfig } from "astro/config";
+
+export default defineConfig({
+  devToolbar: { enabled: false },
+  integrations: [
+    starlight({
+      title: "Skillet",
+      description: "Build agent skills from a spec, evaluate them, and improve them over time.",
+      favicon: "/favicon.svg",
+      customCss: ["./src/styles/custom.css"],
+      pagination: true,
+      sidebar: [
+        {
+          label: "Start Here",
+          items: [
+            { label: "Overview", link: "/" },
+            { label: "Quickstart", link: "/quickstart/" },
+            { label: "Create Your First Skill", link: "/first-skill/" },
+          ],
+        },
+        {
+          label: "Concepts",
+          items: [
+            { label: "Artifact Lifecycle", link: "/concepts/artifact-lifecycle/" },
+            { label: "Specifications", link: "/concepts/specifications/" },
+            { label: "Evaluations and Lift", link: "/concepts/evaluations-and-lift/" },
+          ],
+        },
+        {
+          label: "Guides",
+          items: [
+            { label: "Write Agent Instructions", link: "/guides/write-agent-instructions/" },
+            { label: "Write Honest Evals", link: "/guides/write-honest-evals/" },
+            { label: "Configure Harnesses", link: "/guides/configure-harnesses/" },
+            { label: "Sandbox and CI", link: "/guides/sandbox-and-ci/" },
+          ],
+        },
+        {
+          label: "Reference",
+          items: [
+            { label: "CLI", link: "/reference/cli/" },
+            { label: "Eval Case YAML", link: "/reference/eval-case/" },
+            { label: ".skillet.yaml", link: "/reference/configuration/" },
+          ],
+        },
+      ],
+      social: [
+        {
+          icon: "github",
+          label: "GitHub",
+          href: "https://github.com/getsentry/skillet",
+        },
+      ],
+      plugins: [sentryStarlightTheme(), sentryAgentMarkdown()],
+    }),
+  ],
+  markdown: {
+    shikiConfig: {
+      theme: monochromeCodeTheme,
+    },
+  },
+});
