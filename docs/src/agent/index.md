@@ -22,19 +22,7 @@ Skillet does not claim that a passing eval makes a skill universally correct. Ev
 Paste this into your coding agent:
 
 ```text
-Set up Skillet for me using the official source:
-https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring
-
-1. Install the latest Skillet CLI globally with npm.
-2. Run skillet init --no-prompt to install skillet-authoring in user scope.
-3. Do not modify this repository or install project-local skill files.
-4. Verify skillet --version and confirm skillet-authoring is installed in the user skill directory.
-
-Use these commands:
-npm install -g @sentry/skillet
-skillet init --no-prompt
-
-If a command fails, stop and explain the failure instead of switching packages, scopes, or repositories.
+Install the skillet-authoring skill from https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring in user scope for me.
 ```
 
 ## Start Here

@@ -1,17 +1,6 @@
 ---
-const prompt = `Set up Skillet for me using the official source:
-https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring
-
-1. Install the latest Skillet CLI globally with npm.
-2. Run skillet init --no-prompt to install skillet-authoring in user scope.
-3. Do not modify this repository or install project-local skill files.
-4. Verify skillet --version and confirm skillet-authoring is installed in the user skill directory.
-
-Use these commands:
-npm install -g @sentry/skillet
-skillet init --no-prompt
-
-If a command fails, stop and explain the failure instead of switching packages, scopes, or repositories.`;
+const prompt =
+  "Install the skillet-authoring skill from https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring in user scope for me.";
 ---
 
 <section class="skillet-setup-prompt">
@@ -19,10 +8,10 @@ If a command fails, stop and explain the failure instead of switching packages, 
     <p class="skillet-kicker">One-prompt setup</p>
     <h2>Paste this into your agent.</h2>
     <p>
-      It installs the CLI and the
+      The
       <a href="https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring"
         ><code>skillet-authoring</code> skill</a
-      > in user scope, then verifies both.
+      > already knows how to call Skillet when it needs the CLI.
     </p>
   </div>
 
