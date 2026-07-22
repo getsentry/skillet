@@ -1,0 +1,62 @@
+---
+const prompt = `Set up Skillet for me using the official source:
+https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring
+
+1. Install the latest Skillet CLI globally with npm.
+2. Run skillet init --no-prompt to install skillet-authoring in user scope.
+3. Do not modify this repository or install project-local skill files.
+4. Verify skillet --version and confirm skillet-authoring is installed in the user skill directory.
+
+Use these commands:
+npm install -g @sentry/skillet
+skillet init --no-prompt
+
+If a command fails, stop and explain the failure instead of switching packages, scopes, or repositories.`;
+---
+
+<section class="skillet-setup-prompt">
+  <div class="skillet-section-heading">
+    <p class="skillet-kicker">One-prompt setup</p>
+    <h2>Paste this into your agent.</h2>
+    <p>
+      It installs the CLI and the
+      <a href="https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring"
+        ><code>skillet-authoring</code> skill</a
+      > in user scope, then verifies both.
+    </p>
+  </div>
+
+  <div class="skillet-prompt-window" data-setup-prompt>
+    <div class="skillet-prompt-header">
+      <span>setup-prompt.txt</span>
+      <button type="button" data-copy-prompt>Copy prompt</button>
+    </div>
+    <pre><code>{prompt}</code></pre>
+  </div>
+</section>
+
+<script>
+  for (const button of document.querySelectorAll("[data-copy-prompt]")) {
+    button.addEventListener("click", async () => {
+      const prompt = button.closest("[data-setup-prompt]")?.querySelector("code")?.textContent;
+      if (!prompt) return;
+
+      try {
+        await navigator.clipboard.writeText(prompt);
+        button.textContent = "Copied";
+      } catch {
+        const code = button.closest("[data-setup-prompt]")?.querySelector("code");
+        if (!code) return;
+
+        const range = document.createRange();
+        range.selectNodeContents(code);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        button.textContent = "Press ⌘C";
+      }
+
+      setTimeout(() => (button.textContent = "Copy prompt"), 1600);
+    });
+  }
+</script>
