@@ -2,7 +2,7 @@
 
 ## Intent
 
-Drive agent-skill creation, improvement, and migration through the skillet CLI instead of freehand SKILL.md writing. The spec is the contract, SKILL.md is derived from it, and eval cases prove each behavior against a real agent. This skill exists so that "make me a skill" lands on that rail automatically.
+Drive agent-skill creation, improvement, and migration through the Skillet CLI instead of freehand SKILL.md writing. The spec defines the behavior, SKILL.md contains the agent instructions, and eval cases exercise the spec scenarios through a real agent CLI. This skill exists so that "make me a skill" starts with reviewable files and repeatable checks.
 
 ## Triggers
 

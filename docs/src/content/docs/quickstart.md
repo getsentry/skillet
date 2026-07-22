@@ -46,9 +46,11 @@ Run `install` later to refresh declared skills:
 npx -y @sentry/dotagents --user install
 ```
 
-### Install the Skill Directly
+### Ask Your Agent to Install It
 
-If your agent reads skills from another location, copy the [`skills/skillet-authoring`](https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring) directory into that agent's skill directory.
+Or tell your agent:
+
+> Install the [`skillet-authoring` skill](https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring) for me.
 
 ## Ask for a Skill
 

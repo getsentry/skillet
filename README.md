@@ -36,6 +36,8 @@ npx -y @sentry/dotagents --user add getsentry/skillet skillet-authoring
 
 `add` records and installs the skill immediately. Run `npx -y @sentry/dotagents --user install` later to refresh it.
 
+Or ask your agent to install the [`skillet-authoring` skill](https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring) for you.
+
 ## Create a skill
 
 Ask your agent:
