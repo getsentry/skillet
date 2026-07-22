@@ -11,7 +11,7 @@ Use direct execution only for skills and eval cases you trust.
 
 ## Build the Sandbox Image
 
-The repository includes a Docker image recipe:
+The Skillet repository includes a Docker image recipe. Clone the repository and run this command from its root:
 
 ```bash
 docker build -t skillet-eval sandbox/
@@ -23,7 +23,7 @@ Run an eval in the container:
 skillet eval --sandbox docker
 ```
 
-Agent and judge invocations run inside Docker with the trial workspace mounted at `/workspace`. Deterministic checks still inspect the mounted workspace from the host.
+Only agent and judge invocations run inside Docker. Case `setup` scripts and `shell` checks still run on the host against the mounted workspace. Treat eval case YAML as trusted input; Docker does not isolate malicious setup or check commands.
 
 ## Configure Sandbox Defaults
 
@@ -69,4 +69,4 @@ Open it locally with:
 npx vitest-evals serve results.json
 ```
 
-Do not run untrusted skill evals directly on a shared CI runner.
+Do not run eval cases you do not trust on a shared CI runner. Docker contains the agent process, not the case's setup and shell commands.

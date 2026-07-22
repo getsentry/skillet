@@ -24,18 +24,18 @@ export default defineConfig({
           ],
         },
         {
-          label: "Concepts",
+          label: "Build a Skill",
           items: [
-            { label: "Artifact Lifecycle", link: "/concepts/artifact-lifecycle/" },
             { label: "Specifications", link: "/concepts/specifications/" },
-            { label: "Evaluations and Lift", link: "/concepts/evaluations-and-lift/" },
+            { label: "Write Agent Instructions", link: "/guides/write-agent-instructions/" },
+            { label: "Write Honest Evals", link: "/guides/write-honest-evals/" },
+            { label: "Understand Eval Results", link: "/concepts/evaluations-and-lift/" },
           ],
         },
         {
-          label: "Guides",
+          label: "How Skillet Works",
           items: [
-            { label: "Write Agent Instructions", link: "/guides/write-agent-instructions/" },
-            { label: "Write Honest Evals", link: "/guides/write-honest-evals/" },
+            { label: "Artifact Lifecycle", link: "/concepts/artifact-lifecycle/" },
             { label: "Configure Harnesses", link: "/guides/configure-harnesses/" },
             { label: "Sandbox and CI", link: "/guides/sandbox-and-ci/" },
           ],

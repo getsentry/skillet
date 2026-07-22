@@ -27,14 +27,14 @@ Use one or two paragraphs to explain what the skill changes and why it exists. K
 
 ## Triggers
 
-Define both sides of the activation boundary:
+State when the skill should and should not load:
 
 ```markdown
 - **SHOULD** apply when the user asks to commit changes
 - **SHOULD NOT** apply when the user only asks to review changes
 ```
 
-The negative boundary prevents a broadly worded skill from loading for nearby tasks it should not control.
+The `SHOULD NOT` rule keeps the skill out of related tasks it does not cover.
 
 ## Behaviors
 
@@ -51,7 +51,7 @@ The agent SHALL NOT commit directly to `main`.
 - **THEN** the agent creates a descriptive branch before committing
 ```
 
-Behavior names slugify into stable identifiers such as `branch-safety`. Eval cases use those identifiers for coverage.
+Skillet converts behavior names into stable IDs such as `branch-safety`. Eval cases use these IDs to link back to the spec.
 
 Every behavior needs at least one scenario. If a statement cannot produce a concrete WHEN/THEN example, it is probably context rather than a behavior.
 

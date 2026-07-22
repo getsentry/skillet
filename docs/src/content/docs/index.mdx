@@ -67,11 +67,18 @@ The agent SHALL NOT commit directly to \`main\`.
 prompt: Commit the staged change.
 setup: |
   git init -q -b main
+  git config user.email eval@example.com
+  git config user.name "Skillet Eval"
+  echo base > base.txt
+  git add base.txt
+  git commit -qm seed
   echo change > change.txt
   git add change.txt
 checks:
+  - shell: >-
+      test "$(git rev-parse main)" = "$(git rev-list --max-parents=0 HEAD)"
   - shell: test "$(git branch --show-current)" != main
-  - shell: git log -1 --format=%s | grep -q .`}</code></pre>
+  - shell: test "$(git rev-parse HEAD)" != "$(git rev-parse main)"`}</code></pre>
       </div>
     </div>
   </section>

@@ -2,7 +2,7 @@
 title: Artifact Lifecycle
 description: Understand how a Skillet skill moves from intent to measured behavior.
 type: conceptual
-summary: The specification is the contract; instructions and evals are derived artifacts.
+summary: The specification defines behavior; the skill instructions and eval cases are written from it.
 ---
 
 A Skillet skill is a directory of reviewable files. No Skillet command asks a model to generate those files internally.
@@ -17,19 +17,21 @@ my-skill/
     fixtures/
 ```
 
-## The Contract
+## `spec.md`
 
 `spec.md` defines why the skill exists, when it applies, what observable behavior it requires, and what damage it must avoid.
 
-Write and validate the spec before creating derived artifacts. When intent changes, review the spec diff first.
+Write and validate the spec before creating the other files. When intent changes, review the spec diff first. See [Specifications](/concepts/specifications/).
 
-## The Instructions
+## `SKILL.md`
 
-`SKILL.md` is the text the agent loads. It translates the normative contract into an executable workflow.
+`SKILL.md` contains the instructions the agent follows. It turns the requirements in `spec.md` into concrete steps and decisions.
 
 Its frontmatter records a hash of `spec.md`. `skillet status` uses that hash to detect when the instructions are stale.
 
-## The Evidence
+See [Write Agent Instructions](/guides/write-agent-instructions/).
+
+## Eval Cases
 
 Each file under `evals/cases/` links to a behavior or constraint by its stable slug. Cases run through a configured agent harness in fresh workspaces.
 
@@ -38,6 +40,8 @@ Checks inspect the workspace after the agent finishes:
 - `file_exists` verifies an exact path.
 - `shell` runs direct deterministic assertions.
 - `judge` grades semantic requirements through the same agent harness.
+
+See [Write Honest Evals](/guides/write-honest-evals/).
 
 ## Filesystem State Drives the Workflow
 
