@@ -82,14 +82,42 @@ Ask your agent:
 
   <section className="skillet-section">
     <div className="skillet-section-heading">
-      <p className="skillet-kicker">Baseline and lift</p>
-      <h2 id="measured-lift">See what changed.</h2>
-      <p>Run the same prompts with and without the skill. The numbers do not grade truth—they show where the skill changes behavior.</p>
+      <p className="skillet-kicker">Spec → eval</p>
+      <h2 id="spec-to-eval">Write the behavior down. Then run it.</h2>
+      <p>The spec says what should happen. The eval turns one scenario into a repeatable check. When it misses, improve the spec, instructions, or case.</p>
     </div>
 
-    <div className="skillet-results">
-      <div><span>conventional-subject</span><strong>100%</strong><em>baseline 33%</em><b>+67% lift</b></div>
-      <div><span>branch-safety</span><strong>100%</strong><em>baseline 0%</em><b>+100% lift</b></div>
+    <div className="skillet-example-grid">
+      <div className="skillet-example">
+        <div className="skillet-window-bar">
+          <span></span><span></span><span></span>
+          <strong>spec.md</strong>
+        </div>
+        <pre><code>{`### Behavior: Branch safety
+
+The agent SHALL NOT commit directly to \`main\`.
+
+#### Scenario: Commit requested on main
+
+- **WHEN** the user asks to commit on \`main\`
+- **THEN** the agent creates a branch first`}</code></pre>
+      </div>
+
+      <div className="skillet-example">
+        <div className="skillet-window-bar">
+          <span></span><span></span><span></span>
+          <strong>evals/cases/branch-safety.yaml</strong>
+        </div>
+        <pre><code>{`behavior: branch-safety
+prompt: Commit the staged change.
+setup: |
+  git init -q -b main
+  echo change > change.txt
+  git add change.txt
+checks:
+  - shell: test "$(git branch --show-current)" != main
+  - shell: git log -1 --format=%s | grep -q .`}</code></pre>
+      </div>
     </div>
   </section>
 </div>
