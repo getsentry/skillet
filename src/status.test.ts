@@ -34,6 +34,18 @@ describe("skillStatus next-step ladder", () => {
     expect(status.next).toContain("preserving its intent");
   });
 
+  it("treats uppercase SPEC.md as legacy instead of active spec.md", () => {
+    const root = makeRoot();
+    writeFileSync(join(root, "SPEC.md"), "# Legacy\n\n## Scope\n\nOld format.\n");
+    writeFileSync(join(root, "SKILL.md"), skillMd());
+    const status = skillStatus(root);
+
+    expect(status.spec.present).toBe(false);
+    expect(status.legacy.specMarkdown).toBe(true);
+    expect(status.next).toContain("Legacy SPEC.md detected");
+    expect(status.next).toContain("preserve or rename");
+  });
+
   it("directs a bare SKILL.md toward deriving spec.md from it", () => {
     const root = makeRoot();
     writeFileSync(join(root, "SKILL.md"), skillMd());
@@ -45,6 +57,7 @@ describe("skillStatus next-step ladder", () => {
     writeFileSync(join(root, "spec.md"), SPEC);
     const status = skillStatus(root);
     expect(status.spec.present).toBe(true);
+    expect(status.legacy.specMarkdown).toBe(false);
     expect(status.spec.hash).toMatch(/^[0-9a-f]{12}$/);
     expect(status.next).toContain("Render SKILL.md");
   });

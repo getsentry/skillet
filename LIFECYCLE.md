@@ -37,6 +37,8 @@ Humans and host agents write these artifacts. Skillet creates the initial layout
 
 `skillet status` derives the current state entirely from disk. It compares the hash recorded in `SKILL.md` with the current `spec.md` and reports one next step.
 
+Artifact names are case-sensitive contracts even on case-insensitive filesystems. Uppercase `SPEC.md` is treated as legacy migration input, never as the active Skillet `spec.md`. Until a valid lowercase spec exists, eval case schemas can be checked but behavior coverage is unavailable.
+
 ## Eval execution
 
 `skillet eval` compiles each case into an embedded Vitest test and runs it through [vitest-evals](https://github.com/getsentry/vitest-evals). Generated files live in a temporary directory; nothing is added to the skill.

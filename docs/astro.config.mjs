@@ -21,6 +21,7 @@ export default defineConfig({
             { label: "Overview", link: "/" },
             { label: "Quickstart", link: "/quickstart/" },
             { label: "Create Your First Skill", link: "/first-skill/" },
+            { label: "Adopt an Existing Skill", link: "/existing-skill/" },
             { label: "Examples", link: "/examples/" },
           ],
         },

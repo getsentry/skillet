@@ -1,6 +1,6 @@
-import { existsSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
+import { hasExactFile } from "../files.js";
 import { isRecord } from "../guards.js";
 
 /**
@@ -35,7 +35,7 @@ export const parseFrontmatter = (
 export const findSkillRoot = (startPath: string): string | null => {
   let dir = resolve(startPath);
   for (;;) {
-    if (existsSync(join(dir, "spec.md")) || existsSync(join(dir, "SKILL.md"))) return dir;
+    if (hasExactFile(dir, "spec.md") || hasExactFile(dir, "SKILL.md")) return dir;
     const parent = dirname(dir);
     if (parent === dir) return null;
     dir = parent;

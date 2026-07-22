@@ -56,6 +56,8 @@ skillet status
 
 `skillet status` reads the files on disk and tells you the next step. When writing an artifact yourself, use `skillet instructions spec`, `skillet instructions skill`, or `skillet instructions evals` for its current format and rules.
 
+For an existing skill, run `skillet status <path>`. Uppercase `SPEC.md` is treated as legacy input; preserve or rename it, then derive lowercase `spec.md` before adding eval coverage.
+
 ## Validate and evaluate
 
 ```bash

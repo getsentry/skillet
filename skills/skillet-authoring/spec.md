@@ -8,7 +8,7 @@ Drive agent-skill creation, improvement, and migration through the Skillet CLI i
 
 - **SHOULD** trigger when the user asks to create, write, or author an agent skill
 - **SHOULD** trigger when the user asks to improve a skill, fix its evals, or diagnose failing skill evals
-- **SHOULD** trigger when the user asks to migrate a legacy skill (a bare SKILL.md or a spec.yaml)
+- **SHOULD** trigger when the user asks to migrate a legacy skill (a bare SKILL.md, uppercase SPEC.md, or spec.yaml)
 - **SHOULD NOT** trigger when the user asks to use or run an existing skill
 - **SHOULD NOT** trigger on questions about a repository that merely contains skills
 
@@ -22,6 +22,11 @@ The agent SHALL consult `skillet status <dir> --json` before producing artifacts
 
 - **WHEN** asked to continue a skill directory that has spec.md but no SKILL.md
 - **THEN** the agent renders SKILL.md next, as status directs, instead of rewriting the spec or starting over
+
+#### Scenario: Adopt a skill with uppercase SPEC.md
+
+- **WHEN** asked to adopt an existing skill that has SKILL.md and uppercase SPEC.md but no lowercase spec.md
+- **THEN** the agent preserves or renames the legacy document, derives lowercase spec.md first as status directs, then renders current instructions and adds behavior coverage
 
 ### Behavior: Spec precedes derived artifacts
 

@@ -31,6 +31,7 @@ export interface ValidateJson {
   skill: Issue[];
   cases: Issue[];
   coverageIssues: Issue[];
+  coverageChecked: boolean;
   behaviorIds: string[];
   caseCount: number;
 }

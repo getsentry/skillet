@@ -21,6 +21,7 @@ Skillet does not claim that a passing eval makes a skill universally correct. Ev
 
 - [Quickstart](/quickstart.md)
 - [Create Your First Skill](/first-skill.md)
+- [Adopt an Existing Skill](/existing-skill.md)
 - [Examples](/examples.md)
 
 ## Build a Skill

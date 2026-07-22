@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { loadCases } from "./evals/case.js";
+import { hasExactFile } from "./files.js";
 import { parseFrontmatter } from "./skill/frontmatter.js";
 
 /** Staleness only exists for present artifacts. */
@@ -18,6 +19,7 @@ export interface SkillStatus {
   evals: { path: string; caseCount: number };
   legacy: {
     specYaml: boolean;
+    specMarkdown: boolean;
   };
   /** The single next action, phrased for both humans and agents. */
   next: string;
@@ -51,8 +53,8 @@ export const skillStatus = (root: string): SkillStatus => {
   const specPath = join(root, "spec.md");
   const skillPath = join(root, "SKILL.md");
 
-  const specPresent = existsSync(specPath);
-  const skillPresent = existsSync(skillPath);
+  const specPresent = hasExactFile(root, "spec.md");
+  const skillPresent = hasExactFile(root, "SKILL.md");
   const caseCount = specPresent || skillPresent ? loadCases(root).cases.length : 0;
   const hash = specPresent ? specHash(specPath) : undefined;
 
@@ -66,10 +68,16 @@ export const skillStatus = (root: string): SkillStatus => {
     : { present: false, path: "SKILL.md" };
   const evals = { path: "evals/cases/", caseCount };
 
-  const legacy = { specYaml: existsSync(join(root, "spec.yaml")) };
+  const legacy = {
+    specYaml: hasExactFile(root, "spec.yaml"),
+    specMarkdown: hasExactFile(root, "SPEC.md"),
+  };
 
   let next: string;
-  if (!specPresent && legacy.specYaml) {
+  if (!specPresent && legacy.specMarkdown) {
+    next =
+      "Legacy SPEC.md detected — preserve or rename it, then derive lowercase spec.md from SKILL.md and the legacy document ('skillet instructions spec' has the format).";
+  } else if (!specPresent && legacy.specYaml) {
     next =
       "Legacy spec.yaml detected — write spec.md preserving its intent ('skillet instructions spec' has the format).";
   } else if (!specPresent && skillPresent) {

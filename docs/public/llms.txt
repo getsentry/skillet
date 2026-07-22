@@ -13,6 +13,7 @@ Skillet keeps the spec, agent instructions, and eval cases separate so you can s
 - [Overview](/index.md)
 - [Quickstart](/quickstart.md)
 - [Create Your First Skill](/first-skill.md)
+- [Adopt an Existing Skill](/existing-skill.md)
 - [Examples](/examples.md)
 
 ## Build a Skill

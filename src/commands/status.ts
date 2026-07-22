@@ -73,6 +73,9 @@ export const run = (argv: string[]): number => {
   if (status.legacy.specYaml) {
     print(`    legacy spec.yaml present`);
   }
+  if (status.legacy.specMarkdown) {
+    print(`    legacy SPEC.md present (not Skillet format)`);
+  }
   print(``);
   print(`Next: ${status.next}`);
   return 0;
