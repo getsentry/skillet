@@ -82,12 +82,6 @@ body {
   overflow-x: clip;
 }
 
-.skillet-proof {
-  margin: 1rem 0 3rem;
-  max-width: 64rem;
-}
-
-.skillet-session,
 .skillet-terminal,
 .skillet-example {
   background:
@@ -137,7 +131,6 @@ body {
   margin-left: 0.25rem;
 }
 
-.skillet-session pre,
 .skillet-terminal pre {
   background: transparent;
   border: 0;
@@ -145,7 +138,6 @@ body {
   padding: clamp(1.1rem, 3vw, 1.65rem);
 }
 
-.skillet-session code,
 .skillet-terminal code {
   color: rgba(255, 255, 255, 0.82);
   font-size: 0.8rem;
@@ -187,47 +179,6 @@ body {
   color: rgba(255, 255, 255, 0.68);
   font-size: 1.04rem;
   line-height: 1.6;
-}
-
-.skillet-card-grid {
-  display: grid;
-  gap: 0.8rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.skillet-card {
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid rgba(255, 255, 255, 0.11);
-  border-radius: 7px;
-  color: inherit;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  padding: 1.15rem;
-  text-decoration: none;
-  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
-}
-
-.sl-markdown-content .skillet-card,
-.sl-markdown-content .skillet-card * {
-  text-decoration: none;
-}
-
-.skillet-card:hover {
-  background: rgba(255, 255, 255, 0.045);
-  border-color: rgba(242, 168, 255, 0.45);
-  transform: translateY(-2px);
-}
-
-.skillet-card strong {
-  color: #fff;
-  font-size: 1.05rem;
-}
-
-.skillet-card span {
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 0.9rem;
-  line-height: 1.5;
 }
 
 .skillet-install-section {
@@ -276,7 +227,6 @@ body {
     width: 100%;
   }
 
-  .skillet-session,
   .skillet-terminal,
   .skillet-example {
     max-width: calc(100vw - 2.5rem);
@@ -304,11 +254,6 @@ body {
     width: 100%;
   }
 
-  .skillet-proof {
-    width: 100%;
-  }
-
-  .skillet-card-grid,
   .skillet-install-section,
   .skillet-example-grid {
     grid-template-columns: 1fr;

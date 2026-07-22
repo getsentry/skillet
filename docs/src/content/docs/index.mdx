@@ -15,51 +15,6 @@ hero:
 ---
 
 <div className="skillet-home">
-  <section className="skillet-proof" aria-label="Skillet status output">
-    <div className="skillet-session">
-      <div className="skillet-window-bar">
-        <span></span><span></span><span></span>
-        <strong>terminal</strong>
-      </div>
-      <pre><code>{`$ skillet status ./commit-conventions
-
-Skill: /path/to/commit-conventions
-[x] spec.md
-[x] SKILL.md
-[x] evals/cases/ (2 cases)
-
-Next: Run 'skillet validate' and 'skillet eval';
-diagnose failures from 'skillet eval --json' transcripts.`}</code></pre>
-    </div>
-  </section>
-
-  <section className="skillet-section">
-    <div className="skillet-section-heading">
-      <p className="skillet-kicker">How it works</p>
-      <h2 id="why-skillet">Three files. Clear responsibilities.</h2>
-      <p><code>spec.md</code> defines the behavior. <code>SKILL.md</code> tells the agent what to do. Eval cases show how it behaved in concrete scenarios.</p>
-    </div>
-
-    <div className="skillet-card-grid">
-      <a className="skillet-card" href="/concepts/specifications/">
-        <strong>Write it down</strong>
-        <span>Turn the idea into behaviors and scenarios you can review.</span>
-      </a>
-      <a className="skillet-card" href="/guides/write-agent-instructions/">
-        <strong>Give the agent the playbook</strong>
-        <span>Render the spec into focused instructions the agent can actually follow.</span>
-      </a>
-      <a className="skillet-card" href="/guides/write-honest-evals/">
-        <strong>Run real prompts</strong>
-        <span>Try the skill in clean workspaces and inspect what it leaves behind.</span>
-      </a>
-      <a className="skillet-card" href="/concepts/artifact-lifecycle/">
-        <strong>Fix what missed</strong>
-        <span>Use failures and baseline results to improve the spec, instructions, or eval.</span>
-      </a>
-    </div>
-  </section>
-
   <section className="skillet-section skillet-install-section">
     <div>
       <p className="skillet-kicker">Use your coding agent</p>
