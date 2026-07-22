@@ -1,12 +1,12 @@
 ---
 name: skillet-authoring
-description: Author, improve, or migrate agent skills with the Skillet CLI. Use when asked to create or write an agent skill, improve a skill or its evals, diagnose failing skill evals, or migrate a legacy SKILL.md/spec.yaml skill. Not for merely using an existing skill.
+description: Authors, improves, or migrates agent skills with the Skillet CLI; use when asked to create or write a skill, improve its instructions or evals, diagnose failing evals, or migrate a legacy SKILL.md/spec.yaml skill, but not when merely using an existing skill.
 spec_hash: 9a0baf9a1fcd
 ---
 
 # Skillet Authoring
 
-Skills are built spec-first with the Skillet CLI (`skillet`, or `npx @sentry/skillet`). `spec.md` defines the behavior, `SKILL.md` contains the agent instructions, and eval cases run the spec scenarios through a real agent CLI. Never write these files from a remembered format.
+Use the Skillet CLI (`skillet`, or `npx @sentry/skillet`) to build skills spec-first. Treat `spec.md` as the behavior contract, `SKILL.md` as the agent instructions, and eval cases as repeatable runs of the spec scenarios. Never write these files from a remembered format.
 
 ## Steps
 
@@ -14,7 +14,7 @@ Skills are built spec-first with the Skillet CLI (`skillet`, or `npx @sentry/ski
 2. Write `spec.md` before anything derived. If the user's intent, triggers, or edge cases are ambiguous, ask 2–4 pointed questions instead of inventing answers.
 3. For every artifact you write (`spec`, `skill`, `evals`), fetch the format first — `skillet instructions <artifact> <dir> --json` — and follow its template and rules exactly.
 4. Run `skillet validate <dir>` after each artifact and fix every error before moving on. Cover every behavior with at least one eval case; validate warns about uncovered behaviors — clear those warnings before calling the skill complete.
-5. Run `skillet eval <dir> --trials 3 --baseline` to compare the tested results with and without the skill. Use `--dry` to find checks that pass before the agent runs. Add `--report <file>` when the user wants a shareable run artifact (`npx vitest-evals serve <file>` renders it).
+5. Run `skillet eval <dir> --dry` to find checks that pass before the agent runs. Then run `skillet eval <dir> --trials 3 --baseline` to compare the tested results with and without the skill. Add `--report <file>` when the user wants a shareable run artifact (`npx vitest-evals serve <file>` renders it).
 
 ## When evals fail
 
