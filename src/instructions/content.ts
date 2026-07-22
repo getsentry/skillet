@@ -41,9 +41,9 @@ Body rules:
 - Express every behavior from the spec; keep the spec's constraints as explicit never-do lines. If a behavior cannot be expressed without contradicting another, stop and fix the spec instead.
 - Structure for execution: lead with the workflow or decision points, not background. Concrete examples beat abstract rules — one good worked example per tricky behavior.
 - Keep SKILL.md under ~150 lines. Detail that only matters mid-task (long tables, API references, edge-case catalogs) goes in references/<topic>.md files, linked with a one-line pointer that says when to open them.
-- No meta-content: nothing about specs, evals, skillet, or how the skill was authored.
+- Keep authoring meta-content out of ordinary skills. Mention specs, evals, or Skillet only when the skill's own purpose requires them.
 
-After writing: 'skillet validate' checks frontmatter; 'skillet eval' is the real test.`;
+After writing: 'skillet validate' checks frontmatter; 'skillet eval' runs the cases.`;
 
 const EVALS_INSTRUCTIONS = `Write eval cases under evals/cases/ — one YAML file per case, at least one case per behavior in spec.md (uncovered behaviors are validation warnings). Name the file after the behavior it tests (e.g. commit-message-format.yaml).
 
@@ -69,7 +69,7 @@ Rules that keep evals honest:
 - The workspace after the run is the whole observable record for deterministic checks; transcripts are only visible to judges. Check artifacts, not phrasing.
 - Skill installation itself adds files to the workspace (.claude/ for claude, AGENTS.md for codex). Never assert repo-wide cleanliness; assert that the specific files you care about are unchanged (e.g. git status --porcelain -- . ':(exclude).claude' ':(exclude)AGENTS.md').
 - Fixtures are committed starting states (a repo, a codebase excerpt); setup is for cheap dynamic state (git init, timestamps). Fixture directories must exist — validation fails on dangling slugs.
-- A case that passes without the skill installed proves nothing: design cases where the unskilled agent plausibly does something else, then confirm with 'skillet eval --baseline' that lift is positive.
+- A passing case may also pass without the skill installed. Design cases where the configured agent could plausibly behave differently, then use 'skillet eval --baseline' to compare the observed pass rates with and without the skill.
 - Set trials > 1 only for behaviors you have seen flake; otherwise keep runs cheap.
 
 After writing: 'skillet validate' (schema + coverage), then 'skillet eval' to run.`;

@@ -1,0 +1,18 @@
+behavior: preserve-types-and-visible-dependencies
+fixture: effect-app
+setup: |
+  git init -q -b main
+  git config user.email eval@example.com
+  git config user.name "Skillet Eval"
+  git add -A
+  git commit -qm seed
+prompt: |
+  Fix src/wiring.ts so the InvoiceRepo requirement is provided correctly while
+  preserving the program's real success, error, and requirement types.
+checks:
+  - shell: '! git diff --quiet -- src/wiring.ts'
+  - judge: >
+      The missing InvoiceRepo requirement is satisfied through explicit
+      service/layer composition without unchecked casts, hidden default
+      authority, blind layer merging, or recovery that changes error semantics.
+timeout: 300

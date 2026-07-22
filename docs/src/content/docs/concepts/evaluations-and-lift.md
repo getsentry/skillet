@@ -1,11 +1,11 @@
 ---
-title: Evaluations and Lift
-description: Measure whether a skill changes agent behavior rather than merely passing a demonstration.
+title: Understand Eval Results
+description: Compare case results with and without a skill.
 type: conceptual
-summary: Cases run with and without the skill so the result includes baseline pass rate and lift.
+summary: Baseline runs use the same cases without the skill. Lift is the difference between the two pass rates.
 ---
 
-Skillet evals run realistic prompts through a coding-agent CLI in fresh workspaces. The result is graded from the workspace state, not from whether the response sounded convincing.
+Skillet evals run prompts through a coding-agent CLI in fresh workspaces. Results apply only to the prompts, checks, harness, configuration, and trials in that run. Use them to compare tested outcomes and decide what to inspect next, not to grade the overall quality or accuracy of a skill.
 
 ## Trials
 
@@ -19,7 +19,7 @@ Skillet reports pass rates per case and per behavior.
 
 ## Baseline
 
-A passing skill case alone does not show that the skill helped. The configured agent may already behave that way.
+A passing case shows that the agent met the case with the skill installed. Run a baseline to see whether the result changes without the skill.
 
 ```bash
 skillet eval --trials 3 --baseline
@@ -35,9 +35,14 @@ Behaviors:
 
 Lift is the difference between the skill pass rate and the baseline pass rate.
 
-## Interpret Zero Lift
+## Zero Lift
 
-Zero lift is not automatically a failed skill. It means the configured agent already passed the case without it. Decide whether the skill still provides value through consistency, portability, or explicit policy.
+Zero lift means the skill and baseline had the same pass rate in these runs.
+
+- A high pass rate for both means the configured agent already met the tested cases.
+- A low pass rate for both means the skill did not change those results.
+
+Review the case results, transcripts, and checks before deciding what to change.
 
 ## Dry Runs
 
@@ -45,7 +50,7 @@ Zero lift is not automatically a failed skill. It means the configured agent alr
 skillet eval --dry
 ```
 
-A dry run does not spawn an agent. It runs deterministic checks against the untouched fixture and setup workspace. Any passing check is potentially vacuous.
+A dry run applies deterministic checks before an agent changes the workspace. If a check already passes, it may not test the agent's work.
 
 Dry runs cannot assess judge checks and do not replace baseline measurement.
 
@@ -54,4 +59,4 @@ Dry runs cannot assess judge checks and do not replace baseline measurement.
 - **Fail:** the agent completed, but one or more checks did not pass.
 - **Error:** setup, process execution, timeout, or judge protocol failed.
 
-Keep those outcomes separate. A harness authentication failure says nothing about skill quality.
+Keep those outcomes separate. Treat a harness authentication failure as an infrastructure error, not a case result.

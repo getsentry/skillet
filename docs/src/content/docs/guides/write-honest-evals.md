@@ -2,10 +2,10 @@
 title: Write Honest Evals
 description: Test observable outcomes without overfitting to one likely implementation.
 type: tutorial
-summary: Use direct deterministic proof when available and semantic judges when behavior cannot be reduced to exact state.
+summary: Use checks that directly verify an outcome, and judges for semantic requirements.
 ---
 
-An eval case should distinguish behavior that meets the scenario from behavior that only sounds plausible.
+Use checks that directly verify the required result. Use a judge when the requirement depends on meaning, design, or relationships between files.
 
 Fetch the current case-writing contract before authoring:
 
@@ -22,15 +22,15 @@ Map the specification directly:
 
 Use a realistic user request. Do not quote the skill or tell the agent the expected implementation.
 
-## Prefer Direct Deterministic Proof
+## Use Direct Checks When Possible
 
-Strong deterministic checks execute or inspect the required outcome:
+Run or inspect the required result:
 
 ```yaml
 checks:
   - shell: npm test
   - shell: npm run typecheck
-  - shell: git branch --show-current | grep -qv '^main$'
+  - shell: "git log -1 --format=%s | grep -Eq '^fix:'"
   - file_exists: src/generated/client.ts
 ```
 
@@ -82,4 +82,4 @@ skillet eval --dry
 skillet eval --trials 3 --baseline
 ```
 
-`--dry` catches vacuous deterministic checks. `--baseline` shows whether the case separates the skilled and unskilled agent.
+`--dry` finds checks that pass before the agent runs. `--baseline` compares the same configured agent with and without this skill.

@@ -8,16 +8,23 @@ summary: Each case links to one spec behavior or constraint and contains a reali
 Store one case per file under `evals/cases/`.
 
 ```yaml
-behavior: conventional-subject
+behavior: branch-safety
 prompt: |
-  Commit the staged null-check fix.
-fixture: git-repo
+  Commit the staged change.
 setup: |
-  git init -q
+  git init -q -b main
+  git config user.email eval@example.com
+  git config user.name "Skillet Eval"
+  printf 'export const base = 0;\n' > base.ts
+  git add base.ts
+  git commit -qm seed
+  printf 'export const value = 1;\n' > value.ts
+  git add value.ts
 checks:
-  - file_exists: CHANGELOG.md
-  - shell: git log -1 --format=%s | grep -Eq '^fix:'
-  - judge: The commit subject accurately describes the staged change.
+  - shell: >-
+      test "$(git rev-parse main)" = "$(git rev-list --max-parents=0 HEAD)"
+  - shell: test "$(git branch --show-current)" != main
+  - shell: test "$(git rev-parse HEAD)" != "$(git rev-parse main)"
 trials: 3
 timeout: 300
 ```

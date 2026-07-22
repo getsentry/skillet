@@ -1,0 +1,20 @@
+behavior: accept-only-material-findings
+fixture: review-slice
+setup: |
+  git init -q -b feature/null-user
+  git config user.email eval@example.com
+  git config user.name "Skillet Eval"
+  git add -A
+  git commit -qm seed
+  printf 'export const formatUser = (user) => user?.name ?? "Unknown"\n' > src/format-user.js
+prompt: |
+  Use Garfield to finish the current null-user formatter change. Keep the
+  exported API and do not expand this into a formatter redesign.
+checks:
+  - shell: npm test
+  - shell: grep -q 'Unknown' test/format-user.test.js
+  - judge: >
+      The agent accepted only findings caused by the current diff, fixed the
+      missing regression coverage, and rejected or deferred unrelated API,
+      architecture, style, and hardening suggestions.
+timeout: 600

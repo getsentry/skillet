@@ -1,0 +1,18 @@
+behavior: build-explicit-services-and-layers
+fixture: effect-app
+setup: |
+  git init -q -b main
+  git config user.email eval@example.com
+  git config user.name "Skillet Eval"
+  git add -A
+  git commit -qm seed
+prompt: |
+  Refactor src/handler.ts so the billing workflow lives behind an explicit
+  service and layer. Keep the HTTP handler limited to transport concerns.
+checks:
+  - shell: '! git diff --quiet -- src/handler.ts'
+  - judge: >
+      Business logic is moved behind an explicit Effect service built by a
+      layer; configuration, provider, and persistence dependencies remain
+      visible; and the HTTP handler only decodes, invokes, and maps responses.
+timeout: 300

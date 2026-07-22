@@ -36,6 +36,8 @@ npx -y @sentry/dotagents --user add getsentry/skillet skillet-authoring
 
 `add` records and installs the skill immediately. Run `npx -y @sentry/dotagents --user install` later to refresh it.
 
+Or ask your agent to install the [`skillet-authoring` skill](https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring) for you.
+
 ## Create a skill
 
 Ask your agent:
@@ -107,7 +109,7 @@ checks:
   - judge: The commit message accurately describes the null-check fix.
 ```
 
-Checks inspect the resulting workspace, not just the agent's response. Use `file_exists` and `shell` for deterministic checks; use `judge` when the requirement needs semantic evaluation. See [`examples/commit-conventions`](examples/commit-conventions/) for a complete skill.
+Checks inspect the resulting workspace, not just the agent's response. Use `file_exists` and `shell` for deterministic checks; use `judge` when the requirement needs semantic evaluation. See [`examples/`](examples/) for a small skill plus full Garfield and Effect conversions with preserved upstream snapshots.
 
 ## Commands
 

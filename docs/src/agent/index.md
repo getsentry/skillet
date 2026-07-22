@@ -21,17 +21,18 @@ Skillet does not claim that a passing eval makes a skill universally correct. Ev
 
 - [Quickstart](/quickstart.md)
 - [Create Your First Skill](/first-skill.md)
+- [Examples](/examples.md)
 
-## Concepts
+## Build a Skill
 
-- [Artifact Lifecycle](/concepts/artifact-lifecycle.md)
 - [Specifications](/concepts/specifications.md)
-- [Evaluations and Lift](/concepts/evaluations-and-lift.md)
-
-## Guides
-
 - [Write Agent Instructions](/guides/write-agent-instructions.md)
 - [Write Honest Evals](/guides/write-honest-evals.md)
+- [Understand Eval Results](/concepts/evaluations-and-lift.md)
+
+## How Skillet Works
+
+- [Artifact Lifecycle](/concepts/artifact-lifecycle.md)
 - [Configure Harnesses](/guides/configure-harnesses.md)
 - [Sandbox and CI](/guides/sandbox-and-ci.md)
 

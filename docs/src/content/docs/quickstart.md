@@ -46,9 +46,11 @@ Run `install` later to refresh declared skills:
 npx -y @sentry/dotagents --user install
 ```
 
-### Install the Skill Directly
+### Ask Your Agent to Install It
 
-If your agent reads skills from another location, copy the [`skills/skillet-authoring`](https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring) directory into that agent's skill directory.
+Or tell your agent:
+
+> Install the [`skillet-authoring` skill](https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring) for me.
 
 ## Ask for a Skill
 
@@ -65,6 +67,8 @@ The authoring skill will:
 5. Add eval cases.
 6. Run validation and evals.
 
+Full evals and baselines start authenticated agent CLI sessions. They can take time and consume model usage.
+
 ## Check the Result
 
 From the new skill directory:
@@ -76,9 +80,11 @@ skillet eval --dry
 skillet eval --trials 3 --baseline
 ```
 
-`status` reports the next artifact, `validate` checks the complete contract, `eval --dry` finds vacuous cases, and `--baseline` measures the difference the skill makes.
+`status` reports the next step, `validate` checks the complete contract, `eval --dry` finds checks that pass before the agent runs, and `--baseline` compares pass rates with and without the skill.
 
 ## Next
 
-- Follow [Create Your First Skill](/first-skill/) for the manual artifact flow.
-- Read [Evaluations and Lift](/concepts/evaluations-and-lift/) before interpreting results.
+1. Follow [Create Your First Skill](/first-skill/) for the complete artifact flow.
+2. Read [Specifications](/concepts/specifications/) before changing skill behavior.
+3. Read [Write Agent Instructions](/guides/write-agent-instructions/) and [Write Honest Evals](/guides/write-honest-evals/) before editing derived files.
+4. Read [Understand Eval Results](/concepts/evaluations-and-lift/) before interpreting trials, baselines, or lift.

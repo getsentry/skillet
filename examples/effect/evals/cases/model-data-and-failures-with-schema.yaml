@@ -1,0 +1,18 @@
+behavior: model-data-and-failures-with-schema
+fixture: effect-app
+setup: |
+  git init -q -b main
+  git config user.email eval@example.com
+  git config user.name "Skillet Eval"
+  git add -A
+  git commit -qm seed
+prompt: |
+  src/event.ts receives unknown webhook JSON. Replace the cast-based decoder
+  with Effect Schema for both event variants and a typed decoding failure.
+checks:
+  - shell: '! git diff --quiet -- src/event.ts'
+  - judge: >
+      The file models the external discriminator with Effect Schema, validates
+      unknown input effectfully, preserves an exhaustive typed union, maps
+      parse failure into a tagged typed error, and removes the unchecked cast.
+timeout: 300

@@ -78,7 +78,7 @@ sandbox:
   image: skillet-eval
   mount_auth:
     - ~/.codex
-  network: false
+  network: true
 ```
 
 Invalid YAML or incorrectly typed fields stop the eval before any case runs.

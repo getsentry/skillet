@@ -1,13 +1,13 @@
 ---
 title: Write Agent Instructions
-description: Render a specification into concise instructions an agent can execute.
+description: Turn a specification into clear instructions for an agent.
 type: tutorial
-summary: Translate the contract into workflow, decision points, constraints, and domain-appropriate examples.
+summary: Write concrete steps, decisions, constraints, and examples from the spec.
 ---
 
 `SKILL.md` is not a copy of `spec.md`. The spec uses normative language for validation; the skill uses direct instructions for execution.
 
-Fetch the current rendering contract before writing:
+Fetch the current format and writing rules before writing:
 
 ```bash
 skillet instructions skill --json
@@ -79,4 +79,4 @@ skillet validate
 skillet eval --trials 3 --baseline
 ```
 
-Frontmatter validation catches structural errors. Evals determine whether the instructions actually change behavior.
+Frontmatter validation catches structural errors. Evals show how the agent behaved in the tested cases; baselines compare those results with and without the skill.
