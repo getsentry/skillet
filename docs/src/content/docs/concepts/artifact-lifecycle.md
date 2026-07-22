@@ -49,7 +49,7 @@ skillet status path/to/my-skill
 
 This makes agent and human edits interchangeable. A new session can continue from the repository without reconstructing previous conversation state.
 
-## Improvement Loop
+## Improve a Skill
 
 ```text
 specify → render → evaluate → diagnose → improve

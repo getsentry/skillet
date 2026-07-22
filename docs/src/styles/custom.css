@@ -82,14 +82,8 @@ body {
   overflow-x: clip;
 }
 
-.skillet-proof {
-  margin: 1rem 0 3rem;
-  max-width: 64rem;
-}
-
-.skillet-session,
 .skillet-terminal,
-.skillet-results {
+.skillet-example {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012)),
     #0b0b0c;
@@ -137,7 +131,6 @@ body {
   margin-left: 0.25rem;
 }
 
-.skillet-session pre,
 .skillet-terminal pre {
   background: transparent;
   border: 0;
@@ -145,7 +138,6 @@ body {
   padding: clamp(1.1rem, 3vw, 1.65rem);
 }
 
-.skillet-session code,
 .skillet-terminal code {
   color: rgba(255, 255, 255, 0.82);
   font-size: 0.8rem;
@@ -162,53 +154,31 @@ body {
   max-width: 48rem;
 }
 
+.skillet-section h2::before {
+  display: none;
+}
+
 .skillet-section h2 {
-  font-size: clamp(2rem, 4vw, 3.15rem);
-  letter-spacing: -0.035em;
+  font-size: clamp(1.9rem, 3vw, 2.7rem);
+  letter-spacing: -0.025em;
   line-height: 1;
   margin-bottom: 0.8rem;
+}
+
+.skillet-kicker {
+  color: #c6a6ff !important;
+  font-family: var(--__sl-font-mono);
+  font-size: 0.72rem !important;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
 }
 
 .skillet-section p {
   color: rgba(255, 255, 255, 0.68);
   font-size: 1.04rem;
   line-height: 1.6;
-}
-
-.skillet-card-grid {
-  display: grid;
-  gap: 0.8rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.skillet-card {
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid rgba(255, 255, 255, 0.11);
-  border-radius: 7px;
-  color: inherit;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  padding: 1.15rem;
-  text-decoration: none;
-  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
-}
-
-.skillet-card:hover {
-  background: rgba(255, 255, 255, 0.045);
-  border-color: rgba(242, 168, 255, 0.45);
-  transform: translateY(-2px);
-}
-
-.skillet-card strong {
-  color: #fff;
-  font-size: 1rem;
-}
-
-.skillet-card span {
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 0.9rem;
-  line-height: 1.5;
 }
 
 .skillet-install-section {
@@ -218,46 +188,27 @@ body {
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
 }
 
-.skillet-results {
-  padding: 0.4rem 1.2rem;
-}
-
-.skillet-results > div {
-  align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+.skillet-example-grid {
   display: grid;
-  gap: 1rem;
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
-  padding: 1rem 0;
+  gap: 0.8rem;
+  grid-template-columns: 1fr;
+  max-width: 64rem;
 }
 
-.skillet-results > div:last-child {
-  border-bottom: 0;
+.skillet-example pre {
+  background: transparent;
+  border: 0;
+  margin: 0;
+  min-height: 0;
+  overflow-x: auto;
+  padding: 1.15rem;
 }
 
-.skillet-results span,
-.skillet-results em,
-.skillet-results b,
-.skillet-results strong {
+.skillet-example code {
+  color: rgba(255, 255, 255, 0.78);
   font-family: var(--__sl-font-mono);
-  font-size: 0.79rem;
-}
-
-.skillet-results span {
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.skillet-results strong {
-  color: #fff;
-}
-
-.skillet-results em {
-  color: rgba(255, 255, 255, 0.46);
-  font-style: normal;
-}
-
-.skillet-results b {
-  color: #9ee6a8;
+  font-size: 0.76rem;
+  line-height: 1.65;
 }
 
 @media (max-width: 760px) {
@@ -276,9 +227,8 @@ body {
     width: 100%;
   }
 
-  .skillet-session,
   .skillet-terminal,
-  .skillet-results {
+  .skillet-example {
     max-width: calc(100vw - 2.5rem);
     width: calc(100vw - 2.5rem);
   }
@@ -304,22 +254,12 @@ body {
     width: 100%;
   }
 
-  .skillet-proof {
-    width: 100%;
-  }
-
-  .skillet-card-grid,
-  .skillet-install-section {
+  .skillet-install-section,
+  .skillet-example-grid {
     grid-template-columns: 1fr;
   }
 
-  .skillet-results > div {
-    align-items: start;
-    grid-template-columns: 1fr auto;
-  }
-
-  .skillet-results em,
-  .skillet-results b {
-    grid-column: span 1;
+  .skillet-example pre {
+    min-height: 0;
   }
 }

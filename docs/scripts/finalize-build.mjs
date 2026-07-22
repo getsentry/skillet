@@ -1,4 +1,12 @@
-import { copyFileSync, existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -15,11 +23,23 @@ const walk = (directory) =>
     return entry.isDirectory() ? walk(path) : [path];
   });
 
-const missingRoutes = walk(sourceRoot)
+const sourcePages = walk(sourceRoot)
   .filter((path) => [".md", ".mdx"].includes(extname(path)))
-  .map((path) => relative(sourceRoot, path))
-  .filter((path) => path !== "index.mdx")
-  .map((path) => path.replace(/\.mdx?$/, ".md"))
+  .map((path) => ({ source: path, route: relative(sourceRoot, path) }))
+  .filter(({ route }) => route !== "index.mdx");
+
+for (const { source, route } of sourcePages) {
+  const output = join(distRoot, route.replace(/\.mdx?$/, ".md"));
+  const content = readFileSync(source, "utf8").replace(
+    /(\]\()(\/[^)\s?#]+)\/([?#][^)]*)?(\))/g,
+    (_, open, path, suffix = "", close) => `${open}${path}.md${suffix}${close}`,
+  );
+  mkdirSync(dirname(output), { recursive: true });
+  writeFileSync(output, content);
+}
+
+const missingRoutes = sourcePages
+  .map(({ route }) => route.replace(/\.mdx?$/, ".md"))
   .filter((path) => !existsSync(join(distRoot, path)));
 
 if (missingRoutes.length > 0) {

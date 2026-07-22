@@ -3,8 +3,8 @@ title: Skillet
 description: Build agent skills from a reviewable specification, evaluate their behavior, and improve them over time.
 template: splash
 hero:
-  title: '<span class="skillet-mega">Skillet</span><span class="skillet-headline">Specify behavior. <span class="skillet-highlight">Evaluate and improve.</span></span>'
-  tagline: 'Turn intent into <code>spec.md</code>, agent instructions, and eval cases—a reviewable loop for iterating on how a skill behaves.'
+  title: '<span class="skillet-mega">Skillet</span><span class="skillet-headline">Build skills <span class="skillet-highlight">without guessing.</span></span>'
+  tagline: 'Describe the skill in plain language. Your agent turns it into a spec, instructions, and eval cases you can review and improve.'
   actions:
     - text: Get Started
       link: /quickstart/
@@ -15,54 +15,11 @@ hero:
 ---
 
 <div className="skillet-home">
-  <section className="skillet-proof" aria-label="Skillet status output">
-    <div className="skillet-session">
-      <div className="skillet-window-bar">
-        <span></span><span></span><span></span>
-        <strong>terminal</strong>
-      </div>
-      <pre><code>{`$ skillet status ./commit-conventions
-
-Skill: /path/to/commit-conventions
-[x] spec.md
-[x] SKILL.md
-[x] evals/cases/ (2 cases)
-
-Next: Run 'skillet validate' and 'skillet eval';
-diagnose failures from 'skillet eval --json' transcripts.`}</code></pre>
-    </div>
-  </section>
-
-  <section className="skillet-section">
-    <div className="skillet-section-heading">
-      <h2 id="why-skillet">A workflow for agent behavior</h2>
-      <p>Skillet separates intent, instructions, and evaluation so you can see what changed, diagnose weak behavior, and improve the right artifact.</p>
-    </div>
-
-    <div className="skillet-card-grid">
-      <a className="skillet-card" href="/concepts/specifications/">
-        <strong>Specify</strong>
-        <span>Describe triggers, observable behaviors, scenarios, and constraints in a strict Markdown contract.</span>
-      </a>
-      <a className="skillet-card" href="/guides/write-agent-instructions/">
-        <strong>Render</strong>
-        <span>Turn the contract into concise instructions structured for an agent to execute.</span>
-      </a>
-      <a className="skillet-card" href="/guides/write-honest-evals/">
-        <strong>Evaluate</strong>
-        <span>Run realistic cases in fresh workspaces and check the artifacts the agent leaves behind.</span>
-      </a>
-      <a className="skillet-card" href="/concepts/artifact-lifecycle/">
-        <strong>Improve</strong>
-        <span>Use failures and baseline results to decide whether to change the spec, instructions, or eval case.</span>
-      </a>
-    </div>
-  </section>
-
   <section className="skillet-section skillet-install-section">
     <div>
-      <h2 id="quick-start">Start with the agent you already use</h2>
-      <p>Skillet makes no model API calls. It serves artifact instructions and runs evals through Codex, Claude Code, or a custom CLI harness.</p>
+      <p className="skillet-kicker">Use your coding agent</p>
+      <h2 id="quick-start">Ask for a skill in plain language.</h2>
+      <p>The authoring skill drafts the spec, renders the instructions, writes eval cases, and checks what comes next from the files on disk. You review the spec and results.</p>
     </div>
 
     <div className="skillet-terminal">
@@ -80,13 +37,42 @@ Ask your agent:
 
   <section className="skillet-section">
     <div className="skillet-section-heading">
-      <h2 id="measured-lift">Use results to choose the next change</h2>
-      <p>Baseline runs compare the same prompt and configured agent without the skill, giving you another signal for where iteration is useful.</p>
+      <p className="skillet-kicker">Spec → eval</p>
+      <h2 id="spec-to-eval">Write the behavior down. Then run it.</h2>
+      <p>The spec says what should happen. The eval turns one scenario into a repeatable check. When it misses, improve the spec, instructions, or case.</p>
     </div>
 
-    <div className="skillet-results">
-      <div><span>conventional-subject</span><strong>100%</strong><em>baseline 33%</em><b>+67% lift</b></div>
-      <div><span>branch-safety</span><strong>100%</strong><em>baseline 0%</em><b>+100% lift</b></div>
+    <div className="skillet-example-grid">
+      <div className="skillet-example">
+        <div className="skillet-window-bar">
+          <span></span><span></span><span></span>
+          <strong>spec.md</strong>
+        </div>
+        <pre><code>{`### Behavior: Branch safety
+
+The agent SHALL NOT commit directly to \`main\`.
+
+#### Scenario: Commit requested on main
+
+- **WHEN** the user asks to commit on \`main\`
+- **THEN** the agent creates a branch first`}</code></pre>
+      </div>
+
+      <div className="skillet-example">
+        <div className="skillet-window-bar">
+          <span></span><span></span><span></span>
+          <strong>evals/cases/branch-safety.yaml</strong>
+        </div>
+        <pre><code>{`behavior: branch-safety
+prompt: Commit the staged change.
+setup: |
+  git init -q -b main
+  echo change > change.txt
+  git add change.txt
+checks:
+  - shell: test "$(git branch --show-current)" != main
+  - shell: git log -1 --format=%s | grep -q .`}</code></pre>
+      </div>
     </div>
   </section>
 </div>
