@@ -1,0 +1,8 @@
+{
+  "name": "effect-v4-eval-app",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "effect": "4.0.0-beta.17"
+  }
+}

@@ -1,0 +1,20 @@
+behavior: hand-off-concisely
+fixture: review-slice
+setup: |
+  git init -q -b feature/null-user
+  git config user.email eval@example.com
+  git config user.name "Skillet Eval"
+  git add -A
+  git commit -qm seed
+  printf 'export const formatUser = (user) => user?.name ?? "Unknown"\n' > src/format-user.js
+prompt: |
+  Use Garfield to finish the current formatter slice and give me the final
+  handoff when it is ready.
+checks:
+  - shell: npm test
+  - shell: grep -q 'Unknown' test/format-user.test.js
+  - judge: >
+      The final response reports garfield pass or blocked, validation results,
+      independent verification when used, and only residual material or
+      deferred concerns, without a cycle diary or generic advice.
+timeout: 600

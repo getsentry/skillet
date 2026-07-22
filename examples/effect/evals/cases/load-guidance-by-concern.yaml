@@ -1,0 +1,18 @@
+behavior: load-guidance-by-concern
+fixture: effect-app
+setup: |
+  git init -q -b main
+  git config user.email eval@example.com
+  git config user.name "Skillet Eval"
+  git add -A
+  git commit -qm seed
+prompt: |
+  Turn src/consumer.ts into an AuditConsumer service with a layer that owns the
+  long-lived stream consumer and stops it when the layer is released.
+checks:
+  - shell: '! git diff --quiet -- src/consumer.ts'
+  - judge: >
+      The result combines service/layer design with stream lifetime management:
+      it exposes an explicit service, starts consumption during layer
+      acquisition, and scopes the consumer fiber to the owning layer.
+timeout: 300

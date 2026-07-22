@@ -1,0 +1,20 @@
+behavior: capture-the-current-intent
+fixture: review-slice
+setup: |
+  git init -q -b feature/null-user
+  git config user.email eval@example.com
+  git config user.name "Skillet Eval"
+  git add -A
+  git commit -qm seed
+  printf 'export const formatUser = (user) => user?.name ?? "Unknown"\n' > src/format-user.js
+prompt: |
+  Use Garfield to finish the current formatUser change. Preserve the exported
+  API, add the missing regression coverage, and do not redesign the module.
+checks:
+  - shell: npm test
+  - shell: grep -q 'Unknown' test/format-user.test.js
+  - judge: >
+      Before delegating review, the agent grounded the work in the requested
+      null-user behavior, the current diff, the public API constraint,
+      repository instructions, local testing policy, and relevant validation.
+timeout: 600

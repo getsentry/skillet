@@ -1,0 +1,18 @@
+behavior: ground-advice-in-the-project
+fixture: effect-app
+setup: |
+  git init -q -b main
+  git config user.email eval@example.com
+  git config user.name "Skillet Eval"
+  git add -A
+  git commit -qm seed
+prompt: |
+  Replace the hand-written polling loop in src/retry.ts with an Effect Schedule
+  supported by this project. Check the project-local API notes before editing.
+checks:
+  - shell: '! git diff --quiet -- src/retry.ts'
+  - judge: >
+      The implementation follows the repository instructions and local pinned
+      API notes, replaces the loop with a supported Schedule-based design, and
+      does not invent or assume an unsupported signature.
+timeout: 300

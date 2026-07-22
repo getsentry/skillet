@@ -1,0 +1,18 @@
+behavior: choose-native-runtime-primitives
+fixture: effect-app
+setup: |
+  git init -q -b main
+  git config user.email eval@example.com
+  git config user.name "Skillet Eval"
+  git add -A
+  git commit -qm seed
+prompt: |
+  Replace the hand-written TTL and in-flight lookup maps in src/cache.ts with
+  the fitting Effect primitive. The backend only supports single-key lookups.
+checks:
+  - shell: '! git diff --quiet -- src/cache.ts'
+  - judge: >
+      The result uses a bounded Effect cache or fitting memoization primitive,
+      owns it at the correct lifetime, handles success and failure TTL
+      truthfully, deduplicates same-key lookups, and does not invent batching.
+timeout: 300

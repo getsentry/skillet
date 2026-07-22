@@ -1,0 +1,19 @@
+behavior: keep-external-boundaries-truthful
+fixture: effect-app
+setup: |
+  git init -q -b main
+  git config user.email eval@example.com
+  git config user.name "Skillet Eval"
+  git add -A
+  git commit -qm seed
+prompt: |
+  Harden src/provider.ts. This GET is idempotent. Non-success responses and
+  malformed JSON must become typed failures, transient failures should use a
+  bounded retry policy, and exhausted failures must remain visible.
+checks:
+  - shell: '! git diff --quiet -- src/provider.ts'
+  - judge: >
+      The implementation separates transport, status, decode, and domain
+      failures; validates unknown response data; retries only bounded transient
+      failures for the idempotent request; and preserves exhausted failures.
+timeout: 300

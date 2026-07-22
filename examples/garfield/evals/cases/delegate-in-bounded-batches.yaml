@@ -1,0 +1,20 @@
+behavior: delegate-in-bounded-batches
+fixture: review-slice
+setup: |
+  git init -q -b feature/null-user
+  git config user.email eval@example.com
+  git config user.name "Skillet Eval"
+  git add -A
+  git commit -qm seed
+  printf 'export const formatUser = (user) => user?.name ?? "Unknown"\n' > src/format-user.js
+prompt: |
+  Use Garfield to review and finish this implementation slice. Include every
+  applicable review, but keep the work limited to the current change.
+checks:
+  - shell: npm test
+  - shell: grep -q 'Unknown' test/format-user.test.js
+  - judge: >
+      The agent used no-edit subagents for applicable reviews, kept at most
+      three Garfield reviewers open at once, collected completed reviewers
+      before starting more, and drained review agents before verification.
+timeout: 600

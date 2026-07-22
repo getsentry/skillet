@@ -1,0 +1,20 @@
+behavior: fix-and-validate-the-slice
+fixture: review-slice
+setup: |
+  git init -q -b feature/null-user
+  git config user.email eval@example.com
+  git config user.name "Skillet Eval"
+  git add -A
+  git commit -qm seed
+  printf 'export const formatUser = (user) => user?.name ?? "Unknown"\n' > src/format-user.js
+prompt: |
+  Use Garfield to finish the current formatter change and leave the slice ready
+  to hand off.
+checks:
+  - shell: npm test
+  - shell: grep -q 'Unknown' test/format-user.test.js
+  - judge: >
+      The agent fixed the current-diff testing gap with a focused regression
+      test, ran the relevant validation, and repeated only reviews affected by
+      the material edit.
+timeout: 600

@@ -1,0 +1,20 @@
+behavior: select-reviews-from-evidence
+fixture: review-slice
+setup: |
+  git init -q -b feature/null-user
+  git config user.email eval@example.com
+  git config user.name "Skillet Eval"
+  git add -A
+  git commit -qm seed
+  printf 'export const formatUser = (user) => user?.name ?? "Unknown"\n' > src/format-user.js
+prompt: |
+  Use Garfield to finish the current formatUser change. Preserve the exported
+  API and follow the repository's own testing policy.
+checks:
+  - shell: npm test
+  - shell: grep -q 'Unknown' test/format-user.test.js
+  - judge: >
+      The agent enumerated applicable and skipped review tasks from the diff,
+      treated policies/testing.md as authoritative for test quality instead of
+      duplicating the bundled testing policy, and kept unrelated policies out.
+timeout: 600

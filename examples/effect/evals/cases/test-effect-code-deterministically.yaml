@@ -1,0 +1,19 @@
+behavior: test-effect-code-deterministically
+fixture: effect-app
+setup: |
+  git init -q -b main
+  git config user.email eval@example.com
+  git config user.name "Skillet Eval"
+  git add -A
+  git commit -qm seed
+prompt: |
+  Rewrite src/worker-test.ts as a deterministic Effect test. The worker sleeps
+  before retrying and publishes in a background fiber; verify one publication
+  without waiting for real time.
+checks:
+  - shell: '! git diff --quiet -- src/worker-test.ts'
+  - judge: >
+      The test uses Effect-aware test execution, forks the time-dependent work
+      before advancing virtual time, coordinates readiness or publication with
+      deterministic primitives, and asserts one publication without real sleep.
+timeout: 300
