@@ -8,7 +8,7 @@ url: /
 
 Skillet helps you build skills without guessing:
 
-Ask your coding agent to create or improve a skill. The authoring skill drives the CLI workflow while you review the spec and eval results.
+Ask your coding agent to create or improve a skill. The authoring skill uses the Skillet CLI to draft the files and run the checks while you review the spec and eval results.
 
 1. Define the contract in `spec.md`.
 2. Render the contract into agent instructions.
