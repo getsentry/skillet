@@ -162,11 +162,25 @@ body {
   max-width: 48rem;
 }
 
+.skillet-section h2::before {
+  display: none;
+}
+
 .skillet-section h2 {
-  font-size: clamp(2rem, 4vw, 3.15rem);
-  letter-spacing: -0.035em;
+  font-size: clamp(1.9rem, 3vw, 2.7rem);
+  letter-spacing: -0.025em;
   line-height: 1;
   margin-bottom: 0.8rem;
+}
+
+.skillet-kicker {
+  color: #c6a6ff !important;
+  font-family: var(--__sl-font-mono);
+  font-size: 0.72rem !important;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
 }
 
 .skillet-section p {
@@ -194,6 +208,11 @@ body {
   transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
 }
 
+.sl-markdown-content .skillet-card,
+.sl-markdown-content .skillet-card * {
+  text-decoration: none;
+}
+
 .skillet-card:hover {
   background: rgba(255, 255, 255, 0.045);
   border-color: rgba(242, 168, 255, 0.45);
@@ -202,7 +221,7 @@ body {
 
 .skillet-card strong {
   color: #fff;
-  font-size: 1rem;
+  font-size: 1.05rem;
 }
 
 .skillet-card span {

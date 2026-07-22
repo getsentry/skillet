@@ -3,8 +3,8 @@ title: Skillet
 description: Build agent skills from a reviewable specification, evaluate their behavior, and improve them over time.
 template: splash
 hero:
-  title: '<span class="skillet-mega">Skillet</span><span class="skillet-headline">Specify behavior. <span class="skillet-highlight">Evaluate and improve.</span></span>'
-  tagline: 'Turn intent into <code>spec.md</code>, agent instructions, and eval cases—a reviewable loop for iterating on how a skill behaves.'
+  title: '<span class="skillet-mega">Skillet</span><span class="skillet-headline">Build skills <span class="skillet-highlight">without guessing.</span></span>'
+  tagline: 'Write down what the skill should do. Run it against real prompts. Improve the spec, instructions, or eval when it misses.'
   actions:
     - text: Get Started
       link: /quickstart/
@@ -35,33 +35,35 @@ diagnose failures from 'skillet eval --json' transcripts.`}</code></pre>
 
   <section className="skillet-section">
     <div className="skillet-section-heading">
-      <h2 id="why-skillet">A workflow for agent behavior</h2>
-      <p>Skillet separates intent, instructions, and evaluation so you can see what changed, diagnose weak behavior, and improve the right artifact.</p>
+      <p className="skillet-kicker">How it works</p>
+      <h2 id="why-skillet">The loop is the product.</h2>
+      <p>Skillet keeps intent, instructions, and evals separate so you can change the right thing instead of prompt-tweaking in circles.</p>
     </div>
 
     <div className="skillet-card-grid">
       <a className="skillet-card" href="/concepts/specifications/">
-        <strong>Specify</strong>
-        <span>Describe triggers, observable behaviors, scenarios, and constraints in a strict Markdown contract.</span>
+        <strong>Write it down</strong>
+        <span>Turn the idea into behaviors and scenarios you can review.</span>
       </a>
       <a className="skillet-card" href="/guides/write-agent-instructions/">
-        <strong>Render</strong>
-        <span>Turn the contract into concise instructions structured for an agent to execute.</span>
+        <strong>Give the agent the playbook</strong>
+        <span>Render the spec into focused instructions the agent can actually follow.</span>
       </a>
       <a className="skillet-card" href="/guides/write-honest-evals/">
-        <strong>Evaluate</strong>
-        <span>Run realistic cases in fresh workspaces and check the artifacts the agent leaves behind.</span>
+        <strong>Run real prompts</strong>
+        <span>Try the skill in clean workspaces and inspect what it leaves behind.</span>
       </a>
       <a className="skillet-card" href="/concepts/artifact-lifecycle/">
-        <strong>Improve</strong>
-        <span>Use failures and baseline results to decide whether to change the spec, instructions, or eval case.</span>
+        <strong>Fix what missed</strong>
+        <span>Use failures and baseline results to improve the spec, instructions, or eval.</span>
       </a>
     </div>
   </section>
 
   <section className="skillet-section skillet-install-section">
     <div>
-      <h2 id="quick-start">Start with the agent you already use</h2>
+      <p className="skillet-kicker">No new model setup</p>
+      <h2 id="quick-start">Use the agent you already have.</h2>
       <p>Skillet makes no model API calls. It serves artifact instructions and runs evals through Codex, Claude Code, or a custom CLI harness.</p>
     </div>
 
@@ -80,8 +82,9 @@ Ask your agent:
 
   <section className="skillet-section">
     <div className="skillet-section-heading">
-      <h2 id="measured-lift">Use results to choose the next change</h2>
-      <p>Baseline runs compare the same prompt and configured agent without the skill, giving you another signal for where iteration is useful.</p>
+      <p className="skillet-kicker">Baseline and lift</p>
+      <h2 id="measured-lift">See what changed.</h2>
+      <p>Run the same prompts with and without the skill. The numbers do not grade truth—they show where the skill changes behavior.</p>
     </div>
 
     <div className="skillet-results">

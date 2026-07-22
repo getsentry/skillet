@@ -1,6 +1,12 @@
 # Skillet
 
-Skillet builds agent skills from a reviewable specification and evaluates them through real coding-agent CLIs.
+> Build agent skills from a reviewable spec, run them against real prompts, and improve them over time.
+
+Skillet keeps the spec, agent instructions, and eval cases separate so you can see what changed and improve the right part of the skill.
+
+- [Documentation](/)
+- [GitHub](https://github.com/getsentry/skillet)
+- [npm](https://www.npmjs.com/package/@sentry/skillet)
 
 ## Start Here
 

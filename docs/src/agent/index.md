@@ -6,14 +6,14 @@ url: /
 
 # Skillet
 
-Skillet turns intent into a reviewable workflow for agent behavior:
+Skillet helps you build skills without guessing:
 
 1. Define the contract in `spec.md`.
 2. Render the contract into agent instructions.
 3. Run realistic eval cases through a coding-agent CLI.
 4. Diagnose failures and improve the spec, instructions, or eval.
 
-Skillet does not claim that a passing eval makes a skill universally correct. Evals provide repeatable evidence for the scenarios you define and a way to iterate on observed behavior.
+Skillet does not claim that a passing eval makes a skill universally correct. Evals give you repeatable evidence for the scenarios you define and a way to keep improving the skill.
 
 ## Start Here
 
