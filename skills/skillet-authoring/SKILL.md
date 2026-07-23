@@ -1,7 +1,7 @@
 ---
 name: skillet-authoring
 description: Authors, improves, or migrates agent skills with the Skillet CLI; use when asked to create or write a skill, improve its instructions or evals, diagnose failing evals, or migrate a legacy SKILL.md, uppercase SPEC.md, or spec.yaml skill, but not when merely using an existing skill.
-spec_hash: 79d79bd93c8a
+spec_hash: 3b86b9ec11a6
 ---
 
 # Skillet Authoring
@@ -14,7 +14,7 @@ Run every Skillet command through the current package: `npx -y @sentry/skillet@l
    - When status reports uppercase `SPEC.md`, preserve or rename that legacy document before creating lowercase `spec.md`; never parse it as the active Skillet spec.
    - When status marks lowercase `spec.md` invalid, preserve or rename legacy content and derive a valid Skillet spec before rendering `SKILL.md` or adding coverage.
 2. When migrating, inventory behavior-bearing material before drafting: triggers, ordered workflow, exact lists, protocols and output formats, thresholds, failure and stop rules, constraints, runtime references, and maintenance docs that describe active behavior. Every accepted behavioral rule must land in `spec.md`; verbose execution detail may additionally remain in a linked runtime reference after the spec defines the observable contract. Explicitly supersede or reject non-behavior content.
-3. When `spec.md` is next, fetch `npx -y @sentry/skillet@latest instructions spec <dir> --json`. If intent remains ambiguous after inspecting the available evidence, ask 2–4 pointed questions before writing. Then write the spec, run `npx -y @sentry/skillet@latest validate <dir>`, and fix every spec error before deriving anything.
+3. When `spec.md` is next, fetch `npx -y @sentry/skillet@latest instructions spec <dir> --json`. If intent remains ambiguous after inspecting the available evidence, ask 2–4 pointed questions before writing. Then write the spec with the served Skillet version footer as its final non-empty line, run `npx -y @sentry/skillet@latest validate <dir>`, and fix every spec error before deriving anything.
 4. When `SKILL.md` is next, fetch `npx -y @sentry/skillet@latest instructions skill <dir> --json` and render it from the validated spec. When migrating, do not weaken exact formats, enumerations, thresholds, delegation rules, or stop conditions. Move long protocols to `references/` when useful, link them from `SKILL.md`, then compare the old and new runtime surfaces and account for every removed rule. Search README and provenance docs for stale artifact paths, prompt locations, runtime-section claims, frontmatter descriptions, and coverage claims. Validate again before adding evals.
 5. When eval coverage is next, fetch `npx -y @sentry/skillet@latest instructions evals <dir> --json`, add at least one case per behavior, then validate with the same package command until no errors or uncovered-behavior warnings remain.
 6. Run `npx -y @sentry/skillet@latest eval <dir> --dry` to find checks that pass before the agent runs. Then run `npx -y @sentry/skillet@latest eval <dir> --trials 3 --baseline` to compare the tested results with and without the skill. Add `--report <file>` when the user wants a shareable run artifact (`npx vitest-evals serve <file>` renders it).

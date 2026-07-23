@@ -149,6 +149,7 @@ export const parseSpec = (content: string): ParseResult => {
       if (constraint != null) constraintText.push(raw);
       continue;
     }
+    if (isComment(line.trim())) continue;
 
     const heading = HEADING.exec(line);
     if (heading == null) {
@@ -196,7 +197,7 @@ export const parseSpec = (content: string): ParseResult => {
         }
         continue;
       }
-      if (section === SECTION_INTENT && line.trim() !== "" && !isComment(line.trim())) {
+      if (section === SECTION_INTENT && line.trim() !== "") {
         intentLines.push(line.trim());
       } else if (behavior != null && scenario == null) {
         behaviorText.push(raw);

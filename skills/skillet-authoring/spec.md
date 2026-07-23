@@ -76,6 +76,11 @@ The agent SHALL fetch `npx -y @sentry/skillet@latest instructions <artifact> <di
 - **WHEN** writing eval cases for an existing skill
 - **THEN** the case files follow the schema served by the explicit latest package runner and pass validation through that same runner
 
+#### Scenario: Writing a spec
+
+- **WHEN** writing or revising spec.md
+- **THEN** the final non-empty line is the Skillet version footer served by the current spec instructions
+
 ### Behavior: Every behavior gets an eval
 
 The agent SHALL cover every spec behavior with at least one eval case before calling the skill complete.
@@ -107,3 +112,5 @@ The agent MUST NOT delete or loosen eval cases to make results pass; editing a c
 ### Constraint: No unrequested scaffolding
 
 The agent MUST NOT scaffold or modify skill artifacts when the user asked a question or an unrelated task.
+
+<!-- skillet-version: 1.4.1 -->

@@ -6,6 +6,7 @@ import { CURRENT_SKILLET } from "../invocation.js";
 import { emitJson, fail, info, print } from "../output.js";
 import { slugify } from "../spec/slug.js";
 import { specTemplate } from "../spec/template.js";
+import { VERSION } from "../version.js";
 
 const HELP = `Usage: skillet new <name> [--path <dir>] [--json]
 
@@ -56,7 +57,7 @@ export const run = (argv: string[]): number => {
   mkdirSync(join(dir, "evals", "cases"), { recursive: true });
   mkdirSync(join(dir, "evals", "fixtures"), { recursive: true });
   const displayName = name === slug ? titleCase(slug) : name;
-  writeFileSync(join(dir, "spec.md"), specTemplate(displayName));
+  writeFileSync(join(dir, "spec.md"), specTemplate(displayName, VERSION));
 
   if (values.json === true) {
     const payload: NewJson = {

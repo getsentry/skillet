@@ -76,3 +76,14 @@ Fetch the current grammar and template before writing:
 ```bash
 skillet instructions spec
 ```
+
+The template ends with a provenance footer:
+
+```markdown
+<!-- skillet-version: x.y.z -->
+```
+
+Keep the footer as the final non-empty line when writing or revising a spec. It
+records which Skillet version supplied the template and guidance without
+changing the parsed behaviors or constraints. Older specs without a footer
+remain valid.

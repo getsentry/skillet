@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { VERSION } from "../version.js";
 import { instructionsFor } from "./content.js";
 
 describe("eval instructions", () => {
@@ -40,5 +41,11 @@ describe("eval instructions", () => {
     for (const artifact of ["spec", "skill", "evals"] as const) {
       expect(instructionsFor(artifact).instructions).toContain("npx -y @sentry/skillet@latest");
     }
+  });
+
+  it("serves the running Skillet version in the spec footer", () => {
+    const spec = instructionsFor("spec");
+    expect(spec.template.trimEnd().endsWith(`<!-- skillet-version: ${VERSION} -->`)).toBe(true);
+    expect(spec.instructions).toContain("final non-empty line");
   });
 });

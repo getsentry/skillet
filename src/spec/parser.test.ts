@@ -59,6 +59,15 @@ describe("parseSpec", () => {
     expect(spec?.constraints.map((c) => c.id)).toEqual(["no-force-push"]);
   });
 
+  it("ignores the Skillet version footer", () => {
+    const fingerprinted = `${VALID.trimEnd()}\n\n<!-- skillet-version: 1.4.1 -->\n`;
+    const plain = parseSpec(VALID);
+    const withFingerprint = parseSpec(fingerprinted);
+
+    expect(errors(withFingerprint.issues)).toEqual([]);
+    expect(withFingerprint.spec).toEqual(plain.spec);
+  });
+
   it("derives slugs from behavior names", () => {
     const { spec } = parseSpec(VALID.replace("Commit message format", "Commit Message Format!"));
     expect(spec?.behaviors[0]?.id).toBe("commit-message-format");
@@ -150,8 +159,10 @@ describe("parseSpec", () => {
   });
 
   it("rejects the unfilled template as placeholder errors", () => {
-    const { spec, issues } = parseSpec(specTemplate("My Skill"));
+    const template = specTemplate("My Skill", "1.4.1");
+    const { spec, issues } = parseSpec(template);
     expect(spec?.name).toBe("My Skill");
+    expect(template.trimEnd().endsWith("<!-- skillet-version: 1.4.1 -->")).toBe(true);
     const placeholderErrors = errors(issues).filter((i) =>
       i.message.includes("template placeholder"),
     );

@@ -21,7 +21,11 @@ export const BEHAVIOR_PREFIX = "### Behavior: ";
 export const SCENARIO_PREFIX = "#### Scenario: ";
 export const CONSTRAINT_PREFIX = "### Constraint: ";
 
-export const specTemplate = (skillName: string): string => `# ${skillName}
+/** Stable provenance footer for specs authored with one Skillet version. */
+export const specVersionFooter = (version: string): string =>
+  `<!-- skillet-version: ${version} -->`;
+
+export const specTemplate = (skillName: string, version: string): string => `# ${skillName}
 
 ## Intent
 
@@ -48,4 +52,6 @@ The agent SHALL <!-- one observable, testable behavior -->.
 ### Constraint: <!-- short name -->
 
 The agent MUST NOT <!-- thing this skill must never cause -->.
+
+${specVersionFooter(version)}
 `;

@@ -1,5 +1,6 @@
-import { specTemplate } from "../spec/template.js";
 import { CURRENT_SKILLET } from "../invocation.js";
+import { specTemplate, specVersionFooter } from "../spec/template.js";
+import { VERSION } from "../version.js";
 
 export type ArtifactId = "spec" | "skill" | "evals";
 
@@ -18,6 +19,7 @@ Grammar (validated by '${CURRENT_SKILLET} validate'):
 - Every behavior needs at least one "#### Scenario: <name>" (exactly four hashes) with "- **WHEN** ..." and "- **THEN** ..." bullets. GIVEN/AND bullets are also accepted.
 - Constraints are "### Constraint: <name>" stating what the agent MUST NOT do.
 - Behavior names slugify to ids (e.g. "Commit message format" -> commit-message-format); eval cases reference those ids, so keep names stable once evals exist.
+- The final non-empty line is '${specVersionFooter(VERSION)}'. Preserve that exact footer so the spec records the Skillet version that supplied its format and guidance.
 
 Writing rules:
 - Intent: one or two paragraphs — what the skill makes the agent do and why it exists. No implementation detail.
@@ -100,7 +102,7 @@ const PAYLOADS: Record<ArtifactId, Instructions> = {
   spec: {
     artifact: "spec",
     outputPath: "spec.md",
-    template: specTemplate("<Skill Name>"),
+    template: specTemplate("<Skill Name>", VERSION),
     instructions: SPEC_INSTRUCTIONS,
   },
   skill: {

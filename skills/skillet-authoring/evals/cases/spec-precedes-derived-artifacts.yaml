@@ -6,6 +6,9 @@ prompt: |
 timeout: 600
 checks:
   - file_exists: changelog-discipline/spec.md
+  - shell: >-
+      tail -n 1 changelog-discipline/spec.md |
+      grep -Eq '^<!-- skillet-version: [0-9]+\.[0-9]+\.[0-9]+ -->$'
   - shell: skillet validate changelog-discipline
   - judge: >
       spec.md was written (and validated) before SKILL.md was rendered, and
