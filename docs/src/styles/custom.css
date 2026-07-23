@@ -58,10 +58,6 @@
   max-width: 47rem;
 }
 
-.hero:has(.skillet-mega) .actions {
-  justify-content: flex-start !important;
-}
-
 .hero:has(.skillet-mega) .tagline code {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.13);
@@ -89,24 +85,10 @@
   border-radius: 8px;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
   overflow: hidden;
+  position: relative;
 }
 
-.skillet-prompt-header {
-  align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
-  display: flex;
-  justify-content: space-between;
-  min-height: 2.5rem;
-  padding: 0 0.85rem;
-}
-
-.skillet-prompt-header span {
-  color: rgba(255, 255, 255, 0.58);
-  font-family: var(--__sl-font-mono);
-  font-size: 0.72rem;
-}
-
-.skillet-prompt-header button {
+.skillet-prompt-window button {
   background: transparent;
   border: 0;
   color: #d8c4ff;
@@ -114,10 +96,14 @@
   font-family: var(--__sl-font);
   font-size: 0.78rem;
   font-weight: 700;
-  padding: 0.45rem 0;
+  padding: 0.75rem;
+  position: absolute;
+  right: 0.35rem;
+  top: 0.2rem;
+  z-index: 1;
 }
 
-.skillet-prompt-header button:hover {
+.skillet-prompt-window button:hover {
   color: #fff;
 }
 
@@ -125,9 +111,8 @@
   background: transparent;
   border: 0;
   margin: 0;
-  max-height: 24rem;
   overflow: auto;
-  padding: clamp(1rem, 3vw, 1.5rem);
+  padding: 1.15rem 7rem 1.15rem 1.15rem;
 }
 
 .skillet-prompt-window code {
@@ -136,6 +121,39 @@
   font-size: 0.78rem;
   line-height: 1.65;
   white-space: pre-wrap;
+}
+
+.skillet-setup-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.skillet-setup-action {
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  color: #fff;
+  display: inline-flex;
+  font-size: 0.9rem;
+  font-weight: 600;
+  gap: 0.6rem;
+  justify-content: center;
+  padding: 0.8rem 1.25rem;
+  text-decoration: none !important;
+}
+
+.skillet-setup-action:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.skillet-setup-action-primary {
+  background: #fff;
+  color: #08080c;
+}
+
+.sl-markdown-content .skillet-setup-action-primary {
+  color: #08080c;
 }
 
 html,
@@ -304,21 +322,17 @@ body {
     letter-spacing: -0.045em;
   }
 
-  .hero:has(.skillet-mega) .actions {
-    align-items: stretch;
-    flex-direction: column;
-    max-width: 16rem;
-    width: 100%;
-  }
-
-  .hero:has(.skillet-mega) .actions a {
-    justify-content: center;
-    width: 100%;
-  }
-
   .skillet-install-section,
   .skillet-example-grid {
     grid-template-columns: 1fr;
+  }
+
+  .skillet-setup-actions {
+    flex-direction: column;
+  }
+
+  .skillet-setup-action {
+    width: 100%;
   }
 
   .skillet-example pre {
