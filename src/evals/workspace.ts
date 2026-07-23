@@ -5,29 +5,20 @@ import { join } from "node:path";
 
 const SETUP_TIMEOUT_MS = 30_000;
 
-// Git hooks export repository-local variables. Setup commands must resolve
-// repositories from the disposable workspace instead of the caller's repo.
-const GIT_LOCAL_ENV_VARS = [
-  "GIT_ALTERNATE_OBJECT_DIRECTORIES",
-  "GIT_COMMON_DIR",
-  "GIT_CONFIG",
-  "GIT_CONFIG_COUNT",
-  "GIT_CONFIG_PARAMETERS",
-  "GIT_DIR",
-  "GIT_GRAFT_FILE",
-  "GIT_IMPLICIT_WORK_TREE",
-  "GIT_INDEX_FILE",
-  "GIT_NO_REPLACE_OBJECTS",
-  "GIT_OBJECT_DIRECTORY",
-  "GIT_PREFIX",
-  "GIT_REPLACE_REF_BASE",
-  "GIT_SHALLOW_FILE",
-  "GIT_WORK_TREE",
-] as const;
+const gitLocalEnvironmentVariables = (): string[] => {
+  return execFileSync("git", ["rev-parse", "--local-env-vars"], {
+    encoding: "utf8",
+    timeout: SETUP_TIMEOUT_MS,
+  })
+    .split(/\r?\n/u)
+    .filter((name) => name !== "");
+};
 
 const setupEnvironment = (): NodeJS.ProcessEnv => {
   const env = { ...process.env };
-  for (const name of GIT_LOCAL_ENV_VARS) delete env[name];
+  // Git hooks export repository-local variables. Setup commands must resolve
+  // repositories from the disposable workspace instead of the caller's repo.
+  for (const name of gitLocalEnvironmentVariables()) delete env[name];
   return env;
 };
 
