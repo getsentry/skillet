@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.5.0
+
+### Features 🚀
+
+- Installed Skillet binaries now check npm in the background, cache the result
+  for one hour, and recommend `npx -y @sentry/skillet@latest` when a newer
+  release is available. Help, version output, offline use, stdout, and command
+  exit status remain unaffected.
+- Agent-driven authoring now runs every Skillet command through an explicit
+  `@latest` package runner (`npx` or `pnpx`) so installed skills receive the
+  current templates, validation hints, and writing guidance.
+- New and revised specs carry a final `<!-- skillet-version: x.y.z -->` footer
+  recording which Skillet version supplied their template and guidance. The
+  footer is ignored by semantic parsing, and existing specs remain valid.
+
+### Documentation 📚
+
+- Made package-runner setup the recommended path across the README, Quickstart,
+  landing page, CLI reference, lifecycle reference, and agent-readable docs;
+  global installation remains available as an explicit convenience.
+
 ## 1.4.1
 
 ### Fixes 🐛
