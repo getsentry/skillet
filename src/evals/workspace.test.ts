@@ -53,6 +53,54 @@ describe("createWorkspace", () => {
     expect(staged).not.toContain("setup.sh");
   });
 
+  it("does not inherit repository-local Git state", () => {
+    const root = makeSkillRoot();
+    const sourceRepo = join(root, "source");
+    const cleanGitEnvironment = { ...process.env };
+    delete cleanGitEnvironment.GIT_DIR;
+    delete cleanGitEnvironment.GIT_WORK_TREE;
+    delete cleanGitEnvironment.GIT_INDEX_FILE;
+    mkdirSync(sourceRepo);
+    execFileSync("git", ["init", "-q"], { cwd: sourceRepo, env: cleanGitEnvironment });
+    writeFileSync(join(sourceRepo, "source.txt"), "source\n");
+    execFileSync("git", ["add", "source.txt"], { cwd: sourceRepo, env: cleanGitEnvironment });
+    const sourceIndex = join(sourceRepo, ".git", "index");
+    const sourceIndexBefore = readFileSync(sourceIndex);
+
+    const previousGitDir = process.env.GIT_DIR;
+    const previousGitWorkTree = process.env.GIT_WORK_TREE;
+    const previousGitIndexFile = process.env.GIT_INDEX_FILE;
+    process.env.GIT_DIR = join(sourceRepo, ".git");
+    process.env.GIT_WORK_TREE = sourceRepo;
+    process.env.GIT_INDEX_FILE = sourceIndex;
+
+    let workspace: ReturnType<typeof createWorkspace> | undefined;
+    try {
+      workspace = createWorkspace({
+        skillRoot: root,
+        setup: "git init -q . && test -d .git && touch workspace.txt && git add -A",
+      });
+      dirs.push(workspace.dir);
+    } finally {
+      if (previousGitDir == null) delete process.env.GIT_DIR;
+      else process.env.GIT_DIR = previousGitDir;
+      if (previousGitWorkTree == null) delete process.env.GIT_WORK_TREE;
+      else process.env.GIT_WORK_TREE = previousGitWorkTree;
+      if (previousGitIndexFile == null) delete process.env.GIT_INDEX_FILE;
+      else process.env.GIT_INDEX_FILE = previousGitIndexFile;
+    }
+
+    if (workspace == null) throw new Error("workspace was not created");
+    expect(existsSync(join(workspace.dir, ".git"))).toBe(true);
+    expect(
+      execFileSync("git", ["status", "--porcelain"], {
+        cwd: workspace.dir,
+        env: cleanGitEnvironment,
+      }).toString(),
+    ).toContain("workspace.txt");
+    expect(readFileSync(sourceIndex)).toEqual(sourceIndexBefore);
+  });
+
   it("throws SetupError and removes the workspace when setup fails", () => {
     const root = makeSkillRoot();
     // The failing setup script leaks its cwd (the workspace path) to a

@@ -60,7 +60,7 @@ skillet status
 
 `skillet status` reads the files on disk and tells you the next step. When writing an artifact yourself, use `skillet instructions spec`, `skillet instructions skill`, or `skillet instructions evals` for its current format and rules.
 
-For an existing skill, run `skillet status <path>`. Uppercase `SPEC.md` and structurally invalid lowercase `spec.md` are treated as migration input; preserve or rename the legacy content, then derive a valid lowercase `spec.md` before adding eval coverage.
+For an existing skill, run `skillet status <path>`. Uppercase `SPEC.md` and structurally invalid lowercase `spec.md` are treated as migration input; preserve or rename the legacy content, then derive a valid lowercase `spec.md` before adding eval coverage. Inventory the old skill's triggers, workflow, exact lists and protocols, thresholds, stop rules, constraints, and runtime references first, then reconcile that inventory against the new spec and rendered skill instead of assuming a shorter rewrite is equivalent.
 
 ## Validate and evaluate
 

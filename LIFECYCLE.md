@@ -39,6 +39,8 @@ Humans and host agents write these artifacts. Skillet creates the initial layout
 
 Artifact names are case-sensitive contracts even on case-insensitive filesystems. Uppercase `SPEC.md` is treated as legacy migration input, never as the active Skillet `spec.md`. A lowercase file must also pass the Skillet grammar before the workflow advances. Until a valid lowercase spec exists, eval case schemas can be checked but behavior coverage is unavailable.
 
+Migrating an existing skill is a reconciliation pass, not a compression pass. Before writing `spec.md`, inventory the legacy triggers, ordered workflow, exact enumerations, protocols and output formats, numeric thresholds, failure and stop rules, constraints, runtime references, and maintenance docs that describe active behavior. Every accepted behavioral rule must land in the new spec; verbose execution detail may additionally remain in a linked runtime reference after the spec defines the observable contract. After rendering, account for every removed legacy rule and search maintenance docs for stale artifact paths, prompt locations, runtime-section claims, descriptions, and coverage before calling the migration complete.
+
 ## Eval execution
 
 `skillet eval` compiles each case into an embedded Vitest test and runs it through [vitest-evals](https://github.com/getsentry/vitest-evals). Generated files live in a temporary directory; nothing is added to the skill.
@@ -46,7 +48,7 @@ Artifact names are case-sensitive contracts even on case-insensitive filesystems
 Each trial follows the same sequence:
 
 1. Create a fresh temporary workspace and copy the case fixture, if configured.
-2. Run the case's `setup` script. A non-zero exit or timeout ends the trial as an error.
+2. Run the case's `setup` script without repository-local Git environment variables from the caller. A non-zero exit or timeout ends the trial as an error.
 3. Install the skill using the selected harness's native mechanism. Baseline trials skip this step.
 4. Run the agent CLI on the case prompt and capture its transcript and final response.
 5. Run deterministic `file_exists` and `shell` checks against the workspace.

@@ -35,11 +35,26 @@ Do not overwrite the existing `SKILL.md`. Use it and the legacy document as sour
 
 If the legacy document is already named lowercase `spec.md`, rename or copy it first, then create the Skillet-format `spec.md`.
 
+## Inventory Behavior Before Rewriting
+
+Migration is a reconciliation pass, not a request to make the skill shorter. Before drafting `spec.md`, inventory behavior-bearing material across the existing `SKILL.md`, legacy specs, runtime references, and nearby maintenance docs:
+
+- positive and negative triggers
+- ordered workflow and decision points
+- exact candidate lists and enumerations
+- command, reviewer, and output protocols
+- numeric thresholds and concurrency limits
+- failure handling and stopping rules
+- safety constraints and user-work preservation
+- runtime references and docs that describe the active contract
+
+Every accepted behavioral rule must appear in the new `spec.md`. Verbose execution detail may additionally remain in a runtime reference linked from `SKILL.md` after the spec defines the observable contract; non-behavior content must be identified as obsolete or intentionally changed. After rendering, compare the old and new runtime surfaces and account for every removed rule. Search README and provenance docs for stale artifact paths, prompt locations, runtime-section claims, frontmatter descriptions, and coverage claims rather than only adding a migration changelog entry.
+
 ## Ask Your Agent to Adopt the Skill
 
 Give your coding agent this request:
 
-> Adopt this existing skill into Skillet. Run `skillet status` first. Preserve the current `SKILL.md` and any legacy `SPEC.md`, derive a lowercase `spec.md` using `skillet instructions spec`, validate it, re-render `SKILL.md` with the current `spec_hash`, then add eval coverage for every behavior.
+> Adopt this existing skill into Skillet. Run `skillet status` first. Preserve the current `SKILL.md` and any legacy `SPEC.md`. Inventory its triggers, workflow, exact lists and protocols, thresholds, stop rules, constraints, and runtime references. Derive lowercase `spec.md` using `skillet instructions spec`, reconcile the inventory against it, validate it, re-render `SKILL.md` with the current `spec_hash`, account for removed rules, then add eval coverage for every behavior.
 
 The authoring skill should follow the next step reported by the CLI instead of starting over.
 

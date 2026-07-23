@@ -21,4 +21,18 @@ describe("eval instructions", () => {
     expect(instructions).toContain("only when the skill's own purpose requires them");
     expect(instructions).not.toContain("nothing about specs, evals, skillet");
   });
+
+  it("requires behavior reconciliation when migrating an existing skill", () => {
+    const specInstructions = instructionsFor("spec").instructions;
+    const skillInstructions = instructionsFor("skill").instructions;
+
+    expect(specInstructions).toContain("Inventory positive and negative triggers");
+    expect(specInstructions).toContain("every accepted behavioral rule in spec.md");
+    expect(specInstructions).toContain("Verbose protocols and template text");
+    expect(specInstructions).toContain("compare the inventory with spec.md");
+    expect(skillInstructions).toContain("account for every removed rule");
+    expect(skillInstructions).toContain("Move long operational protocols or prompt templates");
+    expect(skillInstructions).toContain("frontmatter descriptions");
+    expect(skillInstructions).toContain("update every stale statement");
+  });
 });
