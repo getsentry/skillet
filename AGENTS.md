@@ -14,6 +14,13 @@ AI commits MUST include:
 Co-Authored-By: (agent model name) <email>
 ```
 
+## Releases
+
+- Release through `.github/workflows/release.yml`; choose `patch`, `minor`, `major`, or an explicit version. Use `force=true` only when the user explicitly asks to bypass blockers.
+- Before dispatch, add the matching `CHANGELOG.md` section and run `npm run check`, `npm run docs:check`, and `npm run build`.
+- Do not run `npm version`, create release branches or tags, or publish npm packages manually. Craft owns version bumps, the release branch, GitHub release, and npm publication.
+- Approve the generated `getsentry/publish` request only after its release-branch CI passes, then verify the npm `latest` tag, GitHub release, and merged `main`.
+
 ## File-Scoped Commands
 
 | Task          | Command                                 |

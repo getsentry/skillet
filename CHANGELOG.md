@@ -1,5 +1,40 @@
 # Changelog
 
+## 1.4.0
+
+### Features 🚀
+
+- Existing skills now have a clear migration path. Skillet distinguishes exact
+  lowercase `spec.md` from legacy uppercase `SPEC.md`, marks structurally
+  incompatible lowercase specs invalid, and stops before rendering instructions
+  or claiming behavior coverage.
+- `skillet validate --json` now reports `coverageChecked`, while human output
+  separates eval case schema checks from behavior coverage that could not run.
+- Added a standalone Astro/Starlight documentation site with agent-readable
+  Markdown routes, a copyable setup prompt, existing-skill onboarding, and
+  deeper authoring and eval guidance.
+- Added full Garfield and Effect dogfood examples with pinned upstream snapshots,
+  licenses, Skillet-authored specs, compact skills, fixtures, and behavior-complete
+  eval suites.
+
+### Fixes 🐛
+
+- Artifact discovery now checks filename casing consistently across macOS and
+  Linux instead of allowing case-insensitive filesystems to treat `SPEC.md` as
+  the active Skillet spec.
+- Invalid or missing specs no longer produce a misleading `coverage: ok` result
+  with zero known behaviors.
+- Authoring instructions now describe baseline as observed comparison rather than
+  proof or a positive-lift requirement, and allow spec/eval language when the
+  skill's own domain requires it.
+
+### Documentation 📚
+
+- Reorganized the docs around install, spec, instructions, evals, results, and
+  migration; completed the first-skill tutorial with mechanically valid examples.
+- Added an Examples showcase with inline original, spec, and eval snippets for
+  Commit Conventions, Garfield, and Effect.
+
 ## 1.3.0
 
 ### Features 🚀
