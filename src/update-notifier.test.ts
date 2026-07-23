@@ -56,7 +56,7 @@ describe("checkForUpdate", () => {
   it("refreshes an expired cache", async () => {
     await writeFile(
       join(cacheDir, "update-check.json"),
-      JSON.stringify({ lastCheck: now - 24 * 60 * 60 * 1000 - 1, latestVersion: "1.5.0" }),
+      JSON.stringify({ lastCheck: now - 60 * 60 * 1000 - 1, latestVersion: "1.5.0" }),
     );
     vi.mocked(fetch).mockResolvedValue(Response.json({ version: "1.6.0" }));
 

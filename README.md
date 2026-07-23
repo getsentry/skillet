@@ -34,7 +34,7 @@ npm install -g @sentry/skillet
 skillet init
 ```
 
-Installed binaries check npm at most once per day and suggest the current `npx` command when an update is available. If your agent reads skills from somewhere else, copy the [`skills/skillet-authoring`](https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring) directory directly into that location.
+Installed binaries check npm at most once per hour and suggest the current `npx` command when an update is available. If your agent reads skills from somewhere else, copy the [`skills/skillet-authoring`](https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring) directory directly into that location.
 
 To install the authoring skill with dotagents directly:
 

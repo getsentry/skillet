@@ -32,7 +32,7 @@ npm install -g @sentry/skillet
 skillet init
 ```
 
-Installed binaries check npm at most once per day and recommend the current
+Installed binaries check npm at most once per hour and recommend the current
 package command when an update is available.
 
 ## Install the Authoring Skill Another Way

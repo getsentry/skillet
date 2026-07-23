@@ -5,7 +5,7 @@ import { isRecord } from "./guards.js";
 import { CURRENT_SKILLET } from "./invocation.js";
 
 const DEFAULT_CACHE_DIR = join(homedir(), ".skillet");
-const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const ONE_HOUR_MS = 60 * 60 * 1000;
 const REGISTRY_URL = "https://registry.npmjs.org/@sentry/skillet/latest";
 const FETCH_TIMEOUT_MS = 3000;
 
@@ -82,7 +82,7 @@ export const checkForUpdate = async (
     const now = options?.now?.() ?? Date.now();
     let latestVersion: string | null;
 
-    if (cache != null && now - cache.lastCheck < ONE_DAY_MS) {
+    if (cache != null && now - cache.lastCheck < ONE_HOUR_MS) {
       latestVersion = cache.latestVersion;
     } else {
       latestVersion = await fetchLatestVersion();

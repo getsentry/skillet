@@ -11,7 +11,7 @@ npx -y @sentry/skillet@latest <command> [options]
 
 Use `pnpx @sentry/skillet@latest` in pnpm environments. A globally installed
 `skillet <command>` exposes the same command surface, checks for updates at most
-once per day, and recommends the explicit latest package command when stale.
+once per hour, and recommends the explicit latest package command when stale.
 
 Every command supports `--json`. Machine output is one JSON object on stdout; human progress, errors, and update recommendations go to stderr.
 
