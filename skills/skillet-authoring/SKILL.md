@@ -1,7 +1,7 @@
 ---
 name: skillet-authoring
 description: Authors, improves, or migrates agent skills with the Skillet CLI; use when asked to create or write a skill, improve its instructions or evals, diagnose failing evals, or migrate a legacy SKILL.md, uppercase SPEC.md, or spec.yaml skill, but not when merely using an existing skill.
-spec_hash: 4b82b75c6e85
+spec_hash: 02d20b82fa03
 ---
 
 # Skillet Authoring

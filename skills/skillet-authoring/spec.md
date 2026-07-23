@@ -44,7 +44,7 @@ The agent SHALL write and validate spec.md before rendering SKILL.md or eval cas
 
 ### Behavior: Preserve legacy runtime contracts
 
-When migrating an existing skill, the agent SHALL inventory behavior-bearing material from the legacy SKILL.md, specs, references, and maintenance docs before drafting, represent every accepted behavioral rule in spec.md, preserve verbose execution detail in SKILL.md or linked runtime references after the spec defines the observable contract, and reconcile every removed rule before calling the migration complete.
+When migrating an existing skill, the agent SHALL inventory behavior-bearing material from the legacy SKILL.md, specs, references, and maintenance docs before drafting, represent every accepted behavioral rule in spec.md, and reconcile every removed rule before calling the migration complete. It MAY preserve verbose execution detail in SKILL.md or linked runtime references after the spec defines the observable contract.
 
 #### Scenario: Adopt a skill with an exact deletion threshold
 
