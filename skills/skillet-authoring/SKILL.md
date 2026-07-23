@@ -1,7 +1,7 @@
 ---
 name: skillet-authoring
 description: Authors, improves, or migrates agent skills with the Skillet CLI; use when asked to create or write a skill, improve its instructions or evals, diagnose failing evals, or migrate a legacy SKILL.md, uppercase SPEC.md, or spec.yaml skill, but not when merely using an existing skill.
-spec_hash: 6172f598d95f
+spec_hash: a56df51f9229
 ---
 
 # Skillet Authoring
@@ -13,10 +13,12 @@ Use the Skillet CLI (`skillet`, or `npx @sentry/skillet`) to build skills spec-f
 1. Run `skillet status <dir> --json` and do what `next` says. For a brand-new skill, `skillet new <name>` first. Never guess a skill's state or start over when artifacts already exist.
    - When status reports uppercase `SPEC.md`, preserve or rename that legacy document before creating lowercase `spec.md`; never parse it as the active Skillet spec.
    - When status marks lowercase `spec.md` invalid, preserve or rename legacy content and derive a valid Skillet spec before rendering `SKILL.md` or adding coverage.
-2. Write `spec.md` before anything derived. If the user's intent, triggers, or edge cases are ambiguous, ask 2–4 pointed questions instead of inventing answers.
-3. For every artifact you write (`spec`, `skill`, `evals`), fetch the format first — `skillet instructions <artifact> <dir> --json` — and follow its template and rules exactly.
-4. Run `skillet validate <dir>` after each artifact and fix every error before moving on. Cover every behavior with at least one eval case; validate warns about uncovered behaviors — clear those warnings before calling the skill complete.
-5. Run `skillet eval <dir> --dry` to find checks that pass before the agent runs. Then run `skillet eval <dir> --trials 3 --baseline` to compare the tested results with and without the skill. Add `--report <file>` when the user wants a shareable run artifact (`npx vitest-evals serve <file>` renders it).
+2. When migrating, inventory behavior-bearing material before drafting: triggers, ordered workflow, exact lists, protocols and output formats, thresholds, failure and stop rules, constraints, runtime references, and maintenance docs that describe active behavior. Every accepted rule must land in `spec.md`, remain in a linked runtime reference, or be explicitly superseded or rejected.
+3. Write `spec.md` before anything derived. If the user's intent, triggers, or edge cases are ambiguous, ask 2–4 pointed questions instead of inventing answers.
+4. For every artifact you write (`spec`, `skill`, `evals`), fetch the format first — `skillet instructions <artifact> <dir> --json` — and follow its template and rules exactly.
+5. Render for execution without weakening exact formats, enumerations, thresholds, delegation rules, or stop conditions. Move long protocols to `references/` when useful, link them from `SKILL.md`, then compare the old and new runtime surfaces and account for every removed rule. Search README and provenance docs for stale artifact paths, prompt locations, runtime-section claims, frontmatter descriptions, and coverage claims.
+6. Run `skillet validate <dir>` after each artifact and fix every error before moving on. Cover every behavior with at least one eval case; validate warns about uncovered behaviors — clear those warnings before calling the skill complete.
+7. Run `skillet eval <dir> --dry` to find checks that pass before the agent runs. Then run `skillet eval <dir> --trials 3 --baseline` to compare the tested results with and without the skill. Add `--report <file>` when the user wants a shareable run artifact (`npx vitest-evals serve <file>` renders it).
 
 ## When evals fail
 

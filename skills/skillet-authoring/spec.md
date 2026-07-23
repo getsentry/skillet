@@ -42,6 +42,16 @@ The agent SHALL write and validate spec.md before rendering SKILL.md or eval cas
 - **WHEN** asked to create a new skill from a prose description
 - **THEN** a spec.md exists, passes `skillet validate`, and SKILL.md is rendered only after the spec was written
 
+### Behavior: Preserve legacy runtime contracts
+
+When migrating an existing skill, the agent SHALL inventory behavior-bearing material from the legacy SKILL.md, specs, references, and maintenance docs before drafting, preserve exact triggers, ordered workflow, enumerations, protocols, thresholds, stop and failure conditions, constraints, and runtime references in the new contract or linked runtime surfaces, and reconcile every removed rule before calling the migration complete.
+
+#### Scenario: Adopt a skill with an exact deletion threshold
+
+- **GIVEN** a legacy skill lists files before deletion, asks for confirmation only before deleting more than ten files, and forbids deleting unrelated files
+- **WHEN** the agent adopts the skill into Skillet
+- **THEN** the lowercase spec and rendered runtime preserve the listing rule, the exact more-than-ten threshold, and the unrelated-file constraint while any moved detail remains linked from SKILL.md
+
 ### Behavior: Instructions set the format
 
 The agent SHALL fetch `skillet instructions <artifact> <dir> --json` for each artifact it writes and follow the served template and rules, never an invented or remembered format.

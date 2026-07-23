@@ -1,4 +1,4 @@
-behavior: status-drives-the-flow
+behavior: preserve-legacy-runtime-contracts
 fixture: legacy-uppercase-spec
 prompt: |
   Adopt the existing skill in legacy-skill/ into Skillet. Preserve its current
@@ -13,5 +13,9 @@ checks:
       The agent used skillet status before editing, treated uppercase SPEC.md as
       legacy input rather than the active spec, preserved it under a distinct
       name, derived lowercase spec.md before re-rendering SKILL.md, and added
-      eval coverage for the resulting behaviors.
+      eval coverage for the resulting behaviors. The new spec and runtime skill
+      preserve all three concrete legacy contracts: list affected files before
+      deletion, ask for confirmation only when deleting more than ten files,
+      and never delete unrelated user files. A shorter rewrite that weakens the
+      exact threshold or drops one of those rules does not pass.
 timeout: 600

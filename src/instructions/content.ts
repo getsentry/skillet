@@ -27,6 +27,12 @@ Writing rules:
 - Keep it small: more than ~8 behaviors usually means two skills. Split rather than pile on.
 - If the user's request is ambiguous about scope, audience, or edge cases, ask 2-4 pointed questions BEFORE writing — the spec is the contract, so ambiguity resolved now is eval flakiness avoided later.
 
+Existing-skill migration:
+- Read the current SKILL.md, legacy specs, runtime references, and nearby maintenance docs before drafting. Treat them as source evidence, not prose to compress immediately.
+- Inventory positive and negative triggers, ordered workflow, exact candidate lists, protocols and output formats, numeric limits, failure and stopping rules, safety constraints, and runtime references.
+- Represent every accepted item in spec.md or explicitly retain, relocate, supersede, or reject it. Exact thresholds, enumerations, and prompt contracts are behavior even when their wording is long.
+- After drafting, compare the inventory with spec.md and fix omissions before rendering SKILL.md. Preserve legacy source files until the new contract has been validated.
+
 After writing: run 'skillet validate' and fix every error; warnings are judgment calls.`;
 
 const SKILL_INSTRUCTIONS = `Render SKILL.md from spec.md. The spec states intent; SKILL.md is the instruction text an agent actually loads. Rewrite, don't copy — spec grammar (SHALL, scenarios) is for validation, not for the agent reading the skill.
@@ -42,6 +48,12 @@ Body rules:
 - Structure for execution: lead with the workflow or decision points, not background. Concrete examples beat abstract rules — one good worked example per tricky behavior.
 - Keep SKILL.md under ~150 lines. Detail that only matters mid-task (long tables, API references, edge-case catalogs) goes in references/<topic>.md files, linked with a one-line pointer that says when to open them.
 - Keep authoring meta-content out of ordinary skills. Mention specs, evals, or Skillet only when the skill's own purpose requires them.
+
+Existing-skill migration:
+- Rewrite for execution, but do not treat exact formats, thresholds, enumerations, delegation rules, or stop conditions as expendable implementation detail.
+- Move long operational protocols or prompt templates to references/<topic>.md when that improves readability, and link them from SKILL.md at the decision point where the agent must load them.
+- Compare the rendered runtime with the legacy SKILL.md and account for every removed rule. If the new spec does not justify the removal, fix spec.md before continuing.
+- Search nearby README or provenance docs for old artifact paths, prompt locations, runtime-section claims, frontmatter descriptions, and coverage claims; update every stale statement instead of only adding a migration note.
 
 After writing: 'skillet validate' checks frontmatter; 'skillet eval' runs the cases.`;
 
