@@ -27,7 +27,8 @@ describe("eval instructions", () => {
     const skillInstructions = instructionsFor("skill").instructions;
 
     expect(specInstructions).toContain("Inventory positive and negative triggers");
-    expect(specInstructions).toContain("Exact thresholds, enumerations, and prompt contracts");
+    expect(specInstructions).toContain("every accepted behavioral rule in spec.md");
+    expect(specInstructions).toContain("Verbose protocols and template text");
     expect(specInstructions).toContain("compare the inventory with spec.md");
     expect(skillInstructions).toContain("account for every removed rule");
     expect(skillInstructions).toContain("Move long operational protocols or prompt templates");

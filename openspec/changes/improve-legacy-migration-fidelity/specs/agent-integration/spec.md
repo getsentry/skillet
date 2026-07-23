@@ -4,9 +4,9 @@
 
 ### Requirement: Behavior-preserving migration guidance
 
-The instructions returned by `skillet instructions spec` SHALL direct agents migrating an existing skill to inventory behavior-bearing material from the legacy runtime skill, legacy specs, references, and nearby maintenance docs before drafting `spec.md`. The inventory SHALL include triggers, ordered workflow, exact enumerations, protocols and output formats, numeric thresholds, failure and stopping rules, constraints, and runtime references. Each item SHALL be represented in the new behavior contract or explicitly retained, relocated, superseded, or rejected.
+The instructions returned by `skillet instructions spec` SHALL direct agents migrating an existing skill to inventory behavior-bearing material from the legacy runtime skill, legacy specs, references, and nearby maintenance docs before drafting `spec.md`. The inventory SHALL include triggers, ordered workflow, exact enumerations, protocols and output formats, numeric thresholds, failure and stopping rules, constraints, and runtime references. Every accepted behavioral rule SHALL be represented in the new behavior contract; verbose execution detail MAY additionally be retained or relocated in a linked runtime reference after the spec defines the observable contract, while non-behavior content SHALL be explicitly superseded or rejected.
 
-The instructions returned by `skillet instructions skill` SHALL distinguish concise rewriting from behavior loss. Exact runtime formats, thresholds, enumerations, and delegation or output protocols SHALL be preserved in `SKILL.md` or a linked runtime reference, and the agent SHALL reconcile removed legacy rules before completing the render.
+The instructions returned by `skillet instructions skill` SHALL distinguish concise rewriting from behavior loss. Exact runtime formats, thresholds, enumerations, and delegation or output protocols SHALL be represented in `spec.md`; their verbose execution detail MAY be preserved in `SKILL.md` or a linked runtime reference, and the agent SHALL reconcile removed legacy rules before completing the render.
 
 #### Scenario: Migrate a skill with exact reviewer protocols
 

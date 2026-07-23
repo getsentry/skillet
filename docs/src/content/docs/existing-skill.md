@@ -48,7 +48,7 @@ Migration is a reconciliation pass, not a request to make the skill shorter. Bef
 - safety constraints and user-work preservation
 - runtime references and docs that describe the active contract
 
-Every accepted item must appear in the new `spec.md`, remain in a runtime reference linked from `SKILL.md`, or be explicitly identified as obsolete or intentionally changed. After rendering, compare the old and new runtime surfaces and account for every removed rule. Search README and provenance docs for stale artifact paths, prompt locations, runtime-section claims, frontmatter descriptions, and coverage claims rather than only adding a migration changelog entry.
+Every accepted behavioral rule must appear in the new `spec.md`. Verbose execution detail may additionally remain in a runtime reference linked from `SKILL.md` after the spec defines the observable contract; non-behavior content must be identified as obsolete or intentionally changed. After rendering, compare the old and new runtime surfaces and account for every removed rule. Search README and provenance docs for stale artifact paths, prompt locations, runtime-section claims, frontmatter descriptions, and coverage claims rather than only adding a migration changelog entry.
 
 ## Ask Your Agent to Adopt the Skill
 

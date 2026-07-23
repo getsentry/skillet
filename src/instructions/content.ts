@@ -30,7 +30,7 @@ Writing rules:
 Existing-skill migration:
 - Read the current SKILL.md, legacy specs, runtime references, and nearby maintenance docs before drafting. Treat them as source evidence, not prose to compress immediately.
 - Inventory positive and negative triggers, ordered workflow, exact candidate lists, protocols and output formats, numeric limits, failure and stopping rules, safety constraints, and runtime references.
-- Represent every accepted item in spec.md or explicitly retain, relocate, supersede, or reject it. Exact thresholds, enumerations, and prompt contracts are behavior even when their wording is long.
+- Represent every accepted behavioral rule in spec.md. Verbose protocols and template text may additionally remain in or move to linked runtime references after the spec defines the observable contract; explicitly supersede or reject non-behavior content.
 - After drafting, compare the inventory with spec.md and fix omissions before rendering SKILL.md. Preserve legacy source files until the new contract has been validated.
 
 After writing: run 'skillet validate' and fix every error; warnings are judgment calls.`;
@@ -50,7 +50,7 @@ Body rules:
 - Keep authoring meta-content out of ordinary skills. Mention specs, evals, or Skillet only when the skill's own purpose requires them.
 
 Existing-skill migration:
-- Rewrite for execution, but do not treat exact formats, thresholds, enumerations, delegation rules, or stop conditions as expendable implementation detail.
+- Rewrite for execution, but do not treat exact formats, thresholds, enumerations, delegation rules, or stop conditions as expendable implementation detail. Preserve their observable contracts in spec.md before placing verbose execution detail in SKILL.md or linked references.
 - Move long operational protocols or prompt templates to references/<topic>.md when that improves readability, and link them from SKILL.md at the decision point where the agent must load them.
 - Compare the rendered runtime with the legacy SKILL.md and account for every removed rule. If the new spec does not justify the removal, fix spec.md before continuing.
 - Search nearby README or provenance docs for old artifact paths, prompt locations, runtime-section claims, frontmatter descriptions, and coverage claims; update every stale statement instead of only adding a migration note.

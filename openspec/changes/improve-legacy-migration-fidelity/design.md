@@ -17,11 +17,11 @@ Before drafting `spec.md` for an existing skill, the agent inventories behavior-
 - safety constraints and user-work preservation
 - runtime references and docs that describe the active contract
 
-Every item must land in `spec.md`, remain in a linked runtime reference, or be explicitly identified as obsolete or intentionally changed. This is a reconciliation task rather than a requirement to copy all prose.
+Every accepted behavioral rule must land in `spec.md`. Verbose execution detail may additionally remain in a linked runtime reference after the spec defines the observable contract; non-behavior content must be explicitly identified as obsolete or intentionally changed. This is a reconciliation task rather than a requirement to copy all prose.
 
 ## Rendering Existing Skills
 
-The skill-rendering instructions continue to favor concise runtime text. They additionally distinguish removable prose from operational specificity: exact formats, thresholds, enumerations, and prompt contracts are behavior. Long material can move to `references/`, but the rendered skill must say when to open it.
+The skill-rendering instructions continue to favor concise runtime text. They additionally distinguish removable prose from operational specificity: exact formats, thresholds, enumerations, and prompt contracts are behavior and must be represented in `spec.md`. Long supporting material can move to `references/`, but the rendered skill must say when to open it.
 
 After rendering, the agent compares the old and new runtime surfaces and accounts for removed behavior before validation and eval work.
 
