@@ -1,9 +1,7 @@
-# Skill Loader Specification
+# Skill Loader Delta
 
-## Purpose
+## MODIFIED Requirements
 
-The skill loader locates a skill directory, parses SKILL.md frontmatter, and installs the skill into eval workspaces through each harness's native mechanism (`.claude/skills/` for claude, workspace AGENTS.md for codex, `skill_dir` for custom harnesses).
-## Requirements
 ### Requirement: Skill Root Discovery
 
 The system SHALL locate the skill root by finding the nearest directory containing an exact-case `spec.md` or `SKILL.md`, searching from the provided path upward. Uppercase `SPEC.md` SHALL NOT satisfy the active `spec.md` requirement on case-insensitive filesystems.
@@ -26,27 +24,6 @@ The system SHALL locate the skill root by finding the nearest directory containi
 - GIVEN a path with no exact-case `spec.md` or `SKILL.md` in it or any parent
 - WHEN discovery runs
 - THEN the system reports that no skill was found at or above the path and exits with code 1
-
-### Requirement: Frontmatter Parsing
-
-The system SHALL parse YAML frontmatter from `SKILL.md` to extract skill metadata.
-
-#### Scenario: Standard frontmatter
-- GIVEN a SKILL.md beginning with:
-  ```
-  ---
-  name: commit
-  description: Creates commits following Sentry conventions.
-  ---
-  ```
-- WHEN parsed
-- THEN `name` is "commit" and `description` is "Creates commits following Sentry conventions."
-
-#### Scenario: No frontmatter
-- GIVEN a SKILL.md with no `---` delimited frontmatter
-- WHEN parsed
-- THEN the entire file content is treated as the skill body
-- AND name defaults to the directory name
 
 ### Requirement: Skill Directory Structure
 

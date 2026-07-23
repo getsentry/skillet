@@ -74,6 +74,14 @@ Link each reference with a sentence that says when to read it. Do not make the a
 
 ## Validate and Evaluate
 
+`skillet validate` can check:
+
+- required frontmatter
+- whether `spec_hash` matches the current spec
+- eval case schemas and behavior coverage
+
+It cannot mechanically decide whether the prose in `SKILL.md` expresses every behavior correctly. A behavior-name list or comment marker could be present without meaningful instructions, and semantic checking would require an agent or judge. Use eval cases to test the behavior that the prose is meant to produce.
+
 ```bash
 skillet validate
 skillet eval --trials 3 --baseline

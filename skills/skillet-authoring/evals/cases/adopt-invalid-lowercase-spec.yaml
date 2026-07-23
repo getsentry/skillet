@@ -1,0 +1,16 @@
+behavior: status-drives-the-flow
+fixture: legacy-lowercase-spec
+prompt: |
+  Adopt the existing skill in legacy-skill/ into Skillet. Preserve its current
+  documentation, create the Skillet artifacts it needs, and add eval coverage.
+  The skillet CLI is on PATH.
+checks:
+  - file_exists: legacy-skill/legacy-spec.md
+  - shell: skillet validate legacy-skill
+  - shell: test -n "$(find legacy-skill/evals/cases -name '*.yaml' -print -quit)"
+  - judge: >
+      The agent used skillet status before editing, recognized that the existing
+      lowercase spec.md was not valid Skillet format, preserved it under a
+      distinct name, derived a valid replacement before re-rendering SKILL.md,
+      and added eval coverage for the resulting behaviors.
+timeout: 600

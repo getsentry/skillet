@@ -1,8 +1,10 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { loadCases } from "./evals/case.js";
+import { hasExactFile } from "./files.js";
 import { parseFrontmatter } from "./skill/frontmatter.js";
+import { parseSpec } from "./spec/parser.js";
 
 /** Staleness only exists for present artifacts. */
 export type ArtifactStatus = { path: string } & (
@@ -13,11 +15,12 @@ export type ArtifactStatus = { path: string } & (
 export interface SkillStatus {
   root: string;
   /** hash identifies the spec content; SKILL.md records it as spec_hash. */
-  spec: { path: string; present: boolean; hash?: string };
+  spec: { path: string; present: boolean; hash?: string; valid?: boolean };
   skill: ArtifactStatus;
   evals: { path: string; caseCount: number };
   legacy: {
     specYaml: boolean;
+    specMarkdown: boolean;
   };
   /** The single next action, phrased for both humans and agents. */
   next: string;
@@ -51,12 +54,23 @@ export const skillStatus = (root: string): SkillStatus => {
   const specPath = join(root, "spec.md");
   const skillPath = join(root, "SKILL.md");
 
-  const specPresent = existsSync(specPath);
-  const skillPresent = existsSync(skillPath);
+  const specPresent = hasExactFile(root, "spec.md");
+  const skillPresent = hasExactFile(root, "SKILL.md");
   const caseCount = specPresent || skillPresent ? loadCases(root).cases.length : 0;
   const hash = specPresent ? specHash(specPath) : undefined;
+  const specValid = specPresent
+    ? (() => {
+        const parsed = parseSpec(readFileSync(specPath, "utf8"));
+        return parsed.spec != null && !parsed.issues.some((issue) => issue.severity === "error");
+      })()
+    : undefined;
 
-  const spec = { present: specPresent, path: "spec.md", ...(hash != null && { hash }) };
+  const spec = {
+    present: specPresent,
+    path: "spec.md",
+    ...(hash != null && { hash }),
+    ...(specValid != null && { valid: specValid }),
+  };
   const skill: ArtifactStatus = skillPresent
     ? {
         present: true,
@@ -66,10 +80,16 @@ export const skillStatus = (root: string): SkillStatus => {
     : { present: false, path: "SKILL.md" };
   const evals = { path: "evals/cases/", caseCount };
 
-  const legacy = { specYaml: existsSync(join(root, "spec.yaml")) };
+  const legacy = {
+    specYaml: hasExactFile(root, "spec.yaml"),
+    specMarkdown: hasExactFile(root, "SPEC.md"),
+  };
 
   let next: string;
-  if (!specPresent && legacy.specYaml) {
+  if (!specPresent && legacy.specMarkdown) {
+    next =
+      "Legacy SPEC.md detected — preserve or rename it, then derive lowercase spec.md from SKILL.md and the legacy document ('skillet instructions spec' has the format).";
+  } else if (!specPresent && legacy.specYaml) {
     next =
       "Legacy spec.yaml detected — write spec.md preserving its intent ('skillet instructions spec' has the format).";
   } else if (!specPresent && skillPresent) {
@@ -77,6 +97,9 @@ export const skillStatus = (root: string): SkillStatus => {
       "SKILL.md exists without a spec — derive spec.md from it ('skillet instructions spec' has the format).";
   } else if (!specPresent) {
     next = "Write spec.md ('skillet instructions spec' has the template and rules).";
+  } else if (specValid === false) {
+    next =
+      "spec.md exists but is not a valid Skillet spec — preserve or rename it if it contains legacy documentation, then fix or derive its Intent, Triggers, Behaviors, and scenarios before rendering SKILL.md ('skillet instructions spec').";
   } else if (!skillPresent) {
     next = "Render SKILL.md from the spec ('skillet instructions skill').";
   } else if (skill.present && skill.stale) {

@@ -53,7 +53,10 @@ export const run = (argv: string[]): number => {
       skill: report.skill,
       cases: report.cases,
       coverageIssues: report.coverage,
-      behaviorIds: report.parsedSpec?.behaviors.map((b) => b.id) ?? [],
+      coverageChecked: report.coverageChecked,
+      behaviorIds: report.coverageChecked
+        ? (report.parsedSpec?.behaviors.map((b) => b.id) ?? [])
+        : [],
       caseCount: report.evalCases.length,
     };
     emitJson(payload);
@@ -63,8 +66,13 @@ export const run = (argv: string[]): number => {
   print(`Validation: ${root}`);
   printIssues("spec.md", report.spec);
   printIssues("SKILL.md", report.skill);
-  printIssues("eval cases", report.cases);
-  printIssues("coverage", report.coverage);
+  const caseWord = report.evalCases.length === 1 ? "file" : "files";
+  printIssues(`eval cases (${report.evalCases.length} ${caseWord})`, report.cases);
+  if (report.coverageChecked) {
+    printIssues("coverage", report.coverage);
+  } else {
+    print("  coverage: not checked (valid spec.md required)");
+  }
   print(report.ok ? "\nValid." : "\nInvalid — fix the errors above.");
   return report.ok ? 0 : 1;
 };

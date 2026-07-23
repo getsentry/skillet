@@ -64,7 +64,10 @@ export const run = (argv: string[]): number => {
 
   const skillStale = status.skill.present && status.skill.stale;
   print(`Skill: ${status.root}`);
-  print(`${mark(status.spec.present)} spec.md`);
+  const specInvalid = status.spec.present && status.spec.valid === false;
+  print(
+    `${specInvalid ? "[!]" : mark(status.spec.present)} spec.md${specInvalid ? " (invalid Skillet format)" : ""}`,
+  );
   print(
     `${mark(status.skill.present, skillStale)} SKILL.md${skillStale ? " (stale — spec.md is newer)" : ""}`,
   );
@@ -72,6 +75,9 @@ export const run = (argv: string[]): number => {
   print(`${mark(status.evals.caseCount > 0)} evals/cases/ (${status.evals.caseCount} ${caseWord})`);
   if (status.legacy.specYaml) {
     print(`    legacy spec.yaml present`);
+  }
+  if (status.legacy.specMarkdown) {
+    print(`    legacy SPEC.md present (not Skillet format)`);
   }
   print(``);
   print(`Next: ${status.next}`);

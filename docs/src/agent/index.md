@@ -17,10 +17,19 @@ Ask your coding agent to create or improve a skill. The authoring skill uses the
 
 Skillet does not claim that a passing eval makes a skill universally correct. Evals give you repeatable evidence for the scenarios you define and a way to keep improving the skill.
 
+## Set Up Skillet
+
+Paste this into your coding agent:
+
+```text
+Install the skillet-authoring skill from https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring in user scope for me.
+```
+
 ## Start Here
 
 - [Quickstart](/quickstart.md)
 - [Create Your First Skill](/first-skill.md)
+- [Adopt an Existing Skill](/existing-skill.md)
 - [Examples](/examples.md)
 
 ## Build a Skill

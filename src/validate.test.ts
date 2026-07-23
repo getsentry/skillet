@@ -53,13 +53,42 @@ describe("validateSkill", () => {
     addCase(root);
     const report = validateSkill(root);
     expect(report.ok).toBe(true);
+    expect(report.coverageChecked).toBe(true);
     expect(report.evalCases).toHaveLength(1);
   });
 
   it("errors when spec.md is missing", () => {
     const report = validateSkill(makeRoot());
     expect(report.ok).toBe(false);
+    expect(report.coverageChecked).toBe(false);
     expect(report.spec.some((i) => i.severity === "error")).toBe(true);
+  });
+
+  it("marks uppercase SPEC.md as legacy and leaves coverage unchecked", () => {
+    const root = makeRoot();
+    writeFileSync(join(root, "SPEC.md"), "# Legacy\n\n## Scope\n\nOld format.\n");
+    writeFileSync(join(root, "SKILL.md"), "---\nname: demo\ndescription: d\n---\n");
+    const report = validateSkill(root);
+
+    expect(report.ok).toBe(false);
+    expect(report.parsedSpec).toBeNull();
+    expect(report.coverageChecked).toBe(false);
+    expect(report.coverage).toEqual([]);
+    expect(report.spec[0]?.message).toContain("uppercase SPEC.md");
+  });
+
+  it("checks case schemas but not coverage when spec.md is invalid", () => {
+    const root = makeRoot();
+    writeFileSync(join(root, "spec.md"), "# Broken\n\n## Intent\n\nMissing behaviors.\n");
+    writeFileSync(join(root, "SKILL.md"), "---\nname: demo\ndescription: d\n---\n");
+    addCase(root);
+    const report = validateSkill(root);
+
+    expect(report.ok).toBe(false);
+    expect(report.evalCases).toHaveLength(1);
+    expect(report.cases).toEqual([]);
+    expect(report.coverageChecked).toBe(false);
+    expect(report.coverage).toEqual([]);
   });
 
   it("treats a missing SKILL.md as a warning, not an error", () => {

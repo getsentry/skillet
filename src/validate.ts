@@ -1,7 +1,8 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { checkCoverage } from "./coverage.js";
 import { listFixtures, loadCases, type EvalCase } from "./evals/case.js";
+import { hasExactFile } from "./files.js";
 import { parseFrontmatter } from "./skill/frontmatter.js";
 import { parseSpec } from "./spec/parser.js";
 import type { ParsedSpec, Issue } from "./spec/types.js";
@@ -12,6 +13,7 @@ export interface ValidationReport {
   skill: Issue[];
   cases: Issue[];
   coverage: Issue[];
+  coverageChecked: boolean;
   parsedSpec: ParsedSpec | null;
   evalCases: EvalCase[];
 }
@@ -19,7 +21,7 @@ export interface ValidationReport {
 /** SKILL.md frontmatter rules (validation spec). */
 const validateSkillMd = (root: string): Issue[] => {
   const path = join(root, "SKILL.md");
-  if (!existsSync(path)) {
+  if (!hasExactFile(root, "SKILL.md")) {
     return [
       {
         severity: "warning",
@@ -49,7 +51,7 @@ const validateSkillMd = (root: string): Issue[] => {
       });
     }
   }
-  if (existsSync(join(root, "spec.md")) && typeof meta["spec_hash"] !== "string") {
+  if (hasExactFile(root, "spec.md") && typeof meta["spec_hash"] !== "string") {
     issues.push({
       severity: "warning",
       message: "SKILL.md frontmatter has no spec_hash",
@@ -69,22 +71,31 @@ export const validateSkill = (root: string): ValidationReport => {
   const specIssues: Issue[] = [];
   let parsedSpec: ParsedSpec | null = null;
 
-  if (existsSync(specPath)) {
+  if (hasExactFile(root, "spec.md")) {
     const parsed = parseSpec(readFileSync(specPath, "utf8"));
     specIssues.push(...parsed.issues);
     parsedSpec = parsed.spec;
   } else {
+    const legacySpec = hasExactFile(root, "SPEC.md");
     specIssues.push({
       severity: "error",
-      message: "spec.md not found",
-      hint: "Every skill needs a spec — 'skillet new' scaffolds one; legacy skills get one via 'skillet instructions spec'.",
+      message: legacySpec
+        ? "spec.md not found; uppercase SPEC.md is a legacy document, not a Skillet spec"
+        : "spec.md not found",
+      hint: legacySpec
+        ? "Preserve or rename SPEC.md, then derive lowercase spec.md from SKILL.md and the legacy document ('skillet instructions spec' has the format)."
+        : "Every skill needs a spec — 'skillet new' scaffolds one; existing skills get one via 'skillet instructions spec'.",
     });
   }
 
   const skillIssues = validateSkillMd(root);
   const { cases, issues: caseIssues } = loadCases(root);
+  const coverageChecked =
+    parsedSpec != null && !specIssues.some((issue) => issue.severity === "error");
   const coverageIssues =
-    parsedSpec != null ? checkCoverage(parsedSpec, cases, listFixtures(root)) : [];
+    coverageChecked && parsedSpec != null
+      ? checkCoverage(parsedSpec, cases, listFixtures(root))
+      : [];
 
   const all = [...specIssues, ...skillIssues, ...caseIssues, ...coverageIssues];
   return {
@@ -93,6 +104,7 @@ export const validateSkill = (root: string): ValidationReport => {
     skill: skillIssues,
     cases: caseIssues,
     coverage: coverageIssues,
+    coverageChecked,
     parsedSpec,
     evalCases: cases,
   };

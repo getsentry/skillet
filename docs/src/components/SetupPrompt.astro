@@ -1,0 +1,51 @@
+---
+const prompt =
+  "Install the skillet-authoring skill from https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring in user scope for me.";
+---
+
+<section class="skillet-setup-prompt">
+  <div class="skillet-section-heading">
+    <p class="skillet-kicker">One-prompt setup</p>
+    <h2>Paste this into your agent.</h2>
+    <p>
+      The
+      <a href="https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring"
+        ><code>skillet-authoring</code> skill</a
+      > already knows how to call Skillet when it needs the CLI.
+    </p>
+  </div>
+
+  <div class="skillet-prompt-window" data-setup-prompt>
+    <div class="skillet-prompt-header">
+      <span>setup-prompt.txt</span>
+      <button type="button" data-copy-prompt>Copy prompt</button>
+    </div>
+    <pre><code>{prompt}</code></pre>
+  </div>
+</section>
+
+<script>
+  for (const button of document.querySelectorAll("[data-copy-prompt]")) {
+    button.addEventListener("click", async () => {
+      const prompt = button.closest("[data-setup-prompt]")?.querySelector("code")?.textContent;
+      if (!prompt) return;
+
+      try {
+        await navigator.clipboard.writeText(prompt);
+        button.textContent = "Copied";
+      } catch {
+        const code = button.closest("[data-setup-prompt]")?.querySelector("code");
+        if (!code) return;
+
+        const range = document.createRange();
+        range.selectNodeContents(code);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        button.textContent = "Press ⌘C";
+      }
+
+      setTimeout(() => (button.textContent = "Copy prompt"), 1600);
+    });
+  }
+</script>

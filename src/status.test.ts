@@ -4,7 +4,27 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { skillStatus } from "./status.js";
 
-const SPEC = "# Demo\n\n## Intent\n\nDo the thing.\n";
+const SPEC = `# Demo
+
+## Intent
+
+Do the thing.
+
+## Triggers
+
+- **SHOULD** apply when asked
+
+## Behaviors
+
+### Behavior: B
+
+The agent SHALL create output.
+
+#### Scenario: Simple
+
+- **WHEN** asked
+- **THEN** output exists
+`;
 const CASE = "behavior: b\nprompt: p\nchecks:\n  - file_exists: out.txt\n";
 
 const dirs: string[] = [];
@@ -34,6 +54,18 @@ describe("skillStatus next-step ladder", () => {
     expect(status.next).toContain("preserving its intent");
   });
 
+  it("treats uppercase SPEC.md as legacy instead of active spec.md", () => {
+    const root = makeRoot();
+    writeFileSync(join(root, "SPEC.md"), "# Legacy\n\n## Scope\n\nOld format.\n");
+    writeFileSync(join(root, "SKILL.md"), skillMd());
+    const status = skillStatus(root);
+
+    expect(status.spec.present).toBe(false);
+    expect(status.legacy.specMarkdown).toBe(true);
+    expect(status.next).toContain("Legacy SPEC.md detected");
+    expect(status.next).toContain("preserve or rename");
+  });
+
   it("directs a bare SKILL.md toward deriving spec.md from it", () => {
     const root = makeRoot();
     writeFileSync(join(root, "SKILL.md"), skillMd());
@@ -45,8 +77,21 @@ describe("skillStatus next-step ladder", () => {
     writeFileSync(join(root, "spec.md"), SPEC);
     const status = skillStatus(root);
     expect(status.spec.present).toBe(true);
+    expect(status.spec.valid).toBe(true);
+    expect(status.legacy.specMarkdown).toBe(false);
     expect(status.spec.hash).toMatch(/^[0-9a-f]{12}$/);
     expect(status.next).toContain("Render SKILL.md");
+  });
+
+  it("stops on lowercase spec.md that is not valid Skillet format", () => {
+    const root = makeRoot();
+    writeFileSync(join(root, "spec.md"), "# Legacy\n\n## Scope\n\nOld format.\n");
+    writeFileSync(join(root, "SKILL.md"), skillMd());
+    const status = skillStatus(root);
+
+    expect(status.spec).toMatchObject({ present: true, valid: false });
+    expect(status.next).toContain("not a valid Skillet spec");
+    expect(status.next).toContain("before rendering SKILL.md");
   });
 
   it("asks for eval cases when SKILL.md carries the current spec_hash", () => {

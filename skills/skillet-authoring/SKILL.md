@@ -1,7 +1,7 @@
 ---
 name: skillet-authoring
-description: Authors, improves, or migrates agent skills with the Skillet CLI; use when asked to create or write a skill, improve its instructions or evals, diagnose failing evals, or migrate a legacy SKILL.md/spec.yaml skill, but not when merely using an existing skill.
-spec_hash: 9a0baf9a1fcd
+description: Authors, improves, or migrates agent skills with the Skillet CLI; use when asked to create or write a skill, improve its instructions or evals, diagnose failing evals, or migrate a legacy SKILL.md, uppercase SPEC.md, or spec.yaml skill, but not when merely using an existing skill.
+spec_hash: 6172f598d95f
 ---
 
 # Skillet Authoring
@@ -11,6 +11,8 @@ Use the Skillet CLI (`skillet`, or `npx @sentry/skillet`) to build skills spec-f
 ## Steps
 
 1. Run `skillet status <dir> --json` and do what `next` says. For a brand-new skill, `skillet new <name>` first. Never guess a skill's state or start over when artifacts already exist.
+   - When status reports uppercase `SPEC.md`, preserve or rename that legacy document before creating lowercase `spec.md`; never parse it as the active Skillet spec.
+   - When status marks lowercase `spec.md` invalid, preserve or rename legacy content and derive a valid Skillet spec before rendering `SKILL.md` or adding coverage.
 2. Write `spec.md` before anything derived. If the user's intent, triggers, or edge cases are ambiguous, ask 2–4 pointed questions instead of inventing answers.
 3. For every artifact you write (`spec`, `skill`, `evals`), fetch the format first — `skillet instructions <artifact> <dir> --json` — and follow its template and rules exactly.
 4. Run `skillet validate <dir>` after each artifact and fix every error before moving on. Cover every behavior with at least one eval case; validate warns about uncovered behaviors — clear those warnings before calling the skill complete.

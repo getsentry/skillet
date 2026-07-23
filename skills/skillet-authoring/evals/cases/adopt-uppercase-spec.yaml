@@ -1,0 +1,17 @@
+behavior: status-drives-the-flow
+fixture: legacy-uppercase-spec
+prompt: |
+  Adopt the existing skill in legacy-skill/ into Skillet. Preserve its current
+  documentation, create the Skillet artifacts it needs, and add eval coverage.
+  The skillet CLI is on PATH.
+checks:
+  - file_exists: legacy-skill/legacy-SPEC.md
+  - shell: test "$(find legacy-skill -maxdepth 1 -name spec.md -print)" = legacy-skill/spec.md
+  - shell: test -n "$(find legacy-skill/evals/cases -name '*.yaml' -print -quit)"
+  - shell: skillet validate legacy-skill
+  - judge: >
+      The agent used skillet status before editing, treated uppercase SPEC.md as
+      legacy input rather than the active spec, preserved it under a distinct
+      name, derived lowercase spec.md before re-rendering SKILL.md, and added
+      eval coverage for the resulting behaviors.
+timeout: 600
