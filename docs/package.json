@@ -1,6 +1,7 @@
 {
   "name": "@sentry/skillet-docs",
   "version": "0.0.0",
+  "packageManager": "npm@11.15.0",
   "private": true,
   "type": "module",
   "scripts": {

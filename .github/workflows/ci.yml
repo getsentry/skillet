@@ -20,6 +20,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - run: npm install --global npm@11.15.0
       - run: npm ci
       - run: npm run check
 
@@ -32,6 +33,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - run: npm install --global npm@11.15.0
       - run: npm ci
       - run: npm run build
       - name: Verify CLI runs
@@ -54,5 +56,6 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: docs/package-lock.json
+      - run: npm install --global npm@11.15.0
       - run: npm ci --prefix docs
       - run: npm run docs:check

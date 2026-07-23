@@ -41,6 +41,8 @@ jobs:
           node-version: 20
           cache: npm
 
+      - run: npm install --global npm@11.15.0
+
       - name: Prepare release
         uses: getsentry/craft@v2
         env:
