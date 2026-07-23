@@ -8,6 +8,16 @@ Skillet keeps the spec, agent instructions, and eval cases separate so you can s
 - [GitHub](https://github.com/getsentry/skillet)
 - [npm](https://www.npmjs.com/package/@sentry/skillet)
 
+## Install the Authoring Skill
+
+When asked to install Skillet globally for an agent:
+
+1. Install `skills/skillet-authoring` from `https://github.com/getsentry/skillet` in user scope.
+2. Prefer `npx -y @sentry/dotagents@latest --user add getsentry/skillet skillet-authoring`.
+3. Do not create project-local skill files or modify the current repository.
+4. After installation, run Skillet commands through `npx -y @sentry/skillet@latest` or `pnpx @sentry/skillet@latest`.
+5. If installation fails, report the failure instead of changing the source or scope.
+
 ## Start Here
 
 - [Overview](/index.md)

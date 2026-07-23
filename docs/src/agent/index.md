@@ -24,8 +24,16 @@ Skillet does not claim that a passing eval makes a skill universally correct. Ev
 Paste this into your coding agent:
 
 ```text
-Install the skillet-authoring skill from https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring in user scope for me.
+Install the skillet-authoring skill globally from https://github.com/getsentry/skillet.
 ```
+
+If you are the agent handling that request:
+
+1. Install `skills/skillet-authoring` from the repository in user scope, not in the current project.
+2. Prefer `npx -y @sentry/dotagents@latest --user add getsentry/skillet skillet-authoring`.
+3. Do not create project-local skill files or modify the user's repository.
+4. Use `npx -y @sentry/skillet@latest` or `pnpx @sentry/skillet@latest` for later Skillet commands.
+5. If installation fails, stop and explain the failure instead of changing the source or scope.
 
 ## Start Here
 
