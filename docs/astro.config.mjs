@@ -13,6 +13,9 @@ export default defineConfig({
       description: "Build agent skills from a spec, evaluate them, and improve them over time.",
       favicon: "/favicon.svg",
       customCss: ["./src/styles/custom.css"],
+      components: {
+        SiteTitle: "./src/components/SiteTitle.astro",
+      },
       pagination: true,
       sidebar: [
         {

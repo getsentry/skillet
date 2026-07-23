@@ -66,6 +66,24 @@
   padding: 0.1em 0.34em;
 }
 
+.skillet-site-title {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+}
+
+.skillet-site-title .skillet-header-link {
+  color: var(--ve-text-secondary);
+  font-family: var(--__sl-font-mono);
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.skillet-site-title .skillet-header-link:hover {
+  color: var(--ve-text);
+}
+
 .skillet-home {
   margin-inline: auto;
   max-width: 70rem;
