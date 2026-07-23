@@ -53,6 +53,36 @@ describe("createWorkspace", () => {
     expect(staged).not.toContain("setup.sh");
   });
 
+  it("does not inherit repository-local Git state", () => {
+    const root = makeSkillRoot();
+    const sourceRepo = join(root, "source");
+    mkdirSync(sourceRepo);
+    execFileSync("git", ["init", "-q"], { cwd: sourceRepo });
+
+    const previousGitDir = process.env.GIT_DIR;
+    const previousGitWorkTree = process.env.GIT_WORK_TREE;
+    const previousGitIndexFile = process.env.GIT_INDEX_FILE;
+    process.env.GIT_DIR = join(sourceRepo, ".git");
+    process.env.GIT_WORK_TREE = sourceRepo;
+    process.env.GIT_INDEX_FILE = join(sourceRepo, ".git", "index");
+
+    try {
+      const ws = createWorkspace({
+        skillRoot: root,
+        setup: "git init -q . && test -d .git && touch workspace.txt && git add -A",
+      });
+      dirs.push(ws.dir);
+      expect(existsSync(join(ws.dir, ".git"))).toBe(true);
+    } finally {
+      if (previousGitDir == null) delete process.env.GIT_DIR;
+      else process.env.GIT_DIR = previousGitDir;
+      if (previousGitWorkTree == null) delete process.env.GIT_WORK_TREE;
+      else process.env.GIT_WORK_TREE = previousGitWorkTree;
+      if (previousGitIndexFile == null) delete process.env.GIT_INDEX_FILE;
+      else process.env.GIT_INDEX_FILE = previousGitIndexFile;
+    }
+  });
+
   it("throws SetupError and removes the workspace when setup fails", () => {
     const root = makeSkillRoot();
     // The failing setup script leaks its cwd (the workspace path) to a

@@ -48,7 +48,7 @@ Migrating an existing skill is a reconciliation pass, not a compression pass. Be
 Each trial follows the same sequence:
 
 1. Create a fresh temporary workspace and copy the case fixture, if configured.
-2. Run the case's `setup` script. A non-zero exit or timeout ends the trial as an error.
+2. Run the case's `setup` script without repository-local Git environment variables from the caller. A non-zero exit or timeout ends the trial as an error.
 3. Install the skill using the selected harness's native mechanism. Baseline trials skip this step.
 4. Run the agent CLI on the case prompt and capture its transcript and final response.
 5. Run deterministic `file_exists` and `shell` checks against the workspace.
