@@ -74,7 +74,7 @@
 }
 
 .skillet-setup-prompt {
-  margin: 1rem auto 3.25rem;
+  margin: 1rem auto 1.75rem;
   max-width: 70rem;
   width: 100%;
 }
@@ -152,7 +152,8 @@
   color: #08080c;
 }
 
-.sl-markdown-content .skillet-setup-action-primary {
+.sl-markdown-content .skillet-setup-action-primary,
+.sl-markdown-content .skillet-setup-action-primary:hover {
   color: #08080c;
 }
 
