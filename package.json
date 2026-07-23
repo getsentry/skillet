@@ -1,6 +1,6 @@
 {
   "name": "@sentry/skillet",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Spec-driven agent skills with mechanical evals",
   "type": "module",
   "bin": {
