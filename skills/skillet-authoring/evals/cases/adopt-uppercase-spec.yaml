@@ -15,7 +15,7 @@ checks:
       name, derived lowercase spec.md before re-rendering SKILL.md, and added
       eval coverage for the resulting behaviors. The new spec and runtime skill
       preserve all three concrete legacy contracts: list affected files before
-      deletion, ask for confirmation only when deleting more than ten files,
+      deletion, ask for confirmation when deleting more than ten files,
       and never delete unrelated user files. A shorter rewrite that weakens the
       exact threshold or drops one of those rules does not pass.
 timeout: 600

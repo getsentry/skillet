@@ -48,7 +48,7 @@ When migrating an existing skill, the agent SHALL inventory behavior-bearing mat
 
 #### Scenario: Adopt a skill with an exact deletion threshold
 
-- **GIVEN** a legacy skill lists files before deletion, asks for confirmation only before deleting more than ten files, and forbids deleting unrelated files
+- **GIVEN** a legacy skill lists files before deletion, asks for confirmation before deleting more than ten files, and forbids deleting unrelated files
 - **WHEN** the agent adopts the skill into Skillet
 - **THEN** the lowercase spec and rendered runtime preserve the listing rule, the exact more-than-ten threshold, and the unrelated-file constraint while any moved detail remains linked from SKILL.md
 
