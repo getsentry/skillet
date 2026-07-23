@@ -64,7 +64,10 @@ export const run = (argv: string[]): number => {
 
   const skillStale = status.skill.present && status.skill.stale;
   print(`Skill: ${status.root}`);
-  print(`${mark(status.spec.present)} spec.md`);
+  const specInvalid = status.spec.present && status.spec.valid === false;
+  print(
+    `${specInvalid ? "[!]" : mark(status.spec.present)} spec.md${specInvalid ? " (invalid Skillet format)" : ""}`,
+  );
   print(
     `${mark(status.skill.present, skillStale)} SKILL.md${skillStale ? " (stale — spec.md is newer)" : ""}`,
   );

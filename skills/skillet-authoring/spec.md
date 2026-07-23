@@ -28,6 +28,11 @@ The agent SHALL consult `skillet status <dir> --json` before producing artifacts
 - **WHEN** asked to adopt an existing skill that has SKILL.md and uppercase SPEC.md but no lowercase spec.md
 - **THEN** the agent preserves or renames the legacy document, derives lowercase spec.md first as status directs, then renders current instructions and adds behavior coverage
 
+#### Scenario: Adopt a skill with an incompatible lowercase spec.md
+
+- **WHEN** asked to adopt an existing skill whose lowercase spec.md uses a different structure and fails Skillet validation
+- **THEN** the agent preserves or renames the legacy content, derives a valid Skillet spec.md before rendering SKILL.md, then adds behavior coverage
+
 ### Behavior: Spec precedes derived artifacts
 
 The agent SHALL write and validate spec.md before rendering SKILL.md or eval cases.

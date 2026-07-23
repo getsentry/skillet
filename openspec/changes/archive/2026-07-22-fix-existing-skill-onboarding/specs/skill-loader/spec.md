@@ -40,3 +40,7 @@ A skill directory SHALL contain exact-case `spec.md` (source of truth), `SKILL.m
 #### Scenario: Legacy uppercase Markdown spec detected
 - **WHEN** a directory contains `SKILL.md` and uppercase `SPEC.md` but no exact lowercase `spec.md`
 - **THEN** status reports `SPEC.md` as a non-Skillet legacy document and directs the agent to preserve or rename it before deriving lowercase `spec.md`
+
+#### Scenario: Lowercase spec uses another format
+- **WHEN** a directory contains exact lowercase `spec.md` that does not pass the Skillet grammar
+- **THEN** status marks `spec.md` invalid and directs the agent to preserve legacy content and derive a valid Skillet spec before rendering `SKILL.md` or adding coverage

@@ -19,6 +19,8 @@ Skillet recognizes exact artifact names:
 
 An uppercase `SPEC.md` is useful migration input, but Skillet does not parse it as the active spec.
 
+An existing lowercase `spec.md` is not automatically a Skillet spec either. If it does not contain valid Intent, Triggers, Behaviors, and WHEN/THEN scenarios, `skillet status` marks it invalid and stops before `SKILL.md` rendering or coverage work.
+
 ## Preserve the Existing Files
 
 If the directory contains uppercase `SPEC.md`, preserve or rename it before creating lowercase `spec.md`:
@@ -30,6 +32,8 @@ mv SPEC.md legacy-SPEC.md
 This rename is required on case-insensitive filesystems, which cannot keep `SPEC.md` and `spec.md` as separate files.
 
 Do not overwrite the existing `SKILL.md`. Use it and the legacy document as source material for the new behavior contract.
+
+If the legacy document is already named lowercase `spec.md`, rename or copy it first, then create the Skillet-format `spec.md`.
 
 ## Ask Your Agent to Adopt the Skill
 
