@@ -1,4 +1,5 @@
 import { specTemplate } from "../spec/template.js";
+import { CURRENT_SKILLET } from "../invocation.js";
 
 export type ArtifactId = "spec" | "skill" | "evals";
 
@@ -11,7 +12,7 @@ export interface Instructions {
 
 const SPEC_INSTRUCTIONS = `Write spec.md — the source of truth for this skill's intent. SKILL.md and eval cases are derived from it; humans review intent by reading its diffs.
 
-Grammar (validated by 'skillet validate'):
+Grammar (validated by '${CURRENT_SKILLET} validate'):
 - "# <Skill Name>" title, then "## Intent", "## Triggers", "## Behaviors", optional "## Constraints".
 - Behaviors are "### Behavior: <name>" (exactly three hashes) with normative SHALL/MUST prose.
 - Every behavior needs at least one "#### Scenario: <name>" (exactly four hashes) with "- **WHEN** ..." and "- **THEN** ..." bullets. GIVEN/AND bullets are also accepted.
@@ -33,14 +34,14 @@ Existing-skill migration:
 - Represent every accepted behavioral rule in spec.md. Verbose protocols and template text may additionally remain in or move to linked runtime references after the spec defines the observable contract; explicitly supersede or reject non-behavior content.
 - After drafting, compare the inventory with spec.md and fix omissions before rendering SKILL.md. Preserve legacy source files until the new contract has been validated.
 
-After writing: run 'skillet validate' and fix every error; warnings are judgment calls.`;
+After writing: run '${CURRENT_SKILLET} validate' and fix every error; warnings are judgment calls.`;
 
 const SKILL_INSTRUCTIONS = `Render SKILL.md from spec.md. The spec states intent; SKILL.md is the instruction text an agent actually loads. Rewrite, don't copy — spec grammar (SHALL, scenarios) is for validation, not for the agent reading the skill.
 
 Frontmatter (required):
 - name: the skill slug.
 - description: third person, one sentence of what it does plus the concrete trigger conditions ("Use when...") — this is the ONLY text the agent sees before deciding to load the skill, so pack the spec's SHOULD triggers into it and honor the SHOULD NOT side by not overclaiming.
-- spec_hash: copy the value from 'skillet status --json' (.spec.hash). It ties this render to the spec content so 'skillet status' can detect staleness reliably.
+- spec_hash: copy the value from '${CURRENT_SKILLET} status --json' (.spec.hash). It ties this render to the spec content so status can detect staleness reliably.
 
 Body rules:
 - Imperative voice, written to the agent ("Run...", "Never...", not "The agent shall...").
@@ -55,7 +56,7 @@ Existing-skill migration:
 - Compare the rendered runtime with the legacy SKILL.md and account for every removed rule. If the new spec does not justify the removal, fix spec.md before continuing.
 - Search nearby README or provenance docs for old artifact paths, prompt locations, runtime-section claims, frontmatter descriptions, and coverage claims; update every stale statement instead of only adding a migration note.
 
-After writing: 'skillet validate' checks frontmatter; 'skillet eval' runs the cases.`;
+After writing: '${CURRENT_SKILLET} validate' checks frontmatter; '${CURRENT_SKILLET} eval' runs the cases.`;
 
 const EVALS_INSTRUCTIONS = `Write eval cases under evals/cases/ — one YAML file per case, at least one case per behavior in spec.md (uncovered behaviors are validation warnings). Name the file after the behavior it tests (e.g. commit-message-format.yaml).
 
@@ -81,10 +82,10 @@ Rules that keep evals honest:
 - The workspace after the run is the whole observable record for deterministic checks; transcripts are only visible to judges. Check artifacts, not phrasing.
 - Skill installation itself adds files to the workspace (.claude/ for claude, AGENTS.md for codex). Never assert repo-wide cleanliness; assert that the specific files you care about are unchanged (e.g. git status --porcelain -- . ':(exclude).claude' ':(exclude)AGENTS.md').
 - Fixtures are committed starting states (a repo, a codebase excerpt); setup is for cheap dynamic state (git init, timestamps). Fixture directories must exist — validation fails on dangling slugs.
-- A passing case may also pass without the skill installed. Design cases where the configured agent could plausibly behave differently, then use 'skillet eval --baseline' to compare the observed pass rates with and without the skill.
+- A passing case may also pass without the skill installed. Design cases where the configured agent could plausibly behave differently, then use '${CURRENT_SKILLET} eval --baseline' to compare the observed pass rates with and without the skill.
 - Set trials > 1 only for behaviors you have seen flake; otherwise keep runs cheap.
 
-After writing: 'skillet validate' (schema + coverage), then 'skillet eval' to run.`;
+After writing: '${CURRENT_SKILLET} validate' (schema + coverage), then '${CURRENT_SKILLET} eval' to run.`;
 
 /** Minimal YAML case skeleton; the full schema lives in EVALS_INSTRUCTIONS. */
 const EVALS_TEMPLATE = `behavior: <behavior-id>
@@ -105,7 +106,7 @@ const PAYLOADS: Record<ArtifactId, Instructions> = {
   skill: {
     artifact: "skill",
     outputPath: "SKILL.md",
-    template: `---\nname: <slug>\ndescription: <what it does + when to use it>\nspec_hash: <from skillet status --json .spec.hash>\n---\n\n# <Skill Name>\n\n<instructions to the agent>\n`,
+    template: `---\nname: <slug>\ndescription: <what it does + when to use it>\nspec_hash: <from ${CURRENT_SKILLET} status --json .spec.hash>\n---\n\n# <Skill Name>\n\n<instructions to the agent>\n`,
     instructions: SKILL_INSTRUCTIONS,
   },
   evals: {

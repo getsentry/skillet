@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { CURRENT_SKILLET } from "./invocation.js";
 import { loadCases } from "./evals/case.js";
 import { hasExactFile } from "./files.js";
 import { parseFrontmatter } from "./skill/frontmatter.js";
@@ -87,28 +88,23 @@ export const skillStatus = (root: string): SkillStatus => {
 
   let next: string;
   if (!specPresent && legacy.specMarkdown) {
-    next =
-      "Legacy SPEC.md detected — preserve or rename it, then derive lowercase spec.md from SKILL.md and the legacy document ('skillet instructions spec' has the format).";
+    next = `Legacy SPEC.md detected — preserve or rename it, then derive lowercase spec.md from SKILL.md and the legacy document ('${CURRENT_SKILLET} instructions spec' has the format).`;
   } else if (!specPresent && legacy.specYaml) {
-    next =
-      "Legacy spec.yaml detected — write spec.md preserving its intent ('skillet instructions spec' has the format).";
+    next = `Legacy spec.yaml detected — write spec.md preserving its intent ('${CURRENT_SKILLET} instructions spec' has the format).`;
   } else if (!specPresent && skillPresent) {
-    next =
-      "SKILL.md exists without a spec — derive spec.md from it ('skillet instructions spec' has the format).";
+    next = `SKILL.md exists without a spec — derive spec.md from it ('${CURRENT_SKILLET} instructions spec' has the format).`;
   } else if (!specPresent) {
-    next = "Write spec.md ('skillet instructions spec' has the template and rules).";
+    next = `Write spec.md ('${CURRENT_SKILLET} instructions spec' has the template and rules).`;
   } else if (specValid === false) {
-    next =
-      "spec.md exists but is not a valid Skillet spec — preserve or rename it if it contains legacy documentation, then fix or derive its Intent, Triggers, Behaviors, and scenarios before rendering SKILL.md ('skillet instructions spec').";
+    next = `spec.md exists but is not a valid Skillet spec — preserve or rename it if it contains legacy documentation, then fix or derive its Intent, Triggers, Behaviors, and scenarios before rendering SKILL.md ('${CURRENT_SKILLET} instructions spec').`;
   } else if (!skillPresent) {
-    next = "Render SKILL.md from the spec ('skillet instructions skill').";
+    next = `Render SKILL.md from the spec ('${CURRENT_SKILLET} instructions skill').`;
   } else if (skill.present && skill.stale) {
-    next = "spec.md changed after SKILL.md — re-render it ('skillet instructions skill').";
+    next = `spec.md changed after SKILL.md — re-render it ('${CURRENT_SKILLET} instructions skill').`;
   } else if (caseCount === 0) {
-    next = "Add eval cases for the spec behaviors ('skillet instructions evals').";
+    next = `Add eval cases for the spec behaviors ('${CURRENT_SKILLET} instructions evals').`;
   } else {
-    next =
-      "Run 'skillet validate' and 'skillet eval'; diagnose failures from 'skillet eval --json' transcripts.";
+    next = `Run '${CURRENT_SKILLET} validate' and '${CURRENT_SKILLET} eval'; diagnose failures from '${CURRENT_SKILLET} eval --json' transcripts.`;
   }
 
   return { root, spec, skill, evals, legacy, next };

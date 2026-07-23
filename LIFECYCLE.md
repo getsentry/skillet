@@ -24,6 +24,10 @@ my-skill/
 
 Humans and host agents write these artifacts. Skillet creates the initial layout, serves format instructions, validates the files, and runs evals. It never calls a model API directly and never overwrites an existing skill artifact.
 
+Agent-driven authoring invokes `npx -y @sentry/skillet@latest` or
+`pnpx @sentry/skillet@latest` so the CLI-served formats and guidance stay
+current. Commands below use the shorter installed-binary form for readability.
+
 ## Artifact flow
 
 1. Run `skillet new <name>` to create `spec.md` and the eval directories.

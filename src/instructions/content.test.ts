@@ -35,4 +35,10 @@ describe("eval instructions", () => {
     expect(skillInstructions).toContain("frontmatter descriptions");
     expect(skillInstructions).toContain("update every stale statement");
   });
+
+  it("serves current package-runner commands to authoring agents", () => {
+    for (const artifact of ["spec", "skill", "evals"] as const) {
+      expect(instructionsFor(artifact).instructions).toContain("npx -y @sentry/skillet@latest");
+    }
+  });
 });

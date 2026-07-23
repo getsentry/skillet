@@ -1,0 +1,14 @@
+behavior: current-cli-execution
+fixture: half-built
+prompt: |
+  Continue building the agent skill in half-baked/ through its next step.
+  A skillet executable is already on PATH.
+checks:
+  - file_exists: half-baked/SKILL.md
+  - judge: >
+      The agent invoked every Skillet status, instructions, validation, or eval
+      command through `npx -y @sentry/skillet@latest` or
+      `pnpx @sentry/skillet@latest`, rather than trusting the bare `skillet`
+      executable on PATH. If a bare command produced an update notice, the
+      relevant command was rerun through the explicit latest package runner.
+timeout: 600

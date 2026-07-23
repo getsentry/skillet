@@ -1,5 +1,5 @@
 # Eval results must be reproducible; wall-clock reads belong only to
-# the harness runner's duration measurement in src/harness/run.ts.
+# harness duration measurement and update-cache freshness.
 id: no-wall-clock
 language: typescript
 severity: error
@@ -7,9 +7,10 @@ files:
   - src/**/*.ts
 ignores:
   - src/harness/run.ts
+  - src/update-notifier.ts
   - src/**/*.test.ts
 rule:
   any:
     - pattern: Date.now()
     - pattern: new Date()
-message: Wall-clock access is reserved for src/harness/run.ts duration timing.
+message: Wall-clock access is reserved for harness timing and update-cache freshness.

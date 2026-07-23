@@ -14,31 +14,35 @@ A Skillet skill has three parts:
 
 Skillet scaffolds, validates, and evaluates those files. It never calls a model API or handles API keys; it invokes your existing agent CLI for authoring and evals.
 
-## Install
+## Get Started
 
 Skillet requires Node.js 20 or newer.
 
 ```bash
-npm install -g @sentry/skillet
+npx -y @sentry/skillet@latest init
 ```
 
-You can also replace `skillet` with `npx @sentry/skillet` in any command.
+With pnpm, use `pnpx @sentry/skillet@latest init` instead. The explicit
+`@latest` keeps agent-driven authoring on the current CLI and instructions.
 
-Next, install the [`skillet-authoring` skill](https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring) so your agent knows how to use the CLI:
+`init` installs the [`skillet-authoring` skill](https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring) in user scope so your agent knows how to use the CLI. It uses [dotagents](https://github.com/getsentry/dotagents) and asks before writing under `~/.agents`.
+
+If you prefer a global binary, install it explicitly:
 
 ```bash
+npm install -g @sentry/skillet
 skillet init
 ```
 
-`skillet init` uses [dotagents](https://github.com/getsentry/dotagents) to install the skill in user scope under `~/.agents`. If your agent reads skills from somewhere else, copy the [`skills/skillet-authoring`](https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring) directory directly into that location.
+Installed binaries check npm at most once per day and suggest the current `npx` command when an update is available. If your agent reads skills from somewhere else, copy the [`skills/skillet-authoring`](https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring) directory directly into that location.
 
 To install the authoring skill with dotagents directly:
 
 ```bash
-npx -y @sentry/dotagents --user add getsentry/skillet skillet-authoring
+npx -y @sentry/dotagents@latest --user add getsentry/skillet skillet-authoring
 ```
 
-`add` records and installs the skill immediately. Run `npx -y @sentry/dotagents --user install` later to refresh it.
+`add` records and installs the skill immediately. Run `npx -y @sentry/dotagents@latest --user install` later to refresh it.
 
 Or ask your agent to install the [`skillet-authoring` skill](https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring) for you.
 
@@ -53,9 +57,9 @@ The authoring skill handles the workflow: scaffold the files, clarify the behavi
 To start manually instead:
 
 ```bash
-skillet new commit-conventions
+npx -y @sentry/skillet@latest new commit-conventions
 cd commit-conventions
-skillet status
+npx -y @sentry/skillet@latest status
 ```
 
 `skillet status` reads the files on disk and tells you the next step. When writing an artifact yourself, use `skillet instructions spec`, `skillet instructions skill`, or `skillet instructions evals` for its current format and rules.
@@ -65,9 +69,9 @@ For an existing skill, run `skillet status <path>`. Uppercase `SPEC.md` and stru
 ## Validate and evaluate
 
 ```bash
-skillet validate
-skillet eval --dry
-skillet eval --trials 3 --baseline
+npx -y @sentry/skillet@latest validate
+npx -y @sentry/skillet@latest eval --dry
+npx -y @sentry/skillet@latest eval --trials 3 --baseline
 ```
 
 - `validate` checks the spec grammar, `SKILL.md` frontmatter, eval schemas, and behavior coverage.
@@ -129,7 +133,9 @@ Checks inspect the resulting workspace, not just the agent's response. Use `file
 | `skillet eval [path]` | Run eval cases through an agent CLI |
 | `skillet show [path]` | Print the parsed spec and coverage |
 
-Every command supports `--json`. Run `skillet <command> --help` for command-specific options.
+Every command supports `--json`. Agent-driven workflows use
+`npx -y @sentry/skillet@latest <command>` (or the `pnpx` equivalent); the table
+uses `skillet` as shorthand. Run `skillet <command> --help` for command-specific options.
 
 ## Harnesses and safety
 

@@ -12,30 +12,37 @@ Skillet uses the coding-agent CLI you already run. The Skillet CLI manages files
 - Node.js 20.11 or newer
 - Codex, Claude Code, or another agent CLI for eval runs
 
-## Install the CLI
+## Run the Current CLI
+
+```bash
+npx -y @sentry/skillet@latest init
+```
+
+With pnpm, use `pnpx @sentry/skillet@latest init`. The authoring skill uses the
+same explicit `@latest` package command so its CLI-provided formats and guidance
+do not drift behind a global installation.
+
+`init` asks before installing the `skillet-authoring` skill through
+[dotagents](https://dotagents.sentry.dev/) in user scope under `~/.agents`.
+
+If you prefer a global binary, install it explicitly:
 
 ```bash
 npm install -g @sentry/skillet
-```
-
-You can use `npx @sentry/skillet` instead of a global installation.
-
-## Install the Authoring Skill
-
-### Recommended: Skillet Setup
-
-```bash
 skillet init
 ```
 
-`skillet init` asks before installing the `skillet-authoring` skill through [dotagents](https://dotagents.sentry.dev/) in user scope under `~/.agents`.
+Installed binaries check npm at most once per day and recommend the current
+package command when an update is available.
+
+## Install the Authoring Skill Another Way
 
 ### Install With dotagents
 
 Install the authoring skill in user scope directly:
 
 ```bash
-npx -y @sentry/dotagents --user add getsentry/skillet skillet-authoring
+npx -y @sentry/dotagents@latest --user add getsentry/skillet skillet-authoring
 ```
 
 The `add` command records the dependency in `~/.agents/agents.toml` and installs it immediately for supported agents. No separate install command is required.
@@ -43,7 +50,7 @@ The `add` command records the dependency in `~/.agents/agents.toml` and installs
 Run `install` later to refresh declared skills:
 
 ```bash
-npx -y @sentry/dotagents --user install
+npx -y @sentry/dotagents@latest --user install
 ```
 
 ### Ask Your Agent to Install It
@@ -74,10 +81,10 @@ Full evals and baselines start authenticated agent CLI sessions. They can take t
 From the new skill directory:
 
 ```bash
-skillet status
-skillet validate
-skillet eval --dry
-skillet eval --trials 3 --baseline
+npx -y @sentry/skillet@latest status
+npx -y @sentry/skillet@latest validate
+npx -y @sentry/skillet@latest eval --dry
+npx -y @sentry/skillet@latest eval --trials 3 --baseline
 ```
 
 `status` reports the next step, `validate` checks the complete contract, `eval --dry` finds checks that pass before the agent runs, and `--baseline` compares pass rates with and without the skill.

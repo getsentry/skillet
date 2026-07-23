@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { basename, resolve, join } from "node:path";
 import { parseArgs } from "node:util";
 import type { NewJson } from "../json.js";
+import { CURRENT_SKILLET } from "../invocation.js";
 import { emitJson, fail, info, print } from "../output.js";
 import { slugify } from "../spec/slug.js";
 import { specTemplate } from "../spec/template.js";
@@ -10,7 +11,7 @@ const HELP = `Usage: skillet new <name> [--path <dir>] [--json]
 
 Scaffold a skill directory with a templated spec.md and evals/ layout.
 The directory is named by the slugified skill name unless --path is given.
-After filling in spec.md, 'skillet status' shows what to produce next.
+After filling in spec.md, '${CURRENT_SKILLET} status' shows what to produce next.
 `;
 
 const titleCase = (slug: string): string => {
@@ -69,10 +70,12 @@ export const run = (argv: string[]): number => {
 
   info(`Created skill scaffold at ${dir}/`);
   info(
-    `  spec.md            — fill in intent, triggers, behaviors ('skillet instructions spec' has the rules)`,
+    `  spec.md            — fill in intent, triggers, behaviors ('${CURRENT_SKILLET} instructions spec' has the rules)`,
   );
   info(`  evals/cases/       — one YAML case per behavior`);
   info(`  evals/fixtures/    — starting workspaces for cases`);
-  info(`Next: edit ${basename(dir)}/spec.md, then 'skillet status' shows what to produce next.`);
+  info(
+    `Next: edit ${basename(dir)}/spec.md, then '${CURRENT_SKILLET} status' shows what to produce next.`,
+  );
   return 0;
 };

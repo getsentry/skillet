@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { checkCoverage } from "./coverage.js";
 import { listFixtures, loadCases, type EvalCase } from "./evals/case.js";
 import { hasExactFile } from "./files.js";
+import { CURRENT_SKILLET } from "./invocation.js";
 import { parseFrontmatter } from "./skill/frontmatter.js";
 import { parseSpec } from "./spec/parser.js";
 import type { ParsedSpec, Issue } from "./spec/types.js";
@@ -26,7 +27,7 @@ const validateSkillMd = (root: string): Issue[] => {
       {
         severity: "warning",
         message: "SKILL.md not present yet",
-        hint: "Render it from spec.md ('skillet instructions skill').",
+        hint: `Render it from spec.md ('${CURRENT_SKILLET} instructions skill').`,
       },
     ];
   }
@@ -55,7 +56,7 @@ const validateSkillMd = (root: string): Issue[] => {
     issues.push({
       severity: "warning",
       message: "SKILL.md frontmatter has no spec_hash",
-      hint: "Record 'skillet status --json' .spec.hash so staleness detection survives git clones.",
+      hint: `Record '${CURRENT_SKILLET} status --json' .spec.hash so staleness detection survives git clones.`,
     });
   }
   return issues;
@@ -83,8 +84,8 @@ export const validateSkill = (root: string): ValidationReport => {
         ? "spec.md not found; uppercase SPEC.md is a legacy document, not a Skillet spec"
         : "spec.md not found",
       hint: legacySpec
-        ? "Preserve or rename SPEC.md, then derive lowercase spec.md from SKILL.md and the legacy document ('skillet instructions spec' has the format)."
-        : "Every skill needs a spec — 'skillet new' scaffolds one; existing skills get one via 'skillet instructions spec'.",
+        ? `Preserve or rename SPEC.md, then derive lowercase spec.md from SKILL.md and the legacy document ('${CURRENT_SKILLET} instructions spec' has the format).`
+        : `Every skill needs a spec — '${CURRENT_SKILLET} new' scaffolds one; existing skills get one via '${CURRENT_SKILLET} instructions spec'.`,
     });
   }
 

@@ -3,6 +3,7 @@ import type { StatusJson } from "../json.js";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { findConfig } from "../harness/config.js";
+import { CURRENT_SKILLET } from "../invocation.js";
 import { emitJson, fail, print } from "../output.js";
 import { findSkillRoot } from "../skill/frontmatter.js";
 import { skillStatus } from "../status.js";
@@ -42,7 +43,7 @@ export const run = (argv: string[]): number => {
   const root = findSkillRoot(start);
   if (root == null) {
     if (findConfig(start) != null) {
-      const next = `'skillet new <name>' scaffolds one.`;
+      const next = `'${CURRENT_SKILLET} new <name>' scaffolds one.`;
       if (json) {
         const payload: StatusJson = { root: null, next };
         emitJson(payload);

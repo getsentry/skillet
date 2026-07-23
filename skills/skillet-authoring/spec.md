@@ -14,9 +14,24 @@ Drive agent-skill creation, improvement, and migration through the Skillet CLI i
 
 ## Behaviors
 
+### Behavior: Current CLI execution
+
+The agent SHALL invoke Skillet through `npx -y @sentry/skillet@latest` or `pnpx @sentry/skillet@latest` for every authoring command instead of preferring a bare executable from PATH.
+
+#### Scenario: Global CLI already exists
+
+- **GIVEN** `skillet` is available on PATH but may be older than the installed authoring skill
+- **WHEN** the agent checks status, fetches instructions, validates, or evaluates a skill
+- **THEN** it uses an explicit latest package runner for the command
+
+#### Scenario: Installed CLI recommends an update
+
+- **WHEN** a bare Skillet invocation reports that a newer version is available
+- **THEN** the agent reruns the relevant command through the explicit latest package runner before continuing
+
 ### Behavior: Status drives the flow
 
-The agent SHALL consult `skillet status <dir> --json` before producing artifacts and do what its `next` field says, rather than guessing the skill's state.
+The agent SHALL consult `npx -y @sentry/skillet@latest status <dir> --json` before producing artifacts and do what its `next` field says, rather than guessing the skill's state.
 
 #### Scenario: Picking up a half-built skill
 
@@ -40,7 +55,7 @@ The agent SHALL write and validate spec.md before rendering SKILL.md or eval cas
 #### Scenario: New skill from a description
 
 - **WHEN** asked to create a new skill from a prose description
-- **THEN** a spec.md exists, passes `skillet validate`, and SKILL.md is rendered only after the spec was written
+- **THEN** a spec.md exists, passes validation through the explicit latest package runner, and SKILL.md is rendered only after the spec was written
 
 ### Behavior: Preserve legacy runtime contracts
 
@@ -54,12 +69,12 @@ When migrating an existing skill, the agent SHALL inventory behavior-bearing mat
 
 ### Behavior: Instructions set the format
 
-The agent SHALL fetch `skillet instructions <artifact> <dir> --json` for each artifact it writes and follow the served template and rules, never an invented or remembered format.
+The agent SHALL fetch `npx -y @sentry/skillet@latest instructions <artifact> <dir> --json` for each artifact it writes and follow the served template and rules, never an invented or remembered format.
 
 #### Scenario: Writing eval cases
 
 - **WHEN** writing eval cases for an existing skill
-- **THEN** the case files follow the schema served by `skillet instructions evals` and pass `skillet validate`
+- **THEN** the case files follow the schema served by the explicit latest package runner and pass validation through that same runner
 
 ### Behavior: Every behavior gets an eval
 
@@ -68,7 +83,7 @@ The agent SHALL cover every spec behavior with at least one eval case before cal
 #### Scenario: Full render
 
 - **WHEN** rendering a skill's artifacts to completion
-- **THEN** `skillet validate` reports no "has no eval case" coverage warnings
+- **THEN** validation through the explicit latest package runner reports no "has no eval case" coverage warnings
 
 ### Behavior: Failures fixed at the right layer
 
@@ -83,7 +98,7 @@ When an eval fails, the agent SHALL classify the failure — wrong spec intent, 
 
 ### Constraint: Validation gates completion
 
-The agent MUST NOT report a skill as done while `skillet validate` reports errors.
+The agent MUST NOT report a skill as done while validation through the explicit latest package runner reports errors.
 
 ### Constraint: No eval weakening
 

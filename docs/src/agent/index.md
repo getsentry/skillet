@@ -10,6 +10,8 @@ Skillet helps you build skills without guessing:
 
 Ask your coding agent to create or improve a skill. The authoring skill uses the Skillet CLI to draft the files and run the checks while you review the spec and eval results.
 
+The authoring skill runs Skillet through `npx -y @sentry/skillet@latest` (or the pnpm equivalent) so it receives the current file formats and writing guidance.
+
 1. Define the contract in `spec.md`.
 2. Render the contract into agent instructions.
 3. Run realistic eval cases through a coding-agent CLI.

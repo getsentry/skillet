@@ -11,6 +11,7 @@ import { requireSandbox, resolveSandbox, type SandboxConfig } from "../harness/s
 import type { ResolvedHarness } from "../harness/types.js";
 import type { DryJson, EvalJson, EvalSummary } from "../json.js";
 import { isRecord } from "../guards.js";
+import { CURRENT_SKILLET } from "../invocation.js";
 import { emitJson, fail, info, print } from "../output.js";
 import { passRate, summarizeByBehavior, type CaseResult } from "../evals/results.js";
 import { dryRun } from "../evals/runner.js";
@@ -157,7 +158,9 @@ export const run = async (argv: string[]): Promise<number> => {
   // Validate before spending any agent invocations.
   const report = validateSkill(root);
   if (!report.ok) {
-    return fail("skill is invalid — run 'skillet validate' and fix the errors first", { json });
+    return fail(`skill is invalid — run '${CURRENT_SKILLET} validate' and fix the errors first`, {
+      json,
+    });
   }
 
   let cases = report.evalCases;
@@ -223,9 +226,10 @@ export const run = async (argv: string[]): Promise<number> => {
   // its absence — guard here so the spec-first flow gets a next step
   // instead of an ENOENT mid-trial.
   if (!existsSync(join(root, "SKILL.md"))) {
-    return fail("SKILL.md not rendered yet — 'skillet instructions skill' shows how to write it", {
-      json,
-    });
+    return fail(
+      `SKILL.md not rendered yet — '${CURRENT_SKILLET} instructions skill' shows how to write it`,
+      { json },
+    );
   }
 
   const outDir = values.out != null ? resolve(values.out) : null;

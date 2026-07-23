@@ -1,5 +1,6 @@
 import { parseArgs } from "node:util";
 import type { ShowJson } from "../json.js";
+import { CURRENT_SKILLET } from "../invocation.js";
 import { emitJson, fail, print } from "../output.js";
 import { validateSkill } from "../validate.js";
 import { resolveSkillRoot } from "./shared.js";
@@ -30,7 +31,12 @@ export const run = (argv: string[]): number => {
   const report = validateSkill(root);
   const spec = report.parsedSpec;
   if (spec == null) {
-    return fail("spec.md is missing or unparseable — run 'skillet validate' for details", { json });
+    return fail(
+      `spec.md is missing or unparseable — run '${CURRENT_SKILLET} validate' for details`,
+      {
+        json,
+      },
+    );
   }
 
   const coveredBy = new Map<string, string[]>();

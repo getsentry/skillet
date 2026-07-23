@@ -4,11 +4,14 @@
  * (cli spec, "JSON output convention"). No LLM work happens anywhere
  * in this process.
  */
+import { CURRENT_SKILLET } from "./invocation.js";
 import { fail, info, print } from "./output.js";
+import { checkForUpdate } from "./update-notifier.js";
 
 const HELP = `skillet — spec-driven agent skills with mechanical evals
 
-Usage: skillet <command> [args]
+Usage: ${CURRENT_SKILLET} <command> [args]
+       skillet <command> [args]  (installed binary)
 
 Commands:
   init          Install the skillet-authoring skill for your agents
@@ -19,21 +22,20 @@ Commands:
   eval          Run eval cases through the configured harness
   show          Pretty-print a skill's spec and coverage
 
+Use the explicit @latest package command for agent-driven work.
 Run 'skillet <command> --help' for command-specific flags.
 Exit codes: 0 success, 1 failure. --json prints one JSON object on stdout.
 `;
 
 /** v0 commands and where their job moved (cli spec, "Removed command"). */
 const REMOVED_COMMANDS: Record<string, string> = {
-  create:
-    "authoring is agent-driven now — ask your agent (the skillet-authoring skill drives it), or 'skillet new <name>' to scaffold by hand",
-  improve:
-    "ask your agent to fix failing evals; 'skillet eval --json' carries the failure transcripts",
-  spec: "spec.md is edited directly — 'skillet instructions spec' has the format, 'skillet validate' checks it",
-  "add-eval": "add a YAML case under evals/cases/ ('skillet instructions evals' has the template)",
-  resume: "there are no sessions to resume; workflow state lives on disk ('skillet status')",
-  compare: "use 'skillet eval --baseline' to compare with and without the skill",
-  install: "'skillet init' sets up the authoring skill for your agents via @sentry/dotagents",
+  create: `authoring is agent-driven now — ask your agent (the skillet-authoring skill drives it), or '${CURRENT_SKILLET} new <name>' to scaffold by hand`,
+  improve: `ask your agent to fix failing evals; '${CURRENT_SKILLET} eval --json' carries the failure transcripts`,
+  spec: `spec.md is edited directly — '${CURRENT_SKILLET} instructions spec' has the format, '${CURRENT_SKILLET} validate' checks it`,
+  "add-eval": `add a YAML case under evals/cases/ ('${CURRENT_SKILLET} instructions evals' has the template)`,
+  resume: `there are no sessions to resume; workflow state lives on disk ('${CURRENT_SKILLET} status')`,
+  compare: `use '${CURRENT_SKILLET} eval --baseline' to compare with and without the skill`,
+  install: `'${CURRENT_SKILLET} init' sets up the authoring skill for your agents via @sentry/dotagents`,
 };
 
 interface CommandModule {
@@ -90,15 +92,25 @@ const main = async (): Promise<number> => {
     return fail(`Unknown command '${command}'.\n\n${HELP}`, { json });
   }
 
+  const updateMessage =
+    rest.includes("--help") || rest.includes("-h")
+      ? Promise.resolve(null)
+      : import("./version.js").then(({ VERSION }) => checkForUpdate(VERSION));
   const mod = await loader();
+  let exitCode: number;
   try {
-    return await mod.run(rest);
+    exitCode = await mod.run(rest);
   } catch (cause) {
     if (isUsageError(cause)) {
-      return fail(`${cause.message}\nRun 'skillet ${command} --help' for flags.`, { json });
+      exitCode = fail(`${cause.message}\nRun 'skillet ${command} --help' for flags.`, { json });
+    } else {
+      throw cause;
     }
-    throw cause;
   }
+
+  const message = await updateMessage;
+  if (message != null) info(`\n${message}`);
+  return exitCode;
 };
 
 process.exitCode = await main();

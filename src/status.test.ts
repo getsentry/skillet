@@ -138,6 +138,6 @@ describe("skillStatus next-step ladder", () => {
     writeFileSync(join(root, "evals", "cases", "b.yaml"), CASE);
     const status = skillStatus(root);
     expect(status.evals.caseCount).toBe(1);
-    expect(status.next).toContain("skillet eval");
+    expect(status.next).toContain("npx -y @sentry/skillet@latest eval");
   });
 });

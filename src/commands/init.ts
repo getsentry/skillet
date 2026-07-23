@@ -4,6 +4,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { parseArgs } from "node:util";
+import { CURRENT_SKILLET } from "../invocation.js";
 import type { InitJson } from "../json.js";
 import { emitJson, fail, info, print } from "../output.js";
 
@@ -18,12 +19,12 @@ skill lands on skillet. Asks before touching anything; --no-prompt
 skips the confirmation (for agents and scripts).
 
 Prefer to manage it yourself? Add the skill with dotagents directly
-(project scope: 'npx @sentry/dotagents add ${SOURCE} ${SKILL}'), or
+(project scope: 'npx -y @sentry/dotagents@latest add ${SOURCE} ${SKILL}'), or
 install skills/${SKILL} from the skillet repo by any other means.
 `;
 
 const SELF_MANAGED = `To manage it yourself instead:
-  npx @sentry/dotagents add ${SOURCE} ${SKILL} && npx @sentry/dotagents install
+  npx -y @sentry/dotagents@latest add ${SOURCE} ${SKILL}
   (project scope; add --user for global) — or install skills/${SKILL}
   from the skillet repo by any other means.`;
 
@@ -70,7 +71,7 @@ export const run = async (argv: string[]): Promise<number> => {
     if (json || !process.stdin.isTTY) {
       // Non-interactive without explicit consent: explain and do nothing.
       info(`skillet init installs ${SKILL} for all your agents via`);
-      info(`'npx @sentry/dotagents --user' (writes ~/.agents and agent configs).`);
+      info(`'npx -y @sentry/dotagents@latest --user' (writes ~/.agents and agent configs).`);
       info(`Re-run with --no-prompt to proceed non-interactively.`);
       info(SELF_MANAGED);
       if (json) emitJson(payload("skipped"));
@@ -89,15 +90,13 @@ export const run = async (argv: string[]): Promise<number> => {
   }
 
   try {
-    for (const args of [["add", SOURCE, SKILL], ["install"]]) {
-      execFileSync("npx", ["-y", "@sentry/dotagents", "--user", ...args], {
-        stdio: ["ignore", 2, 2],
-        timeout: 300_000,
-      });
-    }
+    execFileSync("npx", ["-y", "@sentry/dotagents@latest", "--user", "add", SOURCE, SKILL], {
+      stdio: ["ignore", 2, 2],
+      timeout: 300_000,
+    });
   } catch {
     return fail(
-      `dotagents setup failed — run it directly to see why: npx @sentry/dotagents --user add ${SOURCE} ${SKILL}`,
+      `dotagents setup failed — run it directly to see why: npx -y @sentry/dotagents@latest --user add ${SOURCE} ${SKILL}`,
       { json },
     );
   }
@@ -106,7 +105,9 @@ export const run = async (argv: string[]): Promise<number> => {
     emitJson(payload("installed"));
   } else {
     info(`${SKILL} installed for all your agents (user scope, ~/.agents).`);
-    info(`Try it: ask your agent to create a skill. 'skillet new <name>' scaffolds one by hand.`);
+    info(
+      `Try it: ask your agent to create a skill. '${CURRENT_SKILLET} new <name>' scaffolds one by hand.`,
+    );
   }
   return 0;
 };

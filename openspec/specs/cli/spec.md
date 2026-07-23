@@ -86,3 +86,24 @@ Every command SHALL support `--json`, emitting exactly one JSON object on stdout
 - **WHEN** `skillet validate --json` runs on an invalid skill
 - **THEN** stdout is a single JSON object listing issues with severity, path, and message, and the exit code is 1
 
+### Requirement: Current version recommendation
+
+For valid commands other than help and version output, Skillet SHALL check the npm `latest` release in the background at most once per 24-hour cache window. When the running version is older, Skillet SHALL let the command finish normally and then recommend `npx -y @sentry/skillet@latest` on stderr. Registry and cache failures SHALL NOT change command output, exit status, or availability.
+
+#### Scenario: Outdated installed binary
+
+- **GIVEN** the running Skillet version is older than npm's latest release
+- **WHEN** a valid command completes
+- **THEN** its normal output and exit status are preserved
+- **AND** stderr identifies both versions and recommends `npx -y @sentry/skillet@latest`
+
+#### Scenario: Registry unavailable
+
+- **WHEN** the update request times out or fails
+- **THEN** the selected command completes without an update-check error
+
+#### Scenario: Help or version request
+
+- **WHEN** the user requests top-level help or version output
+- **THEN** Skillet returns it without checking the registry
+
