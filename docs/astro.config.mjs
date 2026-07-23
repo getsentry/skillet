@@ -11,7 +11,29 @@ export default defineConfig({
     starlight({
       title: "Skillet",
       description: "Build agent skills from a spec, evaluate them, and improve them over time.",
-      favicon: "/favicon.svg",
+      favicon: "/favicon.ico",
+      logo: {
+        src: "./src/assets/skillet-logo.png",
+        alt: "Skillet",
+      },
+      head: [
+        {
+          tag: "link",
+          attrs: { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32x32.png" },
+        },
+        {
+          tag: "link",
+          attrs: { rel: "icon", type: "image/png", sizes: "16x16", href: "/favicon-16x16.png" },
+        },
+        {
+          tag: "link",
+          attrs: { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
+        },
+        {
+          tag: "link",
+          attrs: { rel: "manifest", href: "/site.webmanifest" },
+        },
+      ],
       customCss: ["./src/styles/custom.css"],
       components: {
         SiteTitle: "./src/components/SiteTitle.astro",

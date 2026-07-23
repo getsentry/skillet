@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/src/assets/skillet-logo.png" alt="Skillet" width="220">
+</p>
+
 # Skillet
 
 Build agent skills from a reviewable spec, evaluate their behavior, and improve them over time.
