@@ -1,6 +1,6 @@
 {
   "name": "@sentry/skillet",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "packageManager": "npm@11.15.0",
   "description": "Spec-driven agent skills with mechanical evals",
   "type": "module",
