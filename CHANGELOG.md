@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.4.1
+
+### Fixes 🐛
+
+- Existing-skill migrations now preserve concrete behavior, confirmation
+  thresholds, and actionable guidance instead of collapsing the source into a
+  generic summary. Agents reconcile existing specs before rendering derived
+  artifacts and ask only when the source intent is genuinely ambiguous.
+- Eval setup scripts no longer inherit repository-local Git environment
+  variables, so Git commands stay inside the disposable eval workspace and
+  cannot alter the caller's index.
+
+### Documentation 📚
+
+- Refined the documentation landing page with the shared copyable prompt,
+  clearer navigation, balanced actions, and direct Docs and GitHub links.
+- Added the Skillet frying-pan logo across the documentation site, README, and
+  transparent browser favicon set.
+
+### Internal
+
+- Dependency resolution now waits 24 hours before accepting newly published npm
+  package versions, with npm pinned consistently in CI and release workflows.
+
 ## 1.4.0
 
 ### Features 🚀
