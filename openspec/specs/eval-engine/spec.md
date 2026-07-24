@@ -75,11 +75,11 @@ The engine SHALL map vitest results back into skillet's existing `EvalJson` shap
 
 ### Requirement: Bounded trial parallelism
 
-The eval engine SHALL keep generated case files ordered and run tests within each case with a default concurrency of two. Repeated trials and skill/baseline variants MAY execute in parallel up to the configured limit. `--concurrency` SHALL override `.skillet.yaml`, which SHALL override the default. Concurrency SHALL accept integers from one through eight.
+The eval engine SHALL keep generated case files ordered and run tests within each case with a default concurrency of four. Repeated trials and skill/baseline variants MAY execute in parallel up to the configured limit. `--concurrency` SHALL override `.skillet.yaml`, which SHALL override the default. Concurrency SHALL accept integers from one through eight.
 
-#### Scenario: Two repeated trials
+#### Scenario: Four repeated trials
 
-- **WHEN** one case runs two trials with default settings
+- **WHEN** one case runs four trials with default settings
 - **THEN** the engine may execute those trials concurrently in separate fresh workspaces
 
 #### Scenario: One case with baseline

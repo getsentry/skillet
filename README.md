@@ -141,7 +141,7 @@ uses `skillet` as shorthand. Run `skillet <command> --help` for command-specific
 
 Skillet uses Codex by default and has built-in support for Claude Code. Select one with `--harness codex` or `--harness claude`, optionally with a model suffix such as `--harness claude:sonnet`. You can configure another CLI in `.skillet.yaml`.
 
-Skillet leaves the model unset unless you choose one, so the agent CLI's configured model applies. Built-in trials and judges default to medium effort, and up to two trials or skill/baseline variants within a case run in parallel. Override these with `--effort`, `--concurrency`, or `.skillet.yaml`. Baseline remains opt-in.
+Skillet leaves the model unset unless you choose one, so the agent CLI's configured model applies. Built-in trials and judges default to medium effort, and up to four trials or skill/baseline variants within a case run in parallel. Override these with `--effort`, `--concurrency`, or `.skillet.yaml`. Baseline remains opt-in.
 
 By default, eval agents run directly on your machine with full access. Use this only for skills and evals you trust. For untrusted skills or CI, build the included Docker image and run with `--sandbox docker`.
 

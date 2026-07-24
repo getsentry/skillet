@@ -12,7 +12,7 @@ Skillet searches for `.skillet.yaml` from the skill directory upward. CLI flags 
 ```yaml
 harness: codex
 effort: medium
-concurrency: 2
+concurrency: 4
 ```
 
 Select a model with a suffix:
@@ -27,7 +27,7 @@ Supported built-ins are `codex` and `claude`.
 |---|---|---|
 | `harness` | `codex` | Built-in, model-qualified built-in, or custom harness mapping |
 | `effort` | `medium` | Built-in reasoning effort: `low`, `medium`, `high`, or `xhigh` |
-| `concurrency` | `2` | Parallel trials or variants within one case, from `1` through `8` |
+| `concurrency` | `4` | Parallel trials or variants within one case, from `1` through `8` |
 
 Skillet leaves the model unset unless `harness` includes a model suffix. The
 selected agent CLI's configured/default model therefore remains in control.
@@ -85,7 +85,7 @@ skillet eval --sandbox none
 ```yaml
 harness: codex
 effort: medium
-concurrency: 2
+concurrency: 4
 
 sandbox:
   enabled: true

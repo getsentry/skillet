@@ -15,7 +15,7 @@ export class HarnessConfigError extends Error {
 }
 
 const DEFAULT_EFFORT: EffortLevel = "medium";
-const DEFAULT_CONCURRENCY = 2;
+const DEFAULT_CONCURRENCY = 4;
 const MAX_CONCURRENCY = 8;
 const EFFORT_LEVELS = new Set<EffortLevel>(["low", "medium", "high", "xhigh"]);
 
@@ -170,7 +170,7 @@ export const resolveHarness = (
   };
 };
 
-/** Resolve bounded case concurrency: CLI flag, then config, then default two. */
+/** Resolve bounded trial concurrency: CLI flag, then config, then default four. */
 export const resolveConcurrency = (config: Record<string, unknown>, flag?: string): number => {
   const raw = flag == null ? (config["concurrency"] ?? DEFAULT_CONCURRENCY) : Number(flag);
   if (typeof raw !== "number" || !Number.isInteger(raw) || raw < 1 || raw > MAX_CONCURRENCY) {

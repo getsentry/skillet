@@ -65,7 +65,7 @@ export const runEngine = async (
   workerCases: WorkerCase[],
   opts: EngineOptions = {},
 ): Promise<CaseResult[]> => {
-  const concurrency = opts.concurrency ?? 2;
+  const concurrency = opts.concurrency ?? 4;
   const compiled = compileCases(workerCases, resolveWorkerUrl());
 
   const pendings = new Map<string, PendingCase>();

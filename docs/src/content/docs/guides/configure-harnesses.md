@@ -42,7 +42,7 @@ Create `.skillet.yaml` at the skill root or an ancestor:
 ```yaml
 harness: claude:sonnet
 effort: medium
-concurrency: 2
+concurrency: 4
 ```
 
 CLI flags override the file.
@@ -85,7 +85,7 @@ Harness CLIs load their normal user configuration. Baseline therefore means “y
 
 ## Runtime and Cost
 
-Skillet keeps cases ordered and runs up to two trials or skill/baseline variants
+Skillet keeps cases ordered and runs up to four trials or skill/baseline variants
 within one case at once. Parallelism reduces wall-clock time but does not reduce
 model usage.
 

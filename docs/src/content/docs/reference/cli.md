@@ -65,7 +65,7 @@ skillet eval [path] [options]
 | `--behavior <id>` | Run cases covering one behavior |
 | `--trials <n>` | Override trial count for every selected case |
 | `--baseline` | Repeat trials without the skill and report lift |
-| `--concurrency <n>` | Run up to `n` trials or variants within a case in parallel; default `2`, maximum `8` |
+| `--concurrency <n>` | Run up to `n` trials or variants within a case in parallel; default `4`, maximum `8` |
 | `--effort <level>` | Built-in trial and judge effort; default `medium` |
 | `--harness <name>` | Select `codex`, `claude`, or a model-qualified built-in |
 | `--sandbox docker|none` | Override sandbox mode |

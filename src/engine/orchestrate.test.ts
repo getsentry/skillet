@@ -160,24 +160,24 @@ describe("runEngine", () => {
     expect(done.toSorted()).toEqual(["a", "b"]);
   });
 
-  it("runs independent trials concurrently by default", { timeout: SLOW }, async () => {
+  it("runs four independent trials concurrently by default", { timeout: SLOW }, async () => {
     const skillRoot = makeSkillRoot();
     const barrier = makeSkillRoot();
     const concurrentHarness: ResolvedHarness = {
       name: "concurrent",
       kind: "custom",
       binary: "sh",
-      command: `cd {workspace}; touch ${barrier}/$$; attempts=0; while [ $attempts -lt 100 ]; do test "$(find ${barrier} -type f | wc -l | tr -d ' ')" -ge 2 && exit 0; attempts=$((attempts + 1)); sleep 0.01; done; exit 9 # {prompt}`,
+      command: `cd {workspace}; touch ${barrier}/$$; attempts=0; while [ $attempts -lt 100 ]; do test "$(find ${barrier} -type f | wc -l | tr -d ' ')" -ge 4 && exit 0; attempts=$((attempts + 1)); sleep 0.01; done; exit 9 # {prompt}`,
     };
     const results = await runEngine([
       makeWorkerCase(makeCase({ checks: [{ kind: "shell", value: "true" }] }), {
         skillRoot,
         harness: concurrentHarness,
-        trials: 2,
+        trials: 4,
       }),
     ]);
     expect(results).toHaveLength(1);
-    expect(results[0]?.trials).toHaveLength(2);
+    expect(results[0]?.trials).toHaveLength(4);
     expect(results.every((result) => result.trials[0]?.status === "pass")).toBe(true);
   });
 

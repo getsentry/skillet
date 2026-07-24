@@ -31,7 +31,7 @@ Options:
   --behavior <id>     Run only the cases covering one behavior
   --trials <n>        Run each case n times and report pass rates
   --baseline          Also run every trial without the skill; report lift
-  --concurrency <n>   Run up to n trials/variants in parallel (default: 2; max: 8)
+  --concurrency <n>   Run up to n trials/variants in parallel (default: 4; max: 8)
   --effort <level>    Built-in reasoning effort: low, medium, high, xhigh
                       (default: medium; applies to trials and judges)
   --harness <name>    Override the harness (codex, claude), optionally

@@ -120,8 +120,8 @@ describe("resolveHarness", () => {
 });
 
 describe("resolveConcurrency", () => {
-  it("resolves the flag, config, then default two", () => {
-    expect(resolveConcurrency({})).toBe(2);
+  it("resolves the flag, config, then default four", () => {
+    expect(resolveConcurrency({})).toBe(4);
     expect(resolveConcurrency({ concurrency: 4 })).toBe(4);
     expect(resolveConcurrency({ concurrency: 4 }, "1")).toBe(1);
   });
