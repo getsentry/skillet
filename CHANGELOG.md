@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.6.0
+
+### Features 🚀
+
+- Built-in Codex and Claude eval sessions now default to medium reasoning effort
+  for both the agent under test and semantic judges. Skillet leaves the model
+  unset unless one is selected, and supports `--effort` or `effort` in
+  `.skillet.yaml` for explicit control.
+- Repeated trials and opt-in skill/baseline variants now run concurrently within
+  each case, with a default concurrency of four and overrides from one through
+  eight. Cases remain ordered, result ordering stays stable, and baseline is
+  still disabled unless `--baseline` is passed.
+
+### Fixes 🐛
+
+- Hardened concurrent result collection, mixed cached/fresh result ordering,
+  null configuration validation, and custom-harness effort handling.
+
+### Documentation 📚
+
+- Removed the implied recommendation that evals should use three trials; one
+  trial remains the default, with repeated trials documented as situational.
+- Simplified the copyable global skill-install prompt while keeping exact
+  agent-facing setup instructions in Markdown and `llms.txt`.
+
+### Internal
+
+- Refreshed supported runtime and documentation dependencies after closing the
+  stale Dependabot queue; npm and GitHub Dependabot audits remained clean.
+
 ## 1.5.0
 
 ### Features 🚀
