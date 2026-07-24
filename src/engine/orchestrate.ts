@@ -10,6 +10,8 @@ export interface EngineOptions {
   onCaseDone?: (result: CaseResult) => void;
   /** Write a Vitest JSON report artifact here (--report). */
   reportFile?: string;
+  /** Maximum trials or variants within one case to execute concurrently. */
+  concurrency?: number;
 }
 
 interface PendingCase {
@@ -55,15 +57,15 @@ const finalize = (pending: PendingCase): CaseResult => ({
 });
 
 /**
- * Run compiled cases through Vitest's programmatic API. Serial file
- * execution (design D5) keeps agent-CLI load and progress ordering
- * identical to the pre-engine runner; each test records a TrialMeta
- * which this reporter reassembles into skillet CaseResults.
+ * Run compiled cases through Vitest's programmatic API. Case files stay
+ * ordered, while concurrent tests within each case share a bounded limit.
+ * Each test records TrialMeta which this reporter reassembles into results.
  */
 export const runEngine = async (
   workerCases: WorkerCase[],
   opts: EngineOptions = {},
 ): Promise<CaseResult[]> => {
+  const concurrency = opts.concurrency ?? 2;
   const compiled = compileCases(workerCases, resolveWorkerUrl());
 
   const pendings = new Map<string, PendingCase>();
@@ -79,8 +81,7 @@ export const runEngine = async (
     });
   }
 
-  // Reported in file order = case id order (one generated file per case).
-  const finished: CaseResult[] = [];
+  const completed = new Map<string, CaseResult>();
 
   const absorb = (meta: TrialMeta): void => {
     const pending = pendings.get(meta.id);
@@ -92,7 +93,7 @@ export const runEngine = async (
     if (pending.seen >= pending.expected) {
       pending.done = true;
       const result = finalize(pending);
-      finished.push(result);
+      completed.set(result.id, result);
       opts.onCaseDone?.(result);
     }
   };
@@ -147,6 +148,7 @@ export const runEngine = async (
         // Agent CLIs are heavyweight; one worker matches the old
         // serial runner's machine load.
         maxWorkers: 1,
+        maxConcurrency: concurrency,
       },
       undefined,
       // Vitest chatter (e.g. the json reporter's "JSON report written"
@@ -164,9 +166,13 @@ export const runEngine = async (
     if (pending.done) continue;
     pending.done = true;
     const result = finalize(pending);
-    finished.push(result);
+    completed.set(result.id, result);
     opts.onCaseDone?.(result);
   }
 
-  return finished;
+  return workerCases.map((workerCase) => {
+    const result = completed.get(workerCase.evalCase.id);
+    if (result == null) throw new Error(`case ${workerCase.evalCase.id} produced no result`);
+    return result;
+  });
 };

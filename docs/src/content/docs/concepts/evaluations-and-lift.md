@@ -51,6 +51,17 @@ A dry run applies deterministic checks before an agent changes the workspace. If
 
 Dry runs cannot assess judge checks and do not replace baseline measurement.
 
+## Runtime and Cost
+
+Skillet keeps cases ordered and runs up to two trials or skill/baseline variants
+within one case in parallel. Set `--concurrency 1` for serial execution or a
+higher value up to `8` when the machine and agent service can support it.
+
+Built-in Codex and Claude trials and judges default to medium effort while using
+the CLI's configured/default model. Use `--effort low` for cheaper exploratory
+runs or configure `effort` in `.skillet.yaml`. Parallelism reduces elapsed time,
+not total model usage. Baseline remains opt-in because it doubles trial variants.
+
 ## Errors and Failures
 
 - **Fail:** the agent completed, but one or more checks did not pass.

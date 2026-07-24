@@ -11,6 +11,8 @@ Skillet searches for `.skillet.yaml` from the skill directory upward. CLI flags 
 
 ```yaml
 harness: codex
+effort: medium
+concurrency: 2
 ```
 
 Select a model with a suffix:
@@ -20,6 +22,15 @@ harness: claude:sonnet
 ```
 
 Supported built-ins are `codex` and `claude`.
+
+| Field | Default | Description |
+|---|---|---|
+| `harness` | `codex` | Built-in, model-qualified built-in, or custom harness mapping |
+| `effort` | `medium` | Built-in reasoning effort: `low`, `medium`, `high`, or `xhigh` |
+| `concurrency` | `2` | Parallel trials or variants within one case, from `1` through `8` |
+
+Skillet leaves the model unset unless `harness` includes a model suffix. The
+selected agent CLI's configured/default model therefore remains in control.
 
 ## Custom Harness
 
@@ -37,6 +48,7 @@ harness:
 | `skill_dir` | No | Template for the directory where Skillet installs the skill |
 
 Custom harnesses must be configured in the file. `--harness` accepts built-in names only.
+Custom harnesses own their model and cost flags; `effort` is rejected with a custom command.
 
 ## Docker Sandbox
 
@@ -71,7 +83,9 @@ skillet eval --sandbox none
 ## Complete Example
 
 ```yaml
-harness: codex:gpt-5
+harness: codex
+effort: medium
+concurrency: 2
 
 sandbox:
   enabled: true

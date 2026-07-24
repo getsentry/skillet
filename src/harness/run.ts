@@ -37,6 +37,8 @@ export const buildInvocation = (
         args: [
           "exec",
           ...(harness.model != null ? ["-m", harness.model] : []),
+          "-c",
+          `model_reasoning_effort="${harness.effort ?? "medium"}"`,
           "-C",
           workspace,
           "--skip-git-repo-check",
@@ -57,6 +59,8 @@ export const buildInvocation = (
         args: [
           "-p",
           ...(harness.model != null ? ["--model", harness.model] : []),
+          "--effort",
+          harness.effort ?? "medium",
           "--dangerously-skip-permissions",
           prompt,
         ],

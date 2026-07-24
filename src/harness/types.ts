@@ -1,3 +1,5 @@
+export type EffortLevel = "low" | "medium" | "high" | "xhigh";
+
 export interface BuiltinHarness {
   kind: "codex" | "claude";
   /** Display name, recorded in eval results. */
@@ -6,6 +8,8 @@ export interface BuiltinHarness {
   binary: string;
   /** Model override passed to the CLI (e.g. "sonnet", "gpt-5"). */
   model?: string;
+  /** Reasoning effort passed to the built-in CLI. */
+  effort?: EffortLevel;
 }
 
 interface CustomHarness {

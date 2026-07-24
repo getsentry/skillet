@@ -2,7 +2,13 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { HarnessConfigError, loadConfig, parseHarness, resolveHarness } from "./config.js";
+import {
+  HarnessConfigError,
+  loadConfig,
+  parseHarness,
+  resolveConcurrency,
+  resolveHarness,
+} from "./config.js";
 import { buildJudgePrompt, describeWorkspace, parseVerdict } from "./judge.js";
 import { buildInvocation, runHarness } from "./run.js";
 import type { ResolvedHarness } from "./types.js";
@@ -27,8 +33,16 @@ const customHarness = (command: string): ResolvedHarness => ({
 
 describe("parseHarness", () => {
   it("resolves builtin names", () => {
-    expect(parseHarness("codex")).toMatchObject({ kind: "codex", binary: "codex" });
-    expect(parseHarness("claude")).toMatchObject({ kind: "claude", binary: "claude" });
+    expect(parseHarness("codex")).toMatchObject({
+      kind: "codex",
+      binary: "codex",
+      effort: "medium",
+    });
+    expect(parseHarness("claude")).toMatchObject({
+      kind: "claude",
+      binary: "claude",
+      effort: "medium",
+    });
   });
 
   it("rejects unknown builtin names", () => {
@@ -87,6 +101,36 @@ describe("resolveHarness", () => {
   it("rejects custom names passed via flag", () => {
     expect(() => resolveHarness({}, "myagent")).toThrow(/--harness accepts/);
   });
+
+  it("resolves effort from the flag, config, then medium default", () => {
+    const defaultHarness = resolveHarness({});
+    const configuredHarness = resolveHarness({ effort: "low" });
+    const flaggedHarness = resolveHarness({ effort: "high" }, undefined, "xhigh");
+    expect(defaultHarness.kind === "codex" && defaultHarness.effort).toBe("medium");
+    expect(configuredHarness.kind === "codex" && configuredHarness.effort).toBe("low");
+    expect(flaggedHarness.kind === "codex" && flaggedHarness.effort).toBe("xhigh");
+  });
+
+  it("rejects invalid or custom-harness effort", () => {
+    expect(() => resolveHarness({ effort: "max" })).toThrow(/effort must be one of/);
+    expect(() =>
+      resolveHarness({ harness: { command: "agent {workspace} {prompt}" }, effort: "low" }),
+    ).toThrow(/effort applies only/);
+  });
+});
+
+describe("resolveConcurrency", () => {
+  it("resolves the flag, config, then default two", () => {
+    expect(resolveConcurrency({})).toBe(2);
+    expect(resolveConcurrency({ concurrency: 4 })).toBe(4);
+    expect(resolveConcurrency({ concurrency: 4 }, "1")).toBe(1);
+  });
+
+  it("rejects values outside one through eight", () => {
+    expect(() => resolveConcurrency({ concurrency: 0 })).toThrow(/1 to 8/);
+    expect(() => resolveConcurrency({}, "9")).toThrow(/1 to 8/);
+    expect(() => resolveConcurrency({ concurrency: "2" })).toThrow(/1 to 8/);
+  });
 });
 
 describe("buildInvocation", () => {
@@ -113,7 +157,15 @@ describe("buildInvocation", () => {
       "p",
       "/scratch",
     );
-    expect(claude.args).toEqual(["-p", "--model", "sonnet", "--dangerously-skip-permissions", "p"]);
+    expect(claude.args).toEqual([
+      "-p",
+      "--model",
+      "sonnet",
+      "--effort",
+      "medium",
+      "--dangerously-skip-permissions",
+      "p",
+    ]);
     const codex = buildInvocation(
       { name: "codex:gpt-5", kind: "codex", binary: "codex", model: "gpt-5" },
       "/ws",
@@ -121,6 +173,7 @@ describe("buildInvocation", () => {
       "/scratch",
     );
     expect(codex.args.slice(1, 3)).toEqual(["-m", "gpt-5"]);
+    expect(codex.args).toContain('model_reasoning_effort="medium"');
   });
 
   it("builds claude print-mode argv", () => {
@@ -131,7 +184,31 @@ describe("buildInvocation", () => {
       "/scratch",
     );
     expect(inv.cmd).toBe("claude");
-    expect(inv.args).toEqual(["-p", "--dangerously-skip-permissions", "do things"]);
+    expect(inv.args).toEqual([
+      "-p",
+      "--effort",
+      "medium",
+      "--dangerously-skip-permissions",
+      "do things",
+    ]);
+  });
+
+  it("passes explicit effort to both builtin CLIs", () => {
+    const codex = buildInvocation(
+      { name: "codex", kind: "codex", binary: "codex", effort: "low" },
+      "/ws",
+      "p",
+      "/scratch",
+    );
+    expect(codex.args).toContain('model_reasoning_effort="low"');
+
+    const claude = buildInvocation(
+      { name: "claude", kind: "claude", binary: "claude", effort: "xhigh" },
+      "/ws",
+      "p",
+      "/scratch",
+    );
+    expect(claude.args).toContain("xhigh");
   });
 
   it("substitutes and shell-quotes custom template placeholders", () => {

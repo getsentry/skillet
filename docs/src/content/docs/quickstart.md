@@ -75,6 +75,8 @@ The authoring skill will:
 6. Run validation and evals.
 
 Full evals and baselines start authenticated agent CLI sessions. They can take time and consume model usage.
+Built-in harnesses use medium effort and run up to two trials or skill/baseline
+variants within one case in parallel. Baseline remains opt-in.
 
 ## Check the Result
 

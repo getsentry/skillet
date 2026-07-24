@@ -25,7 +25,6 @@ checks:
       test "$(git rev-parse main)" = "$(git rev-list --max-parents=0 HEAD)"
   - shell: test "$(git branch --show-current)" != main
   - shell: test "$(git rev-parse HEAD)" != "$(git rev-parse main)"
-trials: 3
 timeout: 300
 ```
 

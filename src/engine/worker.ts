@@ -252,7 +252,7 @@ export const registerCase = (cfg: WorkerCase): void => {
   describeEval(evalCase.id, { harness: trialHarness(cfg, "skill"), judgeHarness }, (it) => {
     for (let trial = 0; trial < cfg.trials; trial++) {
       const name = cfg.trials > 1 ? `${evalCase.id} (trial ${trial + 1})` : evalCase.id;
-      it(name, async ({ run, task }) => {
+      it.concurrent(name, async ({ run, task }) => {
         const result = await run(evalCase.prompt);
         const out = result.output;
         if (out.error != null) {
@@ -313,7 +313,7 @@ export const registerCase = (cfg: WorkerCase): void => {
         cfg.trials > 1
           ? `${evalCase.id} [baseline] (trial ${trial + 1})`
           : `${evalCase.id} [baseline]`;
-      it(name, async ({ run, task }) => {
+      it.concurrent(name, async ({ run, task }) => {
         const result = await run(evalCase.prompt);
         const out = result.output;
         if (out.error != null) {

@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { isRecord } from "../guards.js";
-import type { BuiltinHarness, ResolvedHarness } from "./types.js";
+import type { BuiltinHarness, EffortLevel, ResolvedHarness } from "./types.js";
 
 export const CONFIG_FILE = ".skillet.yaml";
 
@@ -14,8 +14,23 @@ export class HarnessConfigError extends Error {
   }
 }
 
-const CODEX: BuiltinHarness = { name: "codex", kind: "codex", binary: "codex" };
-const CLAUDE: BuiltinHarness = { name: "claude", kind: "claude", binary: "claude" };
+const DEFAULT_EFFORT: EffortLevel = "medium";
+const DEFAULT_CONCURRENCY = 2;
+const MAX_CONCURRENCY = 8;
+const EFFORT_LEVELS = new Set<EffortLevel>(["low", "medium", "high", "xhigh"]);
+
+const CODEX: BuiltinHarness = {
+  name: "codex",
+  kind: "codex",
+  binary: "codex",
+  effort: DEFAULT_EFFORT,
+};
+const CLAUDE: BuiltinHarness = {
+  name: "claude",
+  kind: "claude",
+  binary: "claude",
+  effort: DEFAULT_EFFORT,
+};
 
 const BUILTINS: Record<string, BuiltinHarness> = { codex: CODEX, claude: CLAUDE };
 
@@ -110,12 +125,24 @@ export const parseHarness = (value: unknown): ResolvedHarness => {
   throw new HarnessConfigError('"harness" must be a builtin name or a mapping with "command"');
 };
 
+const parseEffort = (value: unknown): EffortLevel => {
+  if (typeof value === "string" && EFFORT_LEVELS.has(value as EffortLevel)) {
+    return value as EffortLevel;
+  }
+  throw new HarnessConfigError(`effort must be one of ${[...EFFORT_LEVELS].join(", ")}`);
+};
+
 /**
  * Resolve the harness for a run: CLI flag > .skillet.yaml > default
  * codex. The flag accepts builtin names only; custom harnesses are
  * configured in .skillet.yaml.
  */
-export const resolveHarness = (config: Record<string, unknown>, flag?: string): ResolvedHarness => {
+export const resolveHarness = (
+  config: Record<string, unknown>,
+  flag?: string,
+  effortFlag?: string,
+): ResolvedHarness => {
+  let harness: ResolvedHarness;
   if (flag != null) {
     const builtin = parseBuiltin(flag);
     if (builtin == null) {
@@ -123,12 +150,33 @@ export const resolveHarness = (config: Record<string, unknown>, flag?: string): 
         `--harness accepts ${Object.keys(BUILTINS).join(", ")}, optionally with a model (claude:sonnet); configure custom harnesses in ${CONFIG_FILE}`,
       );
     }
-    return builtin;
+    harness = builtin;
+  } else if (config["harness"] != null) {
+    harness = parseHarness(config["harness"]);
+  } else {
+    harness = CODEX;
   }
-  if (config["harness"] != null) {
-    return parseHarness(config["harness"]);
+
+  const configuredEffort = effortFlag ?? config["effort"];
+  if (harness.kind === "custom") {
+    if (configuredEffort != null) {
+      throw new HarnessConfigError("effort applies only to codex and claude harnesses");
+    }
+    return harness;
   }
-  return CODEX;
+  return {
+    ...harness,
+    effort: configuredEffort == null ? DEFAULT_EFFORT : parseEffort(configuredEffort),
+  };
+};
+
+/** Resolve bounded case concurrency: CLI flag, then config, then default two. */
+export const resolveConcurrency = (config: Record<string, unknown>, flag?: string): number => {
+  const raw = flag == null ? (config["concurrency"] ?? DEFAULT_CONCURRENCY) : Number(flag);
+  if (typeof raw !== "number" || !Number.isInteger(raw) || raw < 1 || raw > MAX_CONCURRENCY) {
+    throw new HarnessConfigError(`concurrency must be an integer from 1 to ${MAX_CONCURRENCY}`);
+  }
+  return raw;
 };
 
 /** Fail fast when the harness executable is missing (harness spec). */

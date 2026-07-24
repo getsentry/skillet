@@ -5,6 +5,7 @@ import {
   HarnessConfigError,
   loadConfig,
   requireBinary,
+  resolveConcurrency,
   resolveHarness,
 } from "../harness/config.js";
 import { requireSandbox, resolveSandbox, type SandboxConfig } from "../harness/sandbox.js";
@@ -30,8 +31,11 @@ Options:
   --behavior <id>     Run only the cases covering one behavior
   --trials <n>        Run each case n times and report pass rates
   --baseline          Also run every trial without the skill; report lift
+  --concurrency <n>   Run up to n trials/variants in parallel (default: 2; max: 8)
+  --effort <level>    Built-in reasoning effort: low, medium, high, xhigh
+                      (default: medium; applies to trials and judges)
   --harness <name>    Override the harness (codex, claude), optionally
-                      with a model, e.g. claude:sonnet or codex:gpt-5
+                      with a model, e.g. claude:sonnet or codex:model-id
   --sandbox <mode>    docker: run every harness invocation in a container
                       (none: force direct). Default from .skillet.yaml.
   --keep-workspaces   Leave trial workspaces on disk for debugging
@@ -113,6 +117,8 @@ export const run = async (argv: string[]): Promise<number> => {
       behavior: { type: "string" },
       trials: { type: "string" },
       baseline: { type: "boolean" },
+      concurrency: { type: "string" },
+      effort: { type: "string" },
       harness: { type: "string" },
       sandbox: { type: "string" },
       "keep-workspaces": { type: "boolean" },
@@ -141,9 +147,11 @@ export const run = async (argv: string[]): Promise<number> => {
 
   let harness: ResolvedHarness;
   let sandbox: SandboxConfig | null;
+  let concurrency: number;
   try {
     const config = loadConfig(root);
-    harness = resolveHarness(config, values.harness);
+    harness = resolveHarness(config, values.harness, values.effort);
+    concurrency = resolveConcurrency(config, values.concurrency);
     sandbox = resolveSandbox(config, values.sandbox);
     if (sandbox != null) {
       requireSandbox(sandbox, harness);
@@ -253,8 +261,9 @@ export const run = async (argv: string[]): Promise<number> => {
     cases = remaining;
   }
 
+  const effort = harness.kind === "custom" ? "" : `, effort ${harness.effort}`;
   info(
-    `Running ${cases.length} case(s) via ${harness.name}${sandbox != null ? " [docker sandbox]" : ""}${values.baseline === true ? " (with baseline)" : ""}...`,
+    `Running ${cases.length} case(s) via ${harness.name} (concurrency ${concurrency}${effort})${sandbox != null ? " [docker sandbox]" : ""}${values.baseline === true ? " (with baseline)" : ""}...`,
   );
   const workerCases: WorkerCase[] = cases.map((evalCase) => ({
     evalCase,
@@ -266,6 +275,7 @@ export const run = async (argv: string[]): Promise<number> => {
     keepWorkspaces: values["keep-workspaces"] === true,
   }));
   const fresh = await runEngine(workerCases, {
+    concurrency,
     onProgress: (message) => {
       info(`  ${message}`);
     },
