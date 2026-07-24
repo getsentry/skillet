@@ -74,7 +74,7 @@ Use `--report <file>` to write a Vitest JSON report for `npx vitest-evals serve`
 The default harness is Codex (`codex exec`). Claude Code (`claude -p`) is also built in.
 
 Skillet does not choose a model unless one is configured. Built-in harnesses
-default to medium effort for both trials and judges. Cases remain ordered, while
+default to low effort for both trials and judges. Cases remain ordered, while
 trials and skill/baseline variants within one case run with a default concurrency
 of four. Baseline runs only when `--baseline` is passed.
 

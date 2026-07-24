@@ -33,7 +33,7 @@ describe("installSkill", () => {
     const skill = makeSkill();
     const workspace = tempDir("skillet-install-ws-");
     installSkill(
-      { name: "claude", kind: "claude", binary: "claude", effort: "medium" },
+      { name: "claude", kind: "claude", binary: "claude", effort: "low" },
       skill,
       workspace,
     );
@@ -49,7 +49,7 @@ describe("installSkill", () => {
     const skill = makeSkill();
     const workspace = tempDir("skillet-install-ws-");
     const installation = installSkill(
-      { name: "codex", kind: "codex", binary: "codex", effort: "medium" },
+      { name: "codex", kind: "codex", binary: "codex", effort: "low" },
       skill,
       workspace,
     );

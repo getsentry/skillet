@@ -17,7 +17,7 @@ skillet eval --harness codex
 ```
 
 Skillet does not pin a model. Without a model suffix, Codex or Claude uses its
-configured/default model. Built-in trials and judges use medium effort by
+configured/default model. Built-in trials and judges use low effort by
 default.
 
 Use Claude Code explicitly:
@@ -41,7 +41,7 @@ Create `.skillet.yaml` at the skill root or an ancestor:
 
 ```yaml
 harness: claude:sonnet
-effort: medium
+effort: low
 concurrency: 4
 ```
 

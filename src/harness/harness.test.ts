@@ -37,13 +37,13 @@ describe("parseHarness", () => {
       name: "codex",
       kind: "codex",
       binary: "codex",
-      effort: "medium",
+      effort: "low",
     });
     expect(parseHarness("claude")).toEqual({
       name: "claude",
       kind: "claude",
       binary: "claude",
-      effort: "medium",
+      effort: "low",
     });
   });
 
@@ -104,11 +104,11 @@ describe("resolveHarness", () => {
     expect(() => resolveHarness({}, "myagent")).toThrow(/--harness accepts/);
   });
 
-  it("resolves effort from the flag, config, then medium default", () => {
+  it("resolves effort from the flag, config, then low default", () => {
     const defaultHarness = resolveHarness({});
     const configuredHarness = resolveHarness({ effort: "low" });
     const flaggedHarness = resolveHarness({ effort: "high" }, undefined, "xhigh");
-    expect(defaultHarness.kind === "codex" && defaultHarness.effort).toBe("medium");
+    expect(defaultHarness.kind === "codex" && defaultHarness.effort).toBe("low");
     expect(configuredHarness.kind === "codex" && configuredHarness.effort).toBe("low");
     expect(flaggedHarness.kind === "codex" && flaggedHarness.effort).toBe("xhigh");
   });
@@ -143,7 +143,7 @@ describe("resolveConcurrency", () => {
 describe("buildInvocation", () => {
   it("builds codex exec argv with workspace and last-message capture", () => {
     const inv = buildInvocation(
-      { name: "codex", kind: "codex", binary: "codex", effort: "medium" },
+      { name: "codex", kind: "codex", binary: "codex", effort: "low" },
       "/ws",
       "do things",
       "/scratch",
@@ -155,7 +155,7 @@ describe("buildInvocation", () => {
     expect(inv.args).toEqual([
       "exec",
       "-c",
-      'model_reasoning_effort="medium"',
+      'model_reasoning_effort="low"',
       "-C",
       "/ws",
       "--skip-git-repo-check",
@@ -226,7 +226,7 @@ describe("buildInvocation", () => {
 
   it("builds claude print-mode argv", () => {
     const inv = buildInvocation(
-      { name: "claude", kind: "claude", binary: "claude", effort: "medium" },
+      { name: "claude", kind: "claude", binary: "claude", effort: "low" },
       "/ws",
       "do things",
       "/scratch",
@@ -235,7 +235,7 @@ describe("buildInvocation", () => {
     expect(inv.args).toEqual([
       "-p",
       "--effort",
-      "medium",
+      "low",
       "--dangerously-skip-permissions",
       "do things",
     ]);

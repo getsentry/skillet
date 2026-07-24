@@ -11,7 +11,7 @@ Skillet searches for `.skillet.yaml` from the skill directory upward. CLI flags 
 
 ```yaml
 harness: codex
-effort: medium
+effort: low
 concurrency: 4
 ```
 
@@ -26,7 +26,7 @@ Supported built-ins are `codex` and `claude`.
 | Field | Default | Description |
 |---|---|---|
 | `harness` | `codex` | Built-in, model-qualified built-in, or custom harness mapping |
-| `effort` | `medium` | Built-in reasoning effort: `low`, `medium`, `high`, or `xhigh` |
+| `effort` | `low` | Built-in reasoning effort: `low`, `medium`, `high`, or `xhigh` |
 | `concurrency` | `4` | Parallel trials or variants within one case, from `1` through `8` |
 
 Skillet leaves the model unset unless `harness` includes a model suffix. The
@@ -85,7 +85,7 @@ skillet eval --sandbox none
 
 ```yaml
 harness: codex
-effort: medium
+effort: low
 concurrency: 4
 
 sandbox:

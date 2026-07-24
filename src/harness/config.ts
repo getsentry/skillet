@@ -14,7 +14,7 @@ export class HarnessConfigError extends Error {
   }
 }
 
-const DEFAULT_EFFORT: EffortLevel = "medium";
+const DEFAULT_EFFORT: EffortLevel = "low";
 const DEFAULT_CONCURRENCY = 4;
 const MAX_CONCURRENCY = 8;
 const EFFORT_LEVELS = new Set<EffortLevel>(["low", "medium", "high", "xhigh"]);

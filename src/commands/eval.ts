@@ -33,7 +33,7 @@ Options:
   --baseline          Also run every trial without the skill; report lift
   --concurrency <n>   Run up to n trials/variants in parallel (default: 4; max: 8)
   --effort <level>    Built-in reasoning effort: low, medium, high, xhigh
-                      (default: medium; applies to trials and judges)
+                      (default: low; applies to trials and judges)
   --harness <name>    Override the harness (codex, claude), optionally
                       with a model, e.g. claude:sonnet or codex:model-id
   --sandbox <mode>    docker: run every harness invocation in a container

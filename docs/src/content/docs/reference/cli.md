@@ -66,7 +66,7 @@ skillet eval [path] [options]
 | `--trials <n>` | Override trial count for every selected case |
 | `--baseline` | Repeat trials without the skill and report lift |
 | `--concurrency <n>` | Run up to `n` trials or variants within a case in parallel; default `4`, maximum `8` |
-| `--effort <level>` | Built-in trial and judge effort; default `medium` |
+| `--effort <level>` | Built-in trial and judge effort; default `low` |
 | `--harness <name>` | Select `codex`, `claude`, or a model-qualified built-in |
 | `--sandbox docker|none` | Override sandbox mode |
 | `--dry` | Run deterministic checks without spawning an agent |
