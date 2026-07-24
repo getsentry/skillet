@@ -79,7 +79,7 @@ A judge-only case is valid when no direct deterministic proof exists. Do not man
 ```bash
 skillet validate
 skillet eval --dry
-skillet eval --trials 3 --baseline
+skillet eval --baseline
 ```
 
 `--dry` finds checks that pass before the agent runs. `--baseline` compares the same configured agent with and without this skill.

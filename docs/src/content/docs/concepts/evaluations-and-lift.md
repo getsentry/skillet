@@ -9,31 +9,28 @@ Skillet evals run prompts through a coding-agent CLI in fresh workspaces. Result
 
 ## Trials
 
-One run can be lucky. Repeated trials show how consistently the behavior appears across runs:
+One run is one observation. When you need to inspect variance or a behavior has
+shown inconsistent results, choose a trial count for that question:
 
 ```bash
-skillet eval --trials 3
+skillet eval --trials <n>
 ```
 
-Skillet reports pass rates per case and per behavior.
+Skillet reports pass rates per case and per behavior. Do not add repeated trials
+by default; they increase runtime and model usage.
 
 ## Baseline
 
 A passing case shows that the agent met the case with the skill installed. Run a baseline to see whether the result changes without the skill.
 
 ```bash
-skillet eval --trials 3 --baseline
+skillet eval --baseline
 ```
 
 Baseline trials use the same prompt, harness, model selection, and global agent configuration without installing the skill.
 
-```text
-Behaviors:
-  conventional-subject: 100% (3/3) | baseline 33% | lift +67%
-  branch-safety:        100% (3/3) | baseline 0%  | lift +100%
-```
-
 Lift is the difference between the skill pass rate and the baseline pass rate.
+Add `--trials <n>` when the comparison itself needs repeated observations.
 
 ## Zero Lift
 

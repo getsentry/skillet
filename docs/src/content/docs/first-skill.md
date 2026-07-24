@@ -162,7 +162,7 @@ The first check verifies that `main` still points to the seed commit. The other 
 ```bash
 skillet validate
 skillet eval --dry
-skillet eval --trials 3 --baseline
+skillet eval --baseline
 ```
 
 Do not weaken a fair case just to get a passing result. Fix the layer that is wrong:

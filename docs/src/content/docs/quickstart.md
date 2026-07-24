@@ -84,7 +84,7 @@ From the new skill directory:
 npx -y @sentry/skillet@latest status
 npx -y @sentry/skillet@latest validate
 npx -y @sentry/skillet@latest eval --dry
-npx -y @sentry/skillet@latest eval --trials 3 --baseline
+npx -y @sentry/skillet@latest eval --baseline
 ```
 
 `status` reports the next step, `validate` checks the complete contract, `eval --dry` finds checks that pass before the agent runs, and `--baseline` compares pass rates with and without the skill.

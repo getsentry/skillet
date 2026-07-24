@@ -71,7 +71,7 @@ For an existing skill, run `skillet status <path>`. Uppercase `SPEC.md` and stru
 ```bash
 npx -y @sentry/skillet@latest validate
 npx -y @sentry/skillet@latest eval --dry
-npx -y @sentry/skillet@latest eval --trials 3 --baseline
+npx -y @sentry/skillet@latest eval --baseline
 ```
 
 - `validate` checks the spec grammar, `SKILL.md` frontmatter, eval schemas, and behavior coverage.

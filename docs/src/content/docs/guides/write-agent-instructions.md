@@ -84,7 +84,7 @@ It cannot mechanically decide whether the prose in `SKILL.md` expresses every be
 
 ```bash
 skillet validate
-skillet eval --trials 3 --baseline
+skillet eval --baseline
 ```
 
 Frontmatter validation catches structural errors. Evals show how the agent behaved in the tested cases; baselines compare those results with and without the skill.

@@ -60,7 +60,7 @@ Full evals require an authenticated harness and can consume model usage. Keep th
 Generate a report for review:
 
 ```bash
-skillet eval --trials 3 --baseline --report results.json
+skillet eval --baseline --report results.json
 ```
 
 Open it locally with:

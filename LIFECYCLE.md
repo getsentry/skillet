@@ -40,7 +40,7 @@ current. Commands below use the shorter installed-binary form for readability.
 4. Write `SKILL.md` and eval cases, using `skillet instructions skill --json` and `skillet instructions evals --json`.
 5. Run `skillet validate` again to check frontmatter, schemas, stale artifacts, and behavior coverage.
 6. Run `skillet eval --dry` to catch cases that require no agent work.
-7. Run `skillet eval --trials 3 --baseline` to measure reliability and lift.
+7. Run `skillet eval --baseline` to compare the tested result with and without the skill. Add `--trials <n>` only when repeated observations are useful.
 8. Diagnose failures at the right layer: change the spec when the intent is wrong, `SKILL.md` when the instructions are weak, or the case when the test is unfair.
 
 `skillet status` derives the current state entirely from disk. It compares the hash recorded in `SKILL.md` with the current `spec.md` and reports one next step.
