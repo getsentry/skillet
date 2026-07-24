@@ -24,7 +24,7 @@
 
 #### Scenario: Concurrency override
 - **WHEN** `skillet eval --concurrency 1` runs
-- **THEN** cases execute serially even if configuration or defaults allow more parallelism
+- **THEN** trials and skill/baseline variants execute serially within each case
 
 #### Scenario: Effort override
 - **WHEN** `skillet eval --effort low` runs with a built-in harness

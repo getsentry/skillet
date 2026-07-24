@@ -8,8 +8,7 @@ export interface BuiltinHarness {
   binary: string;
   /** Model override passed to the CLI (e.g. "sonnet", "gpt-5"). */
   model?: string;
-  /** Reasoning effort passed to the built-in CLI. */
-  effort?: EffortLevel;
+  effort: EffortLevel;
 }
 
 interface CustomHarness {

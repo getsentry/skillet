@@ -1,10 +1,10 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ResolvedHarness } from "../harness/types.js";
 import type { EvalCase } from "../evals/case.js";
-import { runEngine } from "./orchestrate.js";
+import { runEngine, type EngineOptions } from "./orchestrate.js";
 import type { WorkerCase } from "./types.js";
 
 const dirs: string[] = [];
@@ -50,15 +50,24 @@ const makeWorkerCase = (evalCase: EvalCase, overrides: Partial<WorkerCase> = {})
 // Each test boots a nested vitest instance; well beyond unit-test speed.
 const SLOW = 60_000;
 
+type TestEngineOptions = Omit<EngineOptions, "concurrency"> & { concurrency?: number };
+const runCases = (
+  workerCases: WorkerCase[],
+  options: TestEngineOptions = {},
+): ReturnType<typeof runEngine> => {
+  const { concurrency = 4, ...rest } = options;
+  return runEngine(workerCases, { concurrency, ...rest });
+};
+
 describe("runEngine", () => {
   it("passes when the agent produces the checked artifact", { timeout: SLOW }, async () => {
-    const results = await runEngine([makeWorkerCase(makeCase({}))]);
+    const results = await runCases([makeWorkerCase(makeCase({}))], { concurrency: 4 });
     expect(results[0]?.trials[0]?.status).toBe("pass");
     expect(results[0]?.trials[0]?.checks[0]?.status).toBe("pass");
   });
 
   it("fails when checks are not satisfied", { timeout: SLOW }, async () => {
-    const results = await runEngine([
+    const results = await runCases([
       makeWorkerCase(makeCase({ checks: [{ kind: "file_exists", value: "other.txt" }] })),
     ]);
     expect(results[0]?.trials[0]?.status).toBe("fail");
@@ -71,7 +80,7 @@ describe("runEngine", () => {
     { timeout: SLOW },
     async () => {
       const skillRoot = makeSkillRoot();
-      const results = await runEngine([
+      const results = await runCases([
         makeWorkerCase(makeCase({ id: "bad", setup: "exit 9" }), { skillRoot }),
         makeWorkerCase(makeCase({ id: "good" }), { skillRoot }),
       ]);
@@ -83,7 +92,7 @@ describe("runEngine", () => {
   );
 
   it("skips judge checks when a deterministic check fails", { timeout: SLOW }, async () => {
-    const results = await runEngine([
+    const results = await runCases([
       makeWorkerCase(
         makeCase({
           checks: [
@@ -108,7 +117,7 @@ describe("runEngine", () => {
         binary: "sh",
         command: "echo boot failure >&2; false # {workspace} {prompt}",
       };
-      const results = await runEngine([makeWorkerCase(makeCase({}), { harness: dying })]);
+      const results = await runCases([makeWorkerCase(makeCase({}), { harness: dying })]);
       const trial = results[0]?.trials[0];
       expect(trial?.status).toBe("error");
       expect(trial?.status === "error" && trial.error).toContain("harness exited with code 1");
@@ -132,7 +141,7 @@ describe("runEngine", () => {
         command: "true # {workspace} {prompt}",
         skillDir: "{workspace}/.skill",
       };
-      const results = await runEngine([
+      const results = await runCases([
         makeWorkerCase(makeCase({ checks: [{ kind: "file_exists", value: ".skill/SKILL.md" }] }), {
           skillRoot,
           harness: installing,
@@ -150,7 +159,7 @@ describe("runEngine", () => {
   it("reports each case exactly once via onCaseDone", { timeout: SLOW }, async () => {
     const skillRoot = makeSkillRoot();
     const done: string[] = [];
-    await runEngine(
+    await runCases(
       [
         makeWorkerCase(makeCase({ id: "a" }), { skillRoot }),
         makeWorkerCase(makeCase({ id: "b" }), { skillRoot }),
@@ -160,30 +169,79 @@ describe("runEngine", () => {
     expect(done.toSorted()).toEqual(["a", "b"]);
   });
 
-  it("runs four independent trials concurrently by default", { timeout: SLOW }, async () => {
+  it("returns case results in declared order", { timeout: SLOW }, async () => {
+    const skillRoot = makeSkillRoot();
+    const results = await runCases([
+      makeWorkerCase(makeCase({ id: "z-first" }), { skillRoot }),
+      makeWorkerCase(makeCase({ id: "a-second" }), { skillRoot }),
+    ]);
+    expect(results.map((result) => result.id)).toEqual(["z-first", "a-second"]);
+  });
+
+  it("caps concurrent trials at four", { timeout: SLOW }, async () => {
     const skillRoot = makeSkillRoot();
     const barrier = makeSkillRoot();
+    mkdirSync(join(barrier, "active"));
+    mkdirSync(join(barrier, "started"));
     const concurrentHarness: ResolvedHarness = {
       name: "concurrent",
       kind: "custom",
       binary: "sh",
-      command: `cd {workspace}; touch ${barrier}/$$; attempts=0; while [ $attempts -lt 100 ]; do test "$(find ${barrier} -type f | wc -l | tr -d ' ')" -ge 4 && exit 0; attempts=$((attempts + 1)); sleep 0.01; done; exit 9 # {prompt}`,
+      command: `cd {workspace}; touch ${barrier}/active/$$ ${barrier}/started/$$; active=$(find ${barrier}/active -type f | wc -l | tr -d ' '); test "$active" -le 4 || touch ${barrier}/exceeded; attempts=0; while [ $attempts -lt 100 ]; do test "$(find ${barrier}/started -type f | wc -l | tr -d ' ')" -ge 4 && break; attempts=$((attempts + 1)); sleep 0.01; done; sleep 0.05; rm -f ${barrier}/active/$$; test ! -f ${barrier}/exceeded # {prompt}`,
     };
-    const results = await runEngine([
+    const results = await runCases([
       makeWorkerCase(makeCase({ checks: [{ kind: "shell", value: "true" }] }), {
         skillRoot,
         harness: concurrentHarness,
-        trials: 4,
+        trials: 5,
       }),
     ]);
     expect(results).toHaveLength(1);
-    expect(results[0]?.trials).toHaveLength(4);
-    expect(results.every((result) => result.trials[0]?.status === "pass")).toBe(true);
+    expect(results[0]?.trials).toHaveLength(5);
+    expect(results[0]?.trials.every((trial) => trial.status === "pass")).toBe(true);
+    expect(existsSync(join(barrier, "exceeded"))).toBe(false);
+  });
+
+  it(
+    "honors serial concurrency across skill and baseline variants",
+    { timeout: SLOW },
+    async () => {
+      const skillRoot = makeSkillRoot();
+      const barrier = makeSkillRoot();
+      writeFileSync(join(skillRoot, "SKILL.md"), "---\nname: s\ndescription: d\n---\n");
+      const serialHarness: ResolvedHarness = {
+        name: "serial",
+        kind: "custom",
+        binary: "sh",
+        command: `cd {workspace}; if ! mkdir ${barrier}/lock 2>/dev/null; then touch ${barrier}/overlap; fi; sleep 0.05; rmdir ${barrier}/lock 2>/dev/null || true; test ! -f ${barrier}/overlap # {prompt}`,
+      };
+      const results = await runCases(
+        [
+          makeWorkerCase(makeCase({ checks: [{ kind: "shell", value: "true" }] }), {
+            skillRoot,
+            harness: serialHarness,
+            baseline: true,
+          }),
+        ],
+        { concurrency: 1 },
+      );
+      expect(results[0]?.trials[0]?.status).toBe("pass");
+      expect(results[0]?.baselineTrials?.[0]?.status).toBe("pass");
+      expect(existsSync(join(barrier, "overlap"))).toBe(false);
+    },
+  );
+
+  it("rejects invalid programmatic concurrency", async () => {
+    for (const concurrency of [0, 1.5, 9]) {
+      await expect(runEngine([makeWorkerCase(makeCase({}))], { concurrency })).rejects.toThrow(
+        /concurrency must be an integer from 1 to 8/,
+      );
+    }
   });
 
   it("writes a vitest JSON report when asked", { timeout: SLOW }, async () => {
     const reportFile = join(makeSkillRoot(), "report.json");
-    await runEngine([makeWorkerCase(makeCase({}))], { reportFile });
+    await runCases([makeWorkerCase(makeCase({}))], { reportFile });
     const { readFileSync } = await import("node:fs");
     const report = JSON.parse(readFileSync(reportFile, "utf8")) as {
       numTotalTests: number;

@@ -194,6 +194,7 @@ export const run = async (argv: string[]): Promise<number> => {
   if (cases.length === 0) {
     return fail("no eval cases found under evals/cases/", { json });
   }
+  const selectedCases = cases;
 
   if (values.dry === true) {
     const dry = dryRun(cases, root);
@@ -261,9 +262,8 @@ export const run = async (argv: string[]): Promise<number> => {
     cases = remaining;
   }
 
-  const effort = harness.kind === "custom" ? "" : `, effort ${harness.effort}`;
   info(
-    `Running ${cases.length} case(s) via ${harness.name} (concurrency ${concurrency}${effort})${sandbox != null ? " [docker sandbox]" : ""}${values.baseline === true ? " (with baseline)" : ""}...`,
+    `Running ${cases.length} case(s) via ${harness.name}${sandbox != null ? " [docker sandbox]" : ""}${values.baseline === true ? " (with baseline)" : ""}...`,
   );
   const workerCases: WorkerCase[] = cases.map((evalCase) => ({
     evalCase,
@@ -289,7 +289,12 @@ export const run = async (argv: string[]): Promise<number> => {
       },
     }),
   });
-  const results = [...cached, ...fresh];
+  const byId = new Map([...cached, ...fresh].map((result) => [result.id, result]));
+  const results = selectedCases.map((evalCase) => {
+    const result = byId.get(evalCase.id);
+    if (result == null) throw new Error(`case ${evalCase.id} produced no result`);
+    return result;
+  });
 
   const behaviors = summarizeByBehavior(results);
   const allTrials = results.flatMap((r) => r.trials);

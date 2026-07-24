@@ -100,4 +100,46 @@ describe("eval command", () => {
     const kept: unknown = JSON.parse(readFileSync(join(out, "make-file.json"), "utf8"));
     expect(kept).toMatchObject({ trials: [{ status: "fail" }] });
   });
+
+  it("keeps baseline opt-in", async () => {
+    const root = makeSkill();
+    const normalOut = join(root, "normal-results");
+    const baselineOut = join(root, "baseline-results");
+
+    expect(await run([root, "--out", normalOut])).toBe(0);
+    const normal = JSON.parse(readFileSync(join(normalOut, "make-file.json"), "utf8")) as {
+      baselineTrials?: unknown[];
+    };
+    expect(normal.baselineTrials).toBeUndefined();
+
+    expect(await run([root, "--baseline", "--out", baselineOut])).toBe(0);
+    const baseline = JSON.parse(readFileSync(join(baselineOut, "make-file.json"), "utf8")) as {
+      baselineTrials?: unknown[];
+    };
+    expect(baseline.baselineTrials).toHaveLength(1);
+  });
+
+  it("preserves declared case order when cached and fresh results are mixed", async () => {
+    const root = makeSkill();
+    const out = join(root, "ordered-results");
+    writeFileSync(
+      join(root, "evals", "cases", "a-first.yaml"),
+      "behavior: make-file\nprompt: first.txt\nchecks:\n  - file_exists: first.txt\n",
+    );
+    expect(await run([root, "--out", out])).toBe(0);
+    rmSync(join(out, "a-first.json"));
+
+    const writes: string[] = [];
+    const spy = vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+      writes.push(String(chunk));
+      return true;
+    });
+    try {
+      expect(await run([root, "--out", out, "--json"])).toBe(0);
+    } finally {
+      spy.mockRestore();
+    }
+    const payload = JSON.parse(writes.join("")) as { cases: { id: string }[] };
+    expect(payload.cases.map((result) => result.id)).toEqual(["a-first", "make-file"]);
+  });
 });

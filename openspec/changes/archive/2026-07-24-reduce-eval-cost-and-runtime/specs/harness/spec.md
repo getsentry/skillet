@@ -4,7 +4,7 @@
 
 ### Requirement: Built-in reasoning effort
 
-Codex and Claude built-in harnesses SHALL use medium reasoning effort unless `--effort` or `.skillet.yaml` selects `low`, `medium`, `high`, or `xhigh`. Skillet SHALL leave the model unset unless the user selects one, allowing the agent CLI's configured/default model to apply. The same resolved effort SHALL apply to agent-under-test and judge sessions. Custom harnesses SHALL receive no automatic effort flags.
+Codex and Claude built-in harnesses SHALL use medium reasoning effort unless `--effort` or `.skillet.yaml` selects `low`, `medium`, `high`, or `xhigh`. Skillet SHALL leave the model unset unless the user selects one, allowing the agent CLI's configured/default model to apply. The same resolved effort SHALL apply to agent-under-test and judge sessions. Custom harnesses SHALL receive no automatic effort flags; configured effort SHALL be ignored for custom commands, while an explicit `--effort` flag SHALL be rejected.
 
 #### Scenario: Default Codex invocation
 

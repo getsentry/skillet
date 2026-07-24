@@ -157,22 +157,25 @@ export const resolveHarness = (
     harness = CODEX;
   }
 
-  const configuredEffort = effortFlag ?? config["effort"];
   if (harness.kind === "custom") {
-    if (configuredEffort != null) {
+    if (effortFlag != null) {
       throw new HarnessConfigError("effort applies only to codex and claude harnesses");
     }
     return harness;
   }
+  const configuredEffort =
+    effortFlag ?? (Object.hasOwn(config, "effort") ? config["effort"] : DEFAULT_EFFORT);
   return {
     ...harness,
-    effort: configuredEffort == null ? DEFAULT_EFFORT : parseEffort(configuredEffort),
+    effort: parseEffort(configuredEffort),
   };
 };
 
 /** Resolve bounded trial concurrency: CLI flag, then config, then default four. */
 export const resolveConcurrency = (config: Record<string, unknown>, flag?: string): number => {
-  const raw = flag == null ? (config["concurrency"] ?? DEFAULT_CONCURRENCY) : Number(flag);
+  let raw: unknown = DEFAULT_CONCURRENCY;
+  if (flag != null) raw = Number(flag);
+  else if (Object.hasOwn(config, "concurrency")) raw = config["concurrency"];
   if (typeof raw !== "number" || !Number.isInteger(raw) || raw < 1 || raw > MAX_CONCURRENCY) {
     throw new HarnessConfigError(`concurrency must be an integer from 1 to ${MAX_CONCURRENCY}`);
   }

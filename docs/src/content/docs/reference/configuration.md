@@ -48,7 +48,8 @@ harness:
 | `skill_dir` | No | Template for the directory where Skillet installs the skill |
 
 Custom harnesses must be configured in the file. `--harness` accepts built-in names only.
-Custom harnesses own their model and cost flags; `effort` is rejected with a custom command.
+Custom harnesses own their model and cost flags. Configured `effort` is ignored
+for a custom command; an explicit `--effort` flag is rejected.
 
 ## Docker Sandbox
 

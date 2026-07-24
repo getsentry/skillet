@@ -5,13 +5,13 @@ import { compileCases, resolveWorkerUrl } from "./compile.js";
 import { META_KEY, type TrialMeta, type WorkerCase } from "./types.js";
 
 export interface EngineOptions {
+  /** Maximum trials or variants within one case to execute concurrently. */
+  concurrency: number;
   onProgress?: (message: string) => void;
   /** Fires as each case finishes, so results can be persisted incrementally. */
   onCaseDone?: (result: CaseResult) => void;
   /** Write a Vitest JSON report artifact here (--report). */
   reportFile?: string;
-  /** Maximum trials or variants within one case to execute concurrently. */
-  concurrency?: number;
 }
 
 interface PendingCase {
@@ -63,9 +63,12 @@ const finalize = (pending: PendingCase): CaseResult => ({
  */
 export const runEngine = async (
   workerCases: WorkerCase[],
-  opts: EngineOptions = {},
+  opts: EngineOptions,
 ): Promise<CaseResult[]> => {
-  const concurrency = opts.concurrency ?? 4;
+  const { concurrency } = opts;
+  if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 8) {
+    throw new Error("concurrency must be an integer from 1 to 8");
+  }
   const compiled = compileCases(workerCases, resolveWorkerUrl());
 
   const pendings = new Map<string, PendingCase>();
@@ -145,8 +148,8 @@ export const runEngine = async (
         // vitest's own test timeout must never fire first.
         testTimeout: 0,
         hookTimeout: 120_000,
-        // Agent CLIs are heavyweight; one worker matches the old
-        // serial runner's machine load.
+        // One worker keeps case files ordered; maxConcurrency bounds
+        // the concurrent tests within that worker.
         maxWorkers: 1,
         maxConcurrency: concurrency,
       },

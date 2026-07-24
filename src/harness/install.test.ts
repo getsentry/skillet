@@ -32,7 +32,11 @@ describe("installSkill", () => {
   it("claude: installs under .claude/skills without the evals directory", () => {
     const skill = makeSkill();
     const workspace = tempDir("skillet-install-ws-");
-    installSkill({ name: "claude", kind: "claude", binary: "claude" }, skill, workspace);
+    installSkill(
+      { name: "claude", kind: "claude", binary: "claude", effort: "medium" },
+      skill,
+      workspace,
+    );
     const dest = join(workspace, ".claude", "skills", "demo-skill");
     expect(readFileSync(join(dest, "SKILL.md"), "utf8")).toContain("Body text");
     // Grading criteria must not be visible to the agent under test...
@@ -45,7 +49,7 @@ describe("installSkill", () => {
     const skill = makeSkill();
     const workspace = tempDir("skillet-install-ws-");
     const installation = installSkill(
-      { name: "codex", kind: "codex", binary: "codex" },
+      { name: "codex", kind: "codex", binary: "codex", effort: "medium" },
       skill,
       workspace,
     );

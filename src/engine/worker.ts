@@ -46,6 +46,12 @@ type TrialOutput = {
   error?: string;
 };
 
+// oxlint-disable-next-line typescript-eslint/consistent-type-definitions
+type TrialInput = {
+  variant: Variant;
+  prompt: string;
+};
+
 /** Workspace/staging teardown deferred to afterAll so checks and judges see the workspace. */
 const cleanups: (() => void)[] = [];
 
@@ -104,17 +110,17 @@ const attempt = async (cfg: WorkerCase, variant: Variant, prompt: string): Promi
  * Startup failures (nonzero exit before any agent work) are transient
  * often enough that one automatic retry is the right default.
  */
-const trialHarness = (cfg: WorkerCase, variant: Variant) =>
-  createHarness<string, TrialOutput>({
-    name: variant === "skill" ? cfg.harness.name : `${cfg.harness.name} (baseline)`,
+const trialHarness = (cfg: WorkerCase) =>
+  createHarness<TrialInput, TrialOutput>({
+    name: cfg.harness.name,
     run: async ({ input }) => {
-      let out = await attempt(cfg, variant, input);
+      let out = await attempt(cfg, input.variant, input.prompt);
       if (out.error?.startsWith(HARNESS_EXIT_PREFIX) === true) {
-        out = await attempt(cfg, variant, input);
+        out = await attempt(cfg, input.variant, input.prompt);
       }
       return {
         events: [
-          { type: "message", role: "user", content: input },
+          { type: "message", role: "user", content: input.prompt },
           {
             type: "message",
             role: "assistant",
@@ -156,13 +162,13 @@ const judgeHarnessFor = (cfg: WorkerCase): JudgeHarness =>
  * a matcher option. Prompt and verdict parsing are skillet's existing
  * ones — only the plumbing (harness, scoring, reporting) is native.
  */
-const CriterionJudge = createJudge<string, TrialOutput, { criterion: string }>(
+const CriterionJudge = createJudge<TrialInput, TrialOutput, { criterion: string }>(
   "CriterionJudge",
   async (ctx) => {
     if (ctx.runJudge == null) throw new Error("CriterionJudge requires a judgeHarness");
     const prompt = buildJudgePrompt(
       ctx.criterion,
-      ctx.input,
+      ctx.input.prompt,
       ctx.output.transcript,
       describeWorkspace(ctx.output.workspaceDir),
     );
@@ -249,41 +255,41 @@ export const registerCase = (cfg: WorkerCase): void => {
     (task.meta as Record<string, unknown>)[META_KEY] = meta;
   };
 
-  describeEval(evalCase.id, { harness: trialHarness(cfg, "skill"), judgeHarness }, (it) => {
+  describeEval(evalCase.id, { harness: trialHarness(cfg), judgeHarness }, (it) => {
     for (let trial = 0; trial < cfg.trials; trial++) {
       const name = cfg.trials > 1 ? `${evalCase.id} (trial ${trial + 1})` : evalCase.id;
       it.concurrent(name, async ({ run, task }) => {
-        const result = await run(evalCase.prompt);
+        const result = await run({ variant: "skill", prompt: evalCase.prompt });
         const out = result.output;
         if (out.error != null) {
           record(task, "skill", trial, trialFrom(out, [], cfg.keepWorkspaces));
           expect.fail(out.error);
         }
 
-        const checks: CheckResult[] = deterministicChecks(cfg).map((c) =>
-          runCheck(c, out.workspaceDir),
+        const checks: CheckResult[] = deterministicChecks(cfg).map((check) =>
+          runCheck(check, out.workspaceDir),
         );
-        const deterministicPassed = !checks.some((c) => c.status !== "pass");
+        const deterministicPassed = !checks.some((check) => check.status !== "pass");
 
         let judgeFailure: unknown;
-        for (const jc of judgeChecks(cfg)) {
+        for (const judgeCheck of judgeChecks(cfg)) {
           if (!deterministicPassed || judgeFailure != null) {
-            checks.push({ kind: "judge", value: jc.value, status: "skipped" });
+            checks.push({ kind: "judge", value: judgeCheck.value, status: "skipped" });
             continue;
           }
           try {
             await expect(result).toSatisfyJudge(CriterionJudge, {
-              criterion: jc.value,
+              criterion: judgeCheck.value,
               threshold: 1,
             });
-            checks.push({ kind: "judge", value: jc.value, status: "pass" });
+            checks.push({ kind: "judge", value: judgeCheck.value, status: "pass" });
           } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
             const output = message.slice(0, 2000);
             checks.push(
               message.includes("no VERDICT")
-                ? { kind: "judge", value: jc.value, status: "error", output }
-                : { kind: "judge", value: jc.value, status: "fail", output },
+                ? { kind: "judge", value: judgeCheck.value, status: "error", output }
+                : { kind: "judge", value: judgeCheck.value, status: "fail", output },
             );
             judgeFailure = error;
           }
@@ -300,39 +306,32 @@ export const registerCase = (cfg: WorkerCase): void => {
         }
       });
     }
-  });
 
-  if (!cfg.baseline) {
-    registerCleanup();
-    return;
-  }
-
-  describeEval(`${evalCase.id} [baseline]`, { harness: trialHarness(cfg, "baseline") }, (it) => {
+    if (!cfg.baseline) return;
     for (let trial = 0; trial < cfg.trials; trial++) {
       const name =
         cfg.trials > 1
           ? `${evalCase.id} [baseline] (trial ${trial + 1})`
           : `${evalCase.id} [baseline]`;
       it.concurrent(name, async ({ run, task }) => {
-        const result = await run(evalCase.prompt);
+        const result = await run({ variant: "baseline", prompt: evalCase.prompt });
         const out = result.output;
         if (out.error != null) {
           record(task, "baseline", trial, trialFrom(out, [], cfg.keepWorkspaces));
           return;
         }
-        const checks: CheckResult[] = deterministicChecks(cfg).map((c) =>
-          runCheck(c, out.workspaceDir),
+        const checks: CheckResult[] = deterministicChecks(cfg).map((check) =>
+          runCheck(check, out.workspaceDir),
         );
-        const deterministicPassed = !checks.some((c) => c.status !== "pass");
-        for (const jc of judgeChecks(cfg)) {
+        const deterministicPassed = !checks.some((check) => check.status !== "pass");
+        for (const judgeCheck of judgeChecks(cfg)) {
           if (!deterministicPassed) {
-            checks.push({ kind: "judge", value: jc.value, status: "skipped" });
+            checks.push({ kind: "judge", value: judgeCheck.value, status: "skipped" });
             continue;
           }
-          checks.push(await gradeBaselineJudge(judgeHarness, jc, evalCase.prompt, out));
+          checks.push(await gradeBaselineJudge(judgeHarness, judgeCheck, evalCase.prompt, out));
         }
         record(task, "baseline", trial, trialFrom(out, checks, cfg.keepWorkspaces));
-        // No assertions: baseline failing is expected — it is the point.
       });
     }
   });

@@ -33,12 +33,14 @@ const customHarness = (command: string): ResolvedHarness => ({
 
 describe("parseHarness", () => {
   it("resolves builtin names", () => {
-    expect(parseHarness("codex")).toMatchObject({
+    expect(parseHarness("codex")).toEqual({
+      name: "codex",
       kind: "codex",
       binary: "codex",
       effort: "medium",
     });
-    expect(parseHarness("claude")).toMatchObject({
+    expect(parseHarness("claude")).toEqual({
+      name: "claude",
       kind: "claude",
       binary: "claude",
       effort: "medium",
@@ -111,10 +113,14 @@ describe("resolveHarness", () => {
     expect(flaggedHarness.kind === "codex" && flaggedHarness.effort).toBe("xhigh");
   });
 
-  it("rejects invalid or custom-harness effort", () => {
+  it("rejects invalid builtin effort and explicit custom effort flags", () => {
     expect(() => resolveHarness({ effort: "max" })).toThrow(/effort must be one of/);
+    expect(() => resolveHarness({ effort: null })).toThrow(/effort must be one of/);
+    expect(
+      resolveHarness({ harness: { command: "agent {workspace} {prompt}" }, effort: "low" }).kind,
+    ).toBe("custom");
     expect(() =>
-      resolveHarness({ harness: { command: "agent {workspace} {prompt}" }, effort: "low" }),
+      resolveHarness({ harness: { command: "agent {workspace} {prompt}" } }, undefined, "low"),
     ).toThrow(/effort applies only/);
   });
 });
@@ -130,13 +136,14 @@ describe("resolveConcurrency", () => {
     expect(() => resolveConcurrency({ concurrency: 0 })).toThrow(/1 to 8/);
     expect(() => resolveConcurrency({}, "9")).toThrow(/1 to 8/);
     expect(() => resolveConcurrency({ concurrency: "2" })).toThrow(/1 to 8/);
+    expect(() => resolveConcurrency({ concurrency: null })).toThrow(/1 to 8/);
   });
 });
 
 describe("buildInvocation", () => {
   it("builds codex exec argv with workspace and last-message capture", () => {
     const inv = buildInvocation(
-      { name: "codex", kind: "codex", binary: "codex" },
+      { name: "codex", kind: "codex", binary: "codex", effort: "medium" },
       "/ws",
       "do things",
       "/scratch",
@@ -145,14 +152,34 @@ describe("buildInvocation", () => {
     expect(inv.args).toContain("exec");
     expect(inv.args).toContain("--skip-git-repo-check");
     expect(inv.args).toContain("--dangerously-bypass-approvals-and-sandbox");
-    expect(inv.args.join(" ")).toContain("-C /ws");
+    expect(inv.args).toEqual([
+      "exec",
+      "-c",
+      'model_reasoning_effort="medium"',
+      "-C",
+      "/ws",
+      "--skip-git-repo-check",
+      "--dangerously-bypass-approvals-and-sandbox",
+      "--ephemeral",
+      "--color",
+      "never",
+      "-o",
+      "/scratch/last-message.txt",
+      "do things",
+    ]);
     expect(inv.lastMessageFile).toBe("/scratch/last-message.txt");
     expect(inv.args.at(-1)).toBe("do things");
   });
 
   it("passes the model override to each builtin CLI", () => {
     const claude = buildInvocation(
-      { name: "claude:sonnet", kind: "claude", binary: "claude", model: "sonnet" },
+      {
+        name: "claude:sonnet",
+        kind: "claude",
+        binary: "claude",
+        model: "sonnet",
+        effort: "medium",
+      },
       "/ws",
       "p",
       "/scratch",
@@ -167,18 +194,39 @@ describe("buildInvocation", () => {
       "p",
     ]);
     const codex = buildInvocation(
-      { name: "codex:gpt-5", kind: "codex", binary: "codex", model: "gpt-5" },
+      {
+        name: "codex:gpt-5",
+        kind: "codex",
+        binary: "codex",
+        model: "gpt-5",
+        effort: "medium",
+      },
       "/ws",
       "p",
       "/scratch",
     );
-    expect(codex.args.slice(1, 3)).toEqual(["-m", "gpt-5"]);
-    expect(codex.args).toContain('model_reasoning_effort="medium"');
+    expect(codex.args).toEqual([
+      "exec",
+      "-m",
+      "gpt-5",
+      "-c",
+      'model_reasoning_effort="medium"',
+      "-C",
+      "/ws",
+      "--skip-git-repo-check",
+      "--dangerously-bypass-approvals-and-sandbox",
+      "--ephemeral",
+      "--color",
+      "never",
+      "-o",
+      "/scratch/last-message.txt",
+      "p",
+    ]);
   });
 
   it("builds claude print-mode argv", () => {
     const inv = buildInvocation(
-      { name: "claude", kind: "claude", binary: "claude" },
+      { name: "claude", kind: "claude", binary: "claude", effort: "medium" },
       "/ws",
       "do things",
       "/scratch",

@@ -14,4 +14,4 @@ Do not pin a model: model availability and account defaults differ. Resolve a sh
 - config: top-level `effort: low|medium|high|xhigh`
 - CLI: `--effort <level>`
 
-Codex CLI 0.145.0 accepts `-c model_reasoning_effort="medium"`. Claude Code 2.1.208 accepts `--effort medium`. The resolved effort is attached to the built-in harness and therefore applies to agent-under-test and judge invocations. Custom harness command templates own their model and cost flags; specifying `effort` with a custom harness is rejected rather than silently ignored.
+Codex CLI 0.145.0 accepts `-c model_reasoning_effort="medium"`. Claude Code 2.1.208 accepts `--effort medium`. The resolved effort is attached to the built-in harness and therefore applies to agent-under-test and judge invocations. Custom harness command templates own their model and cost flags; configured effort is ignored, while an explicit `--effort` flag is rejected.

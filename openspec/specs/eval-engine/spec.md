@@ -47,7 +47,7 @@ The engine SHALL wrap skillet's existing harness lifecycle in a single vitest-ev
 
 ### Requirement: Result mapping preserves the JSON contract
 
-The engine SHALL map vitest results back into skillet's existing `EvalJson` shape (summary, behaviors with pass rates and lift, per-case trials with checks and transcripts) so `--json` consumers observe no format change. Exit codes SHALL remain 0 when all trials pass and 1 otherwise.
+The engine SHALL map vitest results back into skillet's existing `EvalJson` shape (summary, behaviors with pass rates and lift, per-case trials with checks and transcripts) so `--json` consumers observe no format change. Case results SHALL preserve declared case order, and skill and baseline trial arrays SHALL preserve trial index order regardless of completion timing. Exit codes SHALL remain 0 when all trials pass and 1 otherwise.
 
 #### Scenario: JSON output is engine-agnostic
 
@@ -58,6 +58,11 @@ The engine SHALL map vitest results back into skillet's existing `EvalJson` shap
 
 - **WHEN** `skillet eval --out results/` runs
 - **THEN** each case's result file is written as that case finishes (atomic write-then-rename), and a rerun loads existing files instead of re-running those cases
+
+#### Scenario: Concurrent completion order differs
+
+- **WHEN** concurrent trials finish out of order
+- **THEN** the final case result keeps skill and baseline trials ordered by their declared trial index
 
 ### Requirement: Report artifact emission
 
