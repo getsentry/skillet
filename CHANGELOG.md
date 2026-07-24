@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.7.0
+
+### Features 🚀
+
+- Built-in Codex and Claude eval trials and judges now default to low reasoning
+  effort, reducing routine model cost. `--effort` and `.skillet.yaml` continue
+  to support medium, high, and xhigh overrides when deeper reasoning is needed.
+
+### Documentation 📚
+
+- Updated CLI, configuration, lifecycle, Quickstart, and eval guidance to show
+  low as the cost-conscious default while keeping model selection user-owned.
+
 ## 1.6.0
 
 ### Features 🚀
