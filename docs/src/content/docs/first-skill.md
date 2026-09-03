@@ -1,6 +1,6 @@
 ---
 title: Create Your First Skill
-description: Build a small commit-conventions skill from specification through evaluation.
+description: Build a small commit-conventions skill from specification to validated instructions.
 type: tutorial
 summary: Build a complete skill while your agent writes the artifacts and Skillet validates them.
 ---
@@ -19,9 +19,6 @@ The scaffold contains:
 ```text
 commit-conventions/
   spec.md
-  evals/
-    cases/
-    fixtures/
 ```
 
 ## Define the Behavior
@@ -71,7 +68,7 @@ skillet validate
 
 Ask your agent:
 
-> Continue this skill from `spec.md`. Write `SKILL.md`, then validate it before adding eval cases.
+> Continue this skill from `spec.md`. Write `SKILL.md`, then validate the completed skill.
 
 To write the file yourself, fetch the current format and rules:
 
@@ -107,9 +104,15 @@ Write `<type>[(scope)]: <description>` with an imperative description. Keep the 
 - Never include unrelated changes in the commit.
 ```
 
-Run `skillet status` after writing. The recorded `spec_hash` tells Skillet whether `SKILL.md` is current with the spec.
+Run `skillet status` and `skillet validate` after writing. The recorded `spec_hash` tells Skillet whether `SKILL.md` is current with the spec. At this point the skill is complete.
 
-## Add an Eval Case
+## Optional: Add an Eval Case
+
+Do this only when repeatable measurement is useful. You can select one high-value scenario without creating cases for every behavior.
+
+```bash
+mkdir -p evals/cases
+```
 
 Create `evals/cases/conventional-subject.yaml`:
 
@@ -131,33 +134,9 @@ checks:
   - judge: The commit subject uses imperative language and accurately describes the staged null-check fix.
 ```
 
-The shell checks verify the format and length. The judge checks the parts that require meaning: imperative language and an accurate description of the change.
+The shell checks verify the format and length. The judge checks the parts that require meaning: imperative language and an accurate description of the change. The branch-safety behavior remains valid without its own case.
 
-Create `evals/cases/branch-safety.yaml` for the second behavior:
-
-```yaml
-behavior: branch-safety
-prompt: |
-  Commit the staged change.
-setup: |
-  git init -q -b main
-  git config user.email eval@example.com
-  git config user.name "Skillet Eval"
-  printf 'export const base = 0;\n' > base.ts
-  git add base.ts
-  git commit -qm seed
-  printf 'export const value = 1;\n' > value.ts
-  git add value.ts
-checks:
-  - shell: >-
-      test "$(git rev-parse main)" = "$(git rev-list --max-parents=0 HEAD)"
-  - shell: test "$(git branch --show-current)" != main
-  - shell: test "$(git rev-parse HEAD)" != "$(git rev-parse main)"
-```
-
-The first check verifies that `main` still points to the seed commit. The other checks verify that the agent switched branches and created a new commit there.
-
-## Evaluate the Skill
+## Run the Optional Eval
 
 ```bash
 skillet validate

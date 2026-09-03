@@ -2,7 +2,7 @@
 
 ## Intent
 
-Drive agent-skill creation, improvement, and migration through the Skillet CLI instead of freehand SKILL.md writing. The spec defines the behavior, SKILL.md contains the agent instructions, and eval cases exercise the spec scenarios through a real agent CLI. This skill exists so that "make me a skill" starts with reviewable files and repeatable checks.
+Drive agent-skill creation, improvement, and migration through the Skillet CLI instead of freehand SKILL.md writing. The spec defines the behavior and SKILL.md contains the agent instructions; eval cases are an optional extension for skills that benefit from repeatable harness runs. This skill exists so that "make me a skill" starts with a reviewable contract without forcing evaluation work the user did not request.
 
 ## Triggers
 
@@ -41,16 +41,16 @@ The agent SHALL consult `npx -y @sentry/skillet@latest status <dir> --json` befo
 #### Scenario: Adopt a skill with uppercase SPEC.md
 
 - **WHEN** asked to adopt an existing skill that has SKILL.md and uppercase SPEC.md but no lowercase spec.md
-- **THEN** the agent preserves or renames the legacy document, derives lowercase spec.md first as status directs, then renders current instructions and adds behavior coverage
+- **THEN** the agent preserves or renames the legacy document, derives lowercase spec.md first as status directs, then renders and validates current instructions
 
 #### Scenario: Adopt a skill with an incompatible lowercase spec.md
 
 - **WHEN** asked to adopt an existing skill whose lowercase spec.md uses a different structure and fails Skillet validation
-- **THEN** the agent preserves or renames the legacy content, derives a valid Skillet spec.md before rendering SKILL.md, then adds behavior coverage
+- **THEN** the agent preserves or renames the legacy content, derives a valid Skillet spec.md before rendering and validating SKILL.md
 
 ### Behavior: Spec precedes derived artifacts
 
-The agent SHALL write and validate spec.md before rendering SKILL.md or eval cases.
+The agent SHALL write and validate spec.md before rendering SKILL.md or any explicitly requested eval cases.
 
 #### Scenario: New skill from a description
 
@@ -81,14 +81,30 @@ The agent SHALL fetch `npx -y @sentry/skillet@latest instructions <artifact> <di
 - **WHEN** writing or revising spec.md
 - **THEN** the final non-empty line is the Skillet version footer served by the current spec instructions
 
-### Behavior: Every behavior gets an eval
+### Behavior: Eval work is explicit
 
-The agent SHALL cover every spec behavior with at least one eval case before calling the skill complete.
+The agent SHALL complete ordinary skill authoring by writing and validating spec.md and SKILL.md without creating or running evals. It SHALL write eval cases, execute them, or diagnose their failures only when the user explicitly requests that evaluation work; existing empty eval directories do not imply consent.
 
-#### Scenario: Full render
+#### Scenario: Ordinary skill creation
 
-- **WHEN** rendering a skill's artifacts to completion
-- **THEN** validation through the explicit latest package runner reports no "has no eval case" coverage warnings
+- **WHEN** the user asks to create a skill without mentioning evals or evaluation
+- **THEN** the agent writes and validates spec.md and SKILL.md without creating eval cases or running an eval harness
+
+#### Scenario: Eval authoring requested
+
+- **WHEN** the user explicitly asks to add eval cases to a skill
+- **THEN** the agent fetches current eval instructions, writes cases for the selected high-value scenarios, and validates their schemas and spec links without requiring every behavior to have a case
+
+#### Scenario: Eval execution requested
+
+- **WHEN** the user explicitly asks to evaluate a skill that has cases
+- **THEN** the agent runs the requested dry, normal, or baseline evaluation and reports its results
+
+#### Scenario: Empty eval directory exists
+
+- **GIVEN** an ordinary authoring request targets a skill with an empty evals directory
+- **WHEN** the agent completes the spec and SKILL.md workflow
+- **THEN** it does not create cases or start an eval harness solely because the directory exists
 
 ### Behavior: Failures fixed at the right layer
 
@@ -113,4 +129,4 @@ The agent MUST NOT delete or loosen eval cases to make results pass; editing a c
 
 The agent MUST NOT scaffold or modify skill artifacts when the user asked a question or an unrelated task.
 
-<!-- skillet-version: 1.4.1 -->
+<!-- skillet-version: 1.7.0 -->

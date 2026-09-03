@@ -22,12 +22,12 @@ Run `skillet <command> --help` for the complete current option list.
 | Command | Purpose |
 |---|---|
 | `skillet init` | Install the `skillet-authoring` skill through dotagents |
-| `skillet new <name>` | Create `spec.md` and the eval directory layout |
+| `skillet new <name>` | Create a `spec.md` scaffold |
 | `skillet status [path]` | Report artifact state and one next step |
 | `skillet instructions <artifact> [path]` | Print the template and writing rules for `spec`, `skill`, or `evals` |
-| `skillet validate [path]` | Validate the spec, skill, cases, fixtures, and coverage |
-| `skillet eval [path]` | Run eval cases through the configured harness |
-| `skillet show [path]` | Print the parsed specification and behavior coverage |
+| `skillet validate [path]` | Validate the core skill and any optional eval artifacts |
+| `skillet eval [path]` | Run optional eval cases through the configured harness |
+| `skillet show [path]` | Print the parsed specification and optional case mapping |
 
 ## `init`
 
@@ -43,7 +43,7 @@ Interactive runs ask before writing user-scoped dotagents configuration. Use `--
 skillet new <name> [--path <dir>] [--json]
 ```
 
-The default directory name is a slug derived from the skill name.
+The default directory name is a slug derived from the skill name. Eval directories are not created unless you later choose to add cases.
 
 ## `instructions`
 
@@ -54,6 +54,8 @@ skillet instructions <spec|skill|evals> [path] [--json]
 The artifact and path may be given in either order. JSON output also includes filesystem-derived artifact state when a skill root is available.
 
 ## `eval`
+
+This command is an explicit optional workflow; ordinary skill authoring does not run it.
 
 ```bash
 skillet eval [path] [options]

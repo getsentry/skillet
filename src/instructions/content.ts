@@ -11,7 +11,7 @@ export interface Instructions {
   instructions: string;
 }
 
-const SPEC_INSTRUCTIONS = `Write spec.md — the source of truth for this skill's intent. SKILL.md and eval cases are derived from it; humans review intent by reading its diffs.
+const SPEC_INSTRUCTIONS = `Write spec.md — the source of truth for this skill's intent. SKILL.md is derived from it; optional eval cases may also draw from selected scenarios. Humans review intent by reading spec diffs.
 
 Grammar (validated by '${CURRENT_SKILLET} validate'):
 - "# <Skill Name>" title, then "## Intent", "## Triggers", "## Behaviors", optional "## Constraints".
@@ -24,11 +24,11 @@ Grammar (validated by '${CURRENT_SKILLET} validate'):
 Writing rules:
 - Intent: one or two paragraphs — what the skill makes the agent do and why it exists. No implementation detail.
 - One behavior = one observable, independently testable rule. If you cannot phrase a WHEN/THEN scenario for it, it is not a behavior — move it to Intent or drop it.
-- Scenarios are concrete: name real files, commands, phrasings — they become eval cases nearly verbatim.
+- Scenarios are concrete: name real files, commands, and phrasings so the contract is unambiguous and selected scenarios can become eval cases later.
 - Triggers need both directions: SHOULD bullets for when the skill applies, SHOULD NOT bullets for the nearest situations where it must stay quiet. The SHOULD NOT side is what prevents over-triggering, the most common skill defect.
 - Constraints capture damage the skill must never cause (leaking secrets, force-pushing, editing unrelated files). Each MUST NOT should name a temptation the skill text could plausibly create.
 - Keep it small: more than ~8 behaviors usually means two skills. Split rather than pile on.
-- If the user's request is ambiguous about scope, audience, or edge cases, ask 2-4 pointed questions BEFORE writing — the spec is the contract, so ambiguity resolved now is eval flakiness avoided later.
+- If the user's request is ambiguous about scope, audience, or edge cases, ask 2-4 pointed questions BEFORE writing — the spec is the contract, so resolve ambiguity before deriving instructions.
 
 Existing-skill migration:
 - Read the current SKILL.md, legacy specs, runtime references, and nearby maintenance docs before drafting. Treat them as source evidence, not prose to compress immediately.
@@ -58,9 +58,9 @@ Existing-skill migration:
 - Compare the rendered runtime with the legacy SKILL.md and account for every removed rule. If the new spec does not justify the removal, fix spec.md before continuing.
 - Search nearby README or provenance docs for old artifact paths, prompt locations, runtime-section claims, frontmatter descriptions, and coverage claims; update every stale statement instead of only adding a migration note.
 
-After writing: '${CURRENT_SKILLET} validate' checks frontmatter; '${CURRENT_SKILLET} eval' runs the cases.`;
+After writing: run '${CURRENT_SKILLET} validate' and fix every error. This completes ordinary authoring. Do not create or run evals unless the user explicitly requests evaluation work.`;
 
-const EVALS_INSTRUCTIONS = `Write eval cases under evals/cases/ — one YAML file per case, at least one case per behavior in spec.md (uncovered behaviors are validation warnings). Name the file after the behavior it tests (e.g. commit-message-format.yaml).
+const EVALS_INSTRUCTIONS = `Write optional eval cases under evals/cases/ only when the user explicitly chooses evaluation work. Add one YAML file per high-value scenario selected for repeatable measurement; behaviors without cases remain valid. Name each file after the behavior it tests (e.g. commit-message-format.yaml).
 
 Case schema:
   behavior: <behavior id from spec.md>   # required
@@ -87,7 +87,7 @@ Rules that keep evals honest:
 - A passing case may also pass without the skill installed. Design cases where the configured agent could plausibly behave differently, then use '${CURRENT_SKILLET} eval --baseline' to compare the observed pass rates with and without the skill.
 - Set trials > 1 only for behaviors you have seen flake; otherwise keep runs cheap.
 
-After writing: '${CURRENT_SKILLET} validate' (schema + coverage), then '${CURRENT_SKILLET} eval' to run.`;
+After writing: run '${CURRENT_SKILLET} validate' to check schemas and spec links. Run '${CURRENT_SKILLET} eval' only when the user asked to execute the cases.`;
 
 /** Minimal YAML case skeleton; the full schema lives in EVALS_INSTRUCTIONS. */
 const EVALS_TEMPLATE = `behavior: <behavior-id>

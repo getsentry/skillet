@@ -5,7 +5,7 @@ type: reference
 summary: Each case links to one spec behavior or constraint and contains a realistic prompt plus one or more checks.
 ---
 
-Store one case per file under `evals/cases/`.
+Eval cases are optional. After choosing to evaluate a scenario, create `evals/cases/` and store one case per file there. A partial suite is valid; behaviors without cases do not produce validation diagnostics.
 
 ```yaml
 behavior: branch-safety

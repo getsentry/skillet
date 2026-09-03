@@ -2,7 +2,7 @@
 title: Specifications
 description: Define testable skill intent with Skillet's Markdown grammar.
 type: conceptual
-summary: Behaviors and scenarios connect human-reviewed intent to eval coverage.
+summary: Behaviors and scenarios make human-reviewed intent concrete before runtime instructions are derived.
 ---
 
 `spec.md` is the source of truth for a skill. It uses a small Markdown grammar so humans can review it and Skillet can parse it with line-accurate errors.
@@ -51,7 +51,7 @@ The agent SHALL NOT commit directly to `main`.
 - **THEN** the agent creates a descriptive branch before committing
 ```
 
-Skillet converts behavior names into stable IDs such as `branch-safety`. Eval cases use these IDs to link back to the spec.
+Skillet converts behavior names into stable IDs such as `branch-safety`. Optional eval cases use these IDs to link back to the spec.
 
 Every behavior needs at least one scenario. If a statement cannot produce a concrete WHEN/THEN example, it is probably context rather than a behavior.
 
@@ -65,7 +65,7 @@ Constraints name damage the skill must never cause:
 The agent MUST NOT amend, rebase, or force-push unless the user explicitly asks.
 ```
 
-Constraints can have eval cases, but only behaviors require coverage today.
+Optional eval cases can link to constraints as well as behaviors. No behavior or constraint requires eval coverage.
 
 ## Keep the Contract Small
 

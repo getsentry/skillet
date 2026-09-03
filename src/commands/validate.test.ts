@@ -6,6 +6,28 @@ import { run } from "./validate.js";
 
 const dirs: string[] = [];
 
+const SPEC = `# Demo
+
+## Intent
+
+Do the thing.
+
+## Triggers
+
+- **SHOULD** trigger when asked
+
+## Behaviors
+
+### Behavior: Do it
+
+The agent SHALL do it.
+
+#### Scenario: Asked
+
+- **WHEN** asked
+- **THEN** it is done
+`;
+
 const makeLegacySkill = (): string => {
   const root = mkdtempSync(join(tmpdir(), "skillet-validate-command-"));
   dirs.push(root);
@@ -19,6 +41,31 @@ afterEach(() => {
 });
 
 describe("validate command", () => {
+  it("reports a core skill as valid without eval cases", () => {
+    const root = mkdtempSync(join(tmpdir(), "skillet-validate-command-"));
+    dirs.push(root);
+    writeFileSync(join(root, "spec.md"), SPEC);
+    writeFileSync(
+      join(root, "SKILL.md"),
+      "---\nname: demo\ndescription: does the thing\nspec_hash: current\n---\n",
+    );
+    const writes: string[] = [];
+    const spy = vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+      writes.push(String(chunk));
+      return true;
+    });
+    try {
+      expect(run([root])).toBe(0);
+    } finally {
+      spy.mockRestore();
+    }
+
+    const output = writes.join("");
+    expect(output).toContain("optional eval cases (0 files): ok");
+    expect(output).toContain("eval links: ok");
+    expect(output).not.toContain("has no eval case");
+  });
+
   it("reports legacy SPEC.md and unavailable coverage in human output", () => {
     const writes: string[] = [];
     const spy = vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
@@ -33,8 +80,8 @@ describe("validate command", () => {
 
     const output = writes.join("");
     expect(output).toContain("uppercase SPEC.md is a legacy document");
-    expect(output).toContain("eval cases (0 files): ok");
-    expect(output).toContain("coverage: not checked (valid spec.md required)");
+    expect(output).toContain("optional eval cases (0 files): ok");
+    expect(output).toContain("eval links: not checked (valid spec.md required)");
   });
 
   it("marks coverage unchecked in JSON output", () => {

@@ -8,7 +8,7 @@ import { CURRENT_SKILLET } from "./invocation.js";
 import { fail, info, print } from "./output.js";
 import { checkForUpdate } from "./update-notifier.js";
 
-const HELP = `skillet — spec-driven agent skills with mechanical evals
+const HELP = `skillet — spec-driven agent skills with optional mechanical evals
 
 Usage: ${CURRENT_SKILLET} <command> [args]
        skillet <command> [args]  (installed binary)
@@ -19,8 +19,8 @@ Commands:
   status        Show artifact state for a skill
   instructions  Serve artifact templates and writing instructions
   validate      Structurally validate a skill (no LLM)
-  eval          Run eval cases through the configured harness
-  show          Pretty-print a skill's spec and coverage
+  eval          Run optional eval cases through the configured harness
+  show          Pretty-print a skill's spec and optional eval coverage
 
 Use the explicit @latest package command for agent-driven work.
 Run 'skillet <command> --help' for command-specific flags.

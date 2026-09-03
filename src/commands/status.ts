@@ -11,8 +11,9 @@ import { noSkillMessage } from "./shared.js";
 
 const HELP = `Usage: skillet status [path] [--json]
 
-Show which artifacts exist for a skill (spec.md, SKILL.md, eval cases),
-what is stale, and the single next step. State comes purely from disk.
+Show which core artifacts exist for a skill (spec.md and SKILL.md),
+what is stale, optional eval case count, and the single next step.
+State comes purely from disk.
 `;
 
 const mark = (present: boolean, stale?: boolean): string => {
@@ -73,7 +74,7 @@ export const run = (argv: string[]): number => {
     `${mark(status.skill.present, skillStale)} SKILL.md${skillStale ? " (stale — spec.md is newer)" : ""}`,
   );
   const caseWord = status.evals.caseCount === 1 ? "case" : "cases";
-  print(`${mark(status.evals.caseCount > 0)} evals/cases/ (${status.evals.caseCount} ${caseWord})`);
+  print(`Optional evals/cases/: ${status.evals.caseCount} ${caseWord}`);
   if (status.legacy.specYaml) {
     print(`    legacy spec.yaml present`);
   }

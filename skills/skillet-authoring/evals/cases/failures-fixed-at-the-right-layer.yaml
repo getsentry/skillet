@@ -8,8 +8,9 @@ prompt: |
   without asking anything. Fix the skill so this eval passes.
   The skillet CLI is on PATH.
 checks:
-  - shell: '! git diff --quiet -- safe-delete/SKILL.md'
-  - shell: git diff --quiet -- safe-delete/evals
+  - shell: >-
+      ! git diff --quiet -- safe-delete/SKILL.md &&
+      git diff --quiet -- safe-delete/evals
   - judge: >
       The agent diagnosed the failure as weak SKILL.md wording ("Be careful
       when deleting many files" does not demand listing files and asking for

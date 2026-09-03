@@ -10,7 +10,7 @@ import { VERSION } from "../version.js";
 
 const HELP = `Usage: skillet new <name> [--path <dir>] [--json]
 
-Scaffold a skill directory with a templated spec.md and evals/ layout.
+Scaffold a skill directory with a templated spec.md.
 The directory is named by the slugified skill name unless --path is given.
 After filling in spec.md, '${CURRENT_SKILLET} status' shows what to produce next.
 `;
@@ -54,8 +54,7 @@ export const run = (argv: string[]): number => {
     return fail(`${join(dir, "spec.md")} already exists`, { json: values.json === true });
   }
 
-  mkdirSync(join(dir, "evals", "cases"), { recursive: true });
-  mkdirSync(join(dir, "evals", "fixtures"), { recursive: true });
+  mkdirSync(dir, { recursive: true });
   const displayName = name === slug ? titleCase(slug) : name;
   writeFileSync(join(dir, "spec.md"), specTemplate(displayName, VERSION));
 
@@ -63,7 +62,7 @@ export const run = (argv: string[]): number => {
     const payload: NewJson = {
       root: dir,
       name: displayName,
-      created: ["spec.md", "evals/cases/", "evals/fixtures/"],
+      created: ["spec.md"],
     };
     emitJson(payload);
     return 0;
@@ -73,8 +72,6 @@ export const run = (argv: string[]): number => {
   info(
     `  spec.md            — fill in intent, triggers, behaviors ('${CURRENT_SKILLET} instructions spec' has the rules)`,
   );
-  info(`  evals/cases/       — one YAML case per behavior`);
-  info(`  evals/fixtures/    — starting workspaces for cases`);
   info(
     `Next: edit ${basename(dir)}/spec.md, then '${CURRENT_SKILLET} status' shows what to produce next.`,
   );

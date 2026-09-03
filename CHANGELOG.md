@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### Breaking changes 🔥
+
+- Evals are now opt-in. Ordinary authoring completes with a valid `spec.md` and
+  current `SKILL.md`; `skillet new` no longer creates empty eval directories,
+  and `skillet status` no longer requires eval generation.
+- Existing users must refresh the installed authoring skill after upgrading:
+  `npx -y @sentry/dotagents@latest --user install`. The CLI update notice does
+  not rewrite agent skills automatically.
+
+### Features 🚀
+
+- Existing and newly chosen eval cases remain supported, but partial suites are
+  valid: validation checks case schemas, behavior references, and fixtures
+  without warning about behaviors that have no cases.
+- The bundled authoring skill creates or runs evals only when the user explicitly
+  requests evaluation work.
+
 ## 1.7.0
 
 ### Features 🚀

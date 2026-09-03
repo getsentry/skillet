@@ -1,0 +1,14 @@
+behavior: eval-work-is-explicit
+prompt: |
+  Create an agent skill in a new directory named tidy-imports that makes
+  agents sort and deduplicate import blocks in files they edit.
+  The skillet CLI is on PATH.
+timeout: 600
+checks:
+  - file_exists: tidy-imports/spec.md
+  - shell: test -f tidy-imports/SKILL.md && test ! -d tidy-imports/evals/cases
+  - shell: skillet validate tidy-imports
+  - judge: >
+      The agent completed the requested skill by writing and validating its
+      spec.md and SKILL.md. Because the user did not request eval creation or
+      execution, it did not add eval cases or start an eval harness.

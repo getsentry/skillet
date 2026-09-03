@@ -64,8 +64,8 @@ const validateSkillMd = (root: string): Issue[] => {
 
 /**
  * The full-skill report behind `skillet validate` (validation spec):
- * spec grammar, SKILL.md frontmatter, case schema, and coverage. No
- * LLM calls anywhere.
+ * spec grammar, SKILL.md frontmatter, and any optional eval case
+ * schemas and spec links. No LLM calls anywhere.
  */
 export const validateSkill = (root: string): ValidationReport => {
   const specPath = join(root, "spec.md");

@@ -46,15 +46,15 @@ const addCase = (root: string): void => {
 };
 
 describe("validateSkill", () => {
-  it("passes a complete skill", () => {
+  it("passes a core skill without eval cases", () => {
     const root = makeRoot();
     writeFileSync(join(root, "spec.md"), SPEC);
     writeFileSync(join(root, "SKILL.md"), "---\nname: demo\ndescription: d\nspec_hash: x\n---\n");
-    addCase(root);
     const report = validateSkill(root);
     expect(report.ok).toBe(true);
     expect(report.coverageChecked).toBe(true);
-    expect(report.evalCases).toHaveLength(1);
+    expect(report.coverage).toEqual([]);
+    expect(report.evalCases).toHaveLength(0);
   });
 
   it("errors when spec.md is missing", () => {

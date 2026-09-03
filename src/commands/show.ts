@@ -7,10 +7,10 @@ import { resolveSkillRoot } from "./shared.js";
 
 const HELP = `Usage: skillet show [path] [--json]
 
-Pretty-print a skill's parsed spec with its eval coverage.
+Pretty-print a skill's parsed spec with its optional eval case mapping.
 `;
 
-/** `skillet show` — human-readable view of the parsed spec and coverage. */
+/** `skillet show` — display the parsed spec and optional case mapping. */
 export const run = (argv: string[]): number => {
   const { values, positionals } = parseArgs({
     args: argv,
@@ -70,7 +70,8 @@ export const run = (argv: string[]): number => {
   print(`Behaviors (${spec.behaviors.length}):`);
   for (const b of spec.behaviors) {
     const cases = coveredBy.get(b.id) ?? [];
-    const coverage = cases.length > 0 ? `covered by ${cases.join(", ")}` : "no eval case";
+    const coverage =
+      cases.length > 0 ? `optional evals: ${cases.join(", ")}` : "no eval case (optional)";
     print(`  ${b.id} — ${b.scenarios.length} scenario(s), ${coverage}`);
   }
   if (spec.constraints.length > 0) {

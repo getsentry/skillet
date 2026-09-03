@@ -8,7 +8,7 @@ import { resolveSkillRoot } from "./shared.js";
 const HELP = `Usage: skillet validate [path] [--json]
 
 Structurally validate a skill: spec.md grammar, SKILL.md frontmatter,
-eval case schema, and behavior<->eval coverage. Never calls an LLM.
+and any optional eval case schemas and spec links. Never calls an LLM.
 Exit 1 when any error is found.
 `;
 
@@ -67,11 +67,11 @@ export const run = (argv: string[]): number => {
   printIssues("spec.md", report.spec);
   printIssues("SKILL.md", report.skill);
   const caseWord = report.evalCases.length === 1 ? "file" : "files";
-  printIssues(`eval cases (${report.evalCases.length} ${caseWord})`, report.cases);
+  printIssues(`optional eval cases (${report.evalCases.length} ${caseWord})`, report.cases);
   if (report.coverageChecked) {
-    printIssues("coverage", report.coverage);
+    printIssues("eval links", report.coverage);
   } else {
-    print("  coverage: not checked (valid spec.md required)");
+    print("  eval links: not checked (valid spec.md required)");
   }
   print(report.ok ? "\nValid." : "\nInvalid — fix the errors above.");
   return report.ok ? 0 : 1;

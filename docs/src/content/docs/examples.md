@@ -1,8 +1,8 @@
 ---
 title: Examples
-description: See how Skillet turns small and large source skills into reviewable specs, focused instructions, and eval cases.
+description: See reviewable specs and focused instructions, plus optional eval suites for selected examples.
 type: tutorial
-summary: Compare original skills with their Skillet specs, rendered instructions, fixtures, references, and eval cases.
+summary: Compare original skills with their Skillet specs and rendered instructions, then inspect optional fixtures and eval cases.
 ---
 
 Three examples show the same artifact flow at different sizes:
@@ -46,7 +46,7 @@ checks:
   - shell: test "$(git rev-list --count main)" -eq 1
 ```
 
-Use this example to learn the relationship between `spec.md`, `SKILL.md`, and `evals/cases/` before opening a larger skill.
+Use this example to learn the core relationship between `spec.md` and `SKILL.md`. Its eval cases show the optional measurement workflow before you open a larger skill.
 
 ---
 

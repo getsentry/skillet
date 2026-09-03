@@ -9,7 +9,7 @@ my-skill/
   spec.md
   SKILL.md
   references/*.md
-  evals/
+  evals/                     # optional
     cases/<id>.yaml
     fixtures/<slug>/
 ```
@@ -19,10 +19,10 @@ my-skill/
 | `spec.md` | Source of truth for intent, triggers, behaviors, scenarios, and constraints |
 | `SKILL.md` | Agent instructions derived from the spec |
 | `references/*.md` | Optional detail linked from `SKILL.md` |
-| `evals/cases/*.yaml` | Cases linked to spec behaviors by slug |
-| `evals/fixtures/*` | Optional starting workspaces for cases |
+| `evals/cases/*.yaml` | Optional cases linked to selected spec behaviors by slug |
+| `evals/fixtures/*` | Optional starting workspaces for eval cases |
 
-Humans and host agents write these artifacts. Skillet creates the initial layout, serves format instructions, validates the files, and runs evals. It never calls a model API directly and never overwrites an existing skill artifact.
+Humans and host agents write these artifacts. Skillet scaffolds `spec.md`, serves format instructions, validates the core skill plus any optional cases, and runs evals only when requested. It never calls a model API directly and never overwrites an existing skill artifact.
 
 New and revised specs end with `<!-- skillet-version: x.y.z -->`. This compact
 footer records which Skillet version supplied the template and authoring
@@ -32,20 +32,27 @@ Agent-driven authoring invokes `npx -y @sentry/skillet@latest` or
 `pnpx @sentry/skillet@latest` so the CLI-served formats and guidance stay
 current. Commands below use the shorter installed-binary form for readability.
 
-## Artifact flow
+## Core artifact flow
 
-1. Run `skillet new <name>` to create `spec.md` and the eval directories.
+1. Run `skillet new <name>` to create `spec.md`.
 2. Write `spec.md`, using `skillet instructions spec --json` for the current grammar and template.
 3. Run `skillet validate` to catch invalid or incomplete behaviors.
-4. Write `SKILL.md` and eval cases, using `skillet instructions skill --json` and `skillet instructions evals --json`.
-5. Run `skillet validate` again to check frontmatter, schemas, stale artifacts, and behavior coverage.
-6. Run `skillet eval --dry` to catch cases that require no agent work.
-7. Run `skillet eval --baseline` to compare the tested result with and without the skill. Add `--trials <n>` only when repeated observations are useful.
-8. Diagnose failures at the right layer: change the spec when the intent is wrong, `SKILL.md` when the instructions are weak, or the case when the test is unfair.
+4. Write `SKILL.md`, using `skillet instructions skill --json` and recording the current spec hash.
+5. Run `skillet validate` again. A valid spec and current SKILL.md complete ordinary authoring.
+
+## Optional eval flow
+
+Enter this flow only when the user chooses to create or run evals:
+
+1. Select the high-value scenarios that need repeatable measurement; complete behavior coverage is not required.
+2. Write cases with `skillet instructions evals --json`, creating `evals/cases/` and fixtures as needed.
+3. Run `skillet validate` to check case schemas, spec links, and fixtures.
+4. Run `skillet eval --dry`, then the explicitly requested normal or baseline evaluation. Add `--trials <n>` only when repeated observations are useful.
+5. Diagnose failures at the right layer: change the spec when the intent is wrong, `SKILL.md` when the instructions are weak, or the case when the test is unfair.
 
 `skillet status` derives the current state entirely from disk. It compares the hash recorded in `SKILL.md` with the current `spec.md` and reports one next step.
 
-Artifact names are case-sensitive contracts even on case-insensitive filesystems. Uppercase `SPEC.md` is treated as legacy migration input, never as the active Skillet `spec.md`. A lowercase file must also pass the Skillet grammar before the workflow advances. Until a valid lowercase spec exists, eval case schemas can be checked but behavior coverage is unavailable.
+Artifact names are case-sensitive contracts even on case-insensitive filesystems. Uppercase `SPEC.md` is treated as legacy migration input, never as the active Skillet `spec.md`. A lowercase file must also pass the Skillet grammar before the workflow advances. Until a valid lowercase spec exists, optional eval case schemas can be checked but their behavior links cannot.
 
 Migrating an existing skill is a reconciliation pass, not a compression pass. Before writing `spec.md`, inventory the legacy triggers, ordered workflow, exact enumerations, protocols and output formats, numeric thresholds, failure and stop rules, constraints, runtime references, and maintenance docs that describe active behavior. Every accepted behavioral rule must land in the new spec; verbose execution detail may additionally remain in a linked runtime reference after the spec defines the observable contract. After rendering, account for every removed legacy rule and search maintenance docs for stale artifact paths, prompt locations, runtime-section claims, descriptions, and coverage before calling the migration complete.
 
@@ -126,7 +133,7 @@ On macOS, Claude Code OAuth credentials live in Keychain and cannot be mounted i
 |---|---|
 | Spec grammar, parser, template, and slugs | `src/spec/` |
 | `SKILL.md` frontmatter and skill discovery | `src/skill/` |
-| Behavior-to-case coverage | `src/coverage.ts` |
+| Optional eval-to-spec links | `src/coverage.ts` |
 | Case schema, workspace checks, dry runs, and results | `src/evals/` |
 | Harness config, process execution, installation, and judges | `src/harness/` |
 | Vitest compilation, workers, and orchestration | `src/engine/` |

@@ -1,11 +1,11 @@
 ---
 title: Skillet
-description: Build agent skills from a reviewable specification, evaluate their behavior, and improve them over time.
+description: Build agent skills from a reviewable specification, with optional evals for selected behavior.
 template: splash
 next: false
 hero:
   title: '<span class="skillet-mega">Skillet</span><span class="skillet-headline">Build skills <span class="skillet-highlight">without guessing.</span></span>'
-  tagline: 'Describe the skill in plain language. Your agent turns it into a spec, instructions, and eval cases you can review and improve.'
+  tagline: 'Describe the skill in plain language. Your agent turns it into a spec and focused instructions you can review and improve.'
 ---
 
 import SetupPrompt from "../../components/SetupPrompt.astro";
@@ -17,7 +17,7 @@ import SetupPrompt from "../../components/SetupPrompt.astro";
     <div>
       <p className="skillet-kicker">Use your coding agent</p>
       <h2 id="quick-start">Ask for a skill in plain language.</h2>
-      <p>The authoring skill drafts the spec, renders the instructions, writes eval cases, and checks what comes next from the files on disk. You review the spec and results.</p>
+      <p>The authoring skill drafts the spec, renders the instructions, and validates the result. It creates or runs evals only when you explicitly ask.</p>
     </div>
 
     <div className="skillet-terminal">
@@ -34,9 +34,9 @@ Ask your agent:
 
   <section className="skillet-section">
     <div className="skillet-section-heading">
-      <p className="skillet-kicker">Spec → eval</p>
-      <h2 id="spec-to-eval">Write the behavior down. Then run it.</h2>
-      <p>The spec says what should happen. The eval turns one scenario into a repeatable check. When it misses, improve the spec, instructions, or case.</p>
+      <p className="skillet-kicker">Spec → skill</p>
+      <h2 id="spec-to-skill">Write the behavior down. Render the instructions.</h2>
+      <p>The spec says what should happen. SKILL.md turns that contract into direct agent guidance. Add evals later only for scenarios worth repeatable measurement.</p>
     </div>
 
     <div className="skillet-example-grid">
@@ -58,24 +58,16 @@ The agent SHALL NOT commit directly to \`main\`.
       <div className="skillet-example">
         <div className="skillet-window-bar">
           <span></span><span></span><span></span>
-          <strong>evals/cases/branch-safety.yaml</strong>
+          <strong>SKILL.md</strong>
         </div>
-        <pre><code>{`behavior: branch-safety
-prompt: Commit the staged change.
-setup: |
-  git init -q -b main
-  git config user.email eval@example.com
-  git config user.name "Skillet Eval"
-  echo base > base.txt
-  git add base.txt
-  git commit -qm seed
-  echo change > change.txt
-  git add change.txt
-checks:
-  - shell: >-
-      test "$(git rev-parse main)" = "$(git rev-list --max-parents=0 HEAD)"
-  - shell: test "$(git branch --show-current)" != main
-  - shell: test "$(git rev-parse HEAD)" != "$(git rev-parse main)"`}</code></pre>
+        <pre><code>{`## Workflow
+
+Before committing, inspect the current branch.
+If it is \`main\`, create a descriptive branch
+and commit there.
+
+Never move or rewrite \`main\` unless the user
+explicitly asks.`}</code></pre>
       </div>
     </div>
   </section>

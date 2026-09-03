@@ -14,15 +14,9 @@ const spec: ParsedSpec = {
 };
 
 describe("checkCoverage", () => {
-  it("warns on uncovered behaviors", () => {
+  it("accepts behaviors without eval coverage", () => {
     const issues = checkCoverage(spec, [{ file: "a.yaml", behavior: "alpha" }], new Set());
-    expect(issues).toEqual([
-      expect.objectContaining({
-        severity: "warning",
-        message: expect.stringContaining('"beta"'),
-        line: 20,
-      }),
-    ]);
+    expect(issues).toEqual([]);
   });
 
   it("errors on unknown behavior references", () => {

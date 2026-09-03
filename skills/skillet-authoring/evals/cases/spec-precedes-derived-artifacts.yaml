@@ -7,10 +7,14 @@ timeout: 600
 checks:
   - file_exists: changelog-discipline/spec.md
   - shell: >-
+      test -f changelog-discipline/SKILL.md &&
+      test ! -d changelog-discipline/evals/cases
+  - shell: >-
       tail -n 1 changelog-discipline/spec.md |
       grep -Eq '^<!-- skillet-version: [0-9]+\.[0-9]+\.[0-9]+ -->$'
   - shell: skillet validate changelog-discipline
   - judge: >
       spec.md was written (and validated) before SKILL.md was rendered, and
-      any SKILL.md present is derived from the spec's behaviors rather than
-      written independently of it.
+      SKILL.md is derived from the spec's behaviors rather than written
+      independently of it. No eval cases were created because none were
+      requested.

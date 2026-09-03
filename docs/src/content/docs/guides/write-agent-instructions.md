@@ -72,19 +72,17 @@ references/
 
 Link each reference with a sentence that says when to read it. Do not make the agent load every reference for every task.
 
-## Validate and Evaluate
+## Validate the Skill
 
 `skillet validate` can check:
 
 - required frontmatter
-- whether `spec_hash` matches the current spec
-- eval case schemas and behavior coverage
+- optional eval case schemas, behavior links, and fixtures
 
-It cannot mechanically decide whether the prose in `SKILL.md` expresses every behavior correctly. A behavior-name list or comment marker could be present without meaningful instructions, and semantic checking would require an agent or judge. Use eval cases to test the behavior that the prose is meant to produce.
+Use `skillet status` to check whether `spec_hash` matches the current spec. Validation cannot mechanically decide whether the prose in `SKILL.md` expresses every behavior correctly. A behavior-name list or comment marker could be present without meaningful instructions.
 
 ```bash
 skillet validate
-skillet eval --baseline
 ```
 
-Frontmatter validation catches structural errors. Evals show how the agent behaved in the tested cases; baselines compare those results with and without the skill.
+Frontmatter validation catches structural errors and completes the normal authoring flow. If selected behaviors need repeatable measurement, opt into evals separately; baselines can then compare those tested results with and without the skill.
