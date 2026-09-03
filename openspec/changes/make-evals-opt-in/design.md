@@ -13,6 +13,7 @@ The eval engine and YAML case format are still useful for skills whose behavior 
 - Preserve existing eval files, commands, schemas, harnesses, and result formats.
 - Validate every optional eval artifact that is present against its spec.
 - Remove pressure to create one case for every behavior.
+- Give already-installed authoring skills a path to adopt this contract through the latest CLI.
 
 **Non-Goals:**
 
@@ -20,6 +21,7 @@ The eval engine and YAML case format are still useful for skills whose behavior 
 - Adding an eval-enabled flag to `skillet new`; users opt in by requesting eval instructions or creating a case.
 - Automatically deleting empty eval directories or existing cases from skills.
 - Changing the spec grammar or removing scenarios from behaviors.
+- Silently changing user-scoped skill installations or dotagents configuration.
 
 ## Decisions
 
@@ -47,21 +49,31 @@ The bundled authoring skill always writes and validates the spec and runtime ski
 
 Inferring eval intent from an existing `evals/` directory was rejected: legacy directories may be empty or stale, and filesystem presence is not user authorization to spend model usage.
 
+### D5. Status gates work on a stale installed authoring skill
+
+The published CLI embeds the current bundled authoring-spec hash. Before returning the target skill's next artifact step, `status` compares that hash with the standard user-scoped `~/.agents/skills/skillet-authoring/SKILL.md` installation. A missing standard installation or a matching hash leaves status unchanged.
+
+When the installed hash is stale, `status.next` first directs the agent to refresh, read the refreshed SKILL.md, and rerun status. If `~/.agents/agents.toml` contains the exact `skillet-authoring` / `getsentry/skillet` declaration, the direction uses dotagents' scoped `add` command so unrelated dependencies are not refreshed. Otherwise it names the original installation method because the CLI cannot safely infer ownership.
+
+Automatic refresh was rejected because `status` is otherwise read-only and an installation may be owned by dotagents, another manager, or a manual copy. This advisory still reaches older bundled skills: they already invoke `@sentry/skillet@latest status` and promise to follow its `next` field.
+
 ## Risks / Trade-offs
 
 - [Skills may ship without behavioral measurements] → Keep eval authoring and execution easy to invoke, and document where repeatable evaluation is valuable.
 - [Existing automation may expect scaffolded eval directories] → Treat the scaffold JSON/output change as breaking and document that consumers create directories only when adding cases.
 - [The word “coverage” may still imply a required target] → Describe coverage as a map of optional cases and remove all missing-case diagnostics from validation.
 - [The bundled authoring skill has its own existing eval suite] → Preserve those tests as repository dogfood, but change the skill contract and cases so ordinary authoring does not generate evals by default.
+- [Some hosts snapshot skill contents at session start] → Require the current agent to read the refreshed SKILL.md explicitly; if a host cannot do that, its documented fallback is a new session.
 
 ## Migration Plan
 
 1. Update the state machine, scaffold, coverage validator, tests, and CLI copy.
 2. Change the authoring spec first, re-render its `SKILL.md` with the new hash, and adapt its dogfood eval cases.
 3. Update README, lifecycle policy/reference, and documentation site to separate core authoring from optional evaluation.
-4. Build the current CLI, run status/instructions/validate/eval-dry dogfood checks, then run repository and docs gates.
+4. Add the read-only installed-skill refresh advisory and document automatic detection versus custom-install guidance.
+5. Build the current CLI, run status/instructions/validate/eval-dry dogfood checks, then run repository and docs gates.
 
-Existing skills require no file migration. Empty eval directories may remain, and existing eval cases keep their current behavior.
+Existing authored skills require no file migration. Empty eval directories may remain, and existing eval cases keep their current behavior. Existing standard authoring-skill installations are prompted to refresh the first time the latest `status` observes their stale hash.
 
 ## Open Questions
 

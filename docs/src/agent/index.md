@@ -24,7 +24,7 @@ The authoring skill does not create or run evals unless you explicitly ask. When
 Paste this into your coding agent:
 
 ```text
-Install the skillet-authoring skill globally from https://github.com/getsentry/skillet.
+Install or refresh the skillet-authoring skill globally from https://github.com/getsentry/skillet.
 ```
 
 If you are the agent handling that request:
@@ -35,7 +35,7 @@ If you are the agent handling that request:
 4. Use `npx -y @sentry/skillet@latest` or `pnpx @sentry/skillet@latest` for later Skillet commands.
 5. If installation fails, stop and explain the failure instead of changing the source or scope.
 
-The CLI update notice does not rewrite installed agent skills. To refresh an existing user-scoped installation after a Skillet upgrade, run `npx -y @sentry/dotagents@latest --user install`.
+The latest `skillet status` detects when the standard user-scoped installation has an older authoring contract. For the exact dotagents dependency it directs the agent to rerun the scoped `add` command, read the refreshed SKILL.md, and rerun status. Other standard installations point back to their original installation method. Custom locations require manual refresh, and hosts that cannot reread skills in place require a new session. Skillet never silently changes user-scoped configuration.
 
 ## Start Here
 

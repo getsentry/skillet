@@ -18,7 +18,7 @@ When asked to install Skillet globally for an agent:
 4. After installation, run Skillet commands through `npx -y @sentry/skillet@latest` or `pnpx @sentry/skillet@latest`.
 5. If installation fails, report the failure instead of changing the source or scope.
 
-The CLI update notice does not rewrite installed agent skills. To refresh an existing user-scoped installation after a Skillet upgrade, run `npx -y @sentry/dotagents@latest --user install`.
+The latest `skillet status` checks the standard user-scoped installation for a stale authoring contract. When stale, follow `status.next`: refresh through its scoped dotagents command or the original installation method, read the refreshed SKILL.md, and rerun status before continuing. Skillet never silently rewrites user configuration. Custom installation locations require their original refresh method; start a new session if the host cannot reread a changed skill in place.
 
 ## Start Here
 

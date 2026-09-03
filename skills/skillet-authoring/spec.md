@@ -33,6 +33,8 @@ The agent SHALL invoke Skillet through `npx -y @sentry/skillet@latest` or `pnpx 
 
 The agent SHALL consult `npx -y @sentry/skillet@latest status <dir> --json` before producing artifacts and do what its `next` field says, rather than guessing the skill's state.
 
+If status reports that the installed skillet-authoring instructions are stale, the agent SHALL refresh them using the reported method, read the refreshed SKILL.md, and rerun status before continuing artifact work.
+
 #### Scenario: Picking up a half-built skill
 
 - **WHEN** asked to continue a skill directory that has spec.md but no SKILL.md
@@ -47,6 +49,11 @@ The agent SHALL consult `npx -y @sentry/skillet@latest status <dir> --json` befo
 
 - **WHEN** asked to adopt an existing skill whose lowercase spec.md uses a different structure and fails Skillet validation
 - **THEN** the agent preserves or renames the legacy content, derives a valid Skillet spec.md before rendering and validating SKILL.md
+
+#### Scenario: Status reports stale authoring instructions
+
+- **WHEN** the latest CLI reports that the installed skillet-authoring instructions are stale
+- **THEN** the agent follows the reported refresh direction, reads the refreshed SKILL.md, and reruns status before writing or changing skill artifacts
 
 ### Behavior: Spec precedes derived artifacts
 

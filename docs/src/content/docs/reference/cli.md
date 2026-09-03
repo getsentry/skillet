@@ -29,6 +29,10 @@ Run `skillet <command> --help` for the complete current option list.
 | `skillet eval [path]` | Run optional eval cases through the configured harness |
 | `skillet show [path]` | Print the parsed specification and optional case mapping |
 
+## `status`
+
+`status` normally reports the next artifact step from the target skill's files. It first checks the standard user-scoped `~/.agents/skills/skillet-authoring/SKILL.md` hash against the current CLI. If that installation is stale, `next` directs a scoped dotagents refresh when the exact source declaration is present, or names the original installation method otherwise. The agent must read the refreshed skill and rerun status. This check never changes files and cannot discover arbitrary custom installation paths.
+
 ## `init`
 
 ```bash

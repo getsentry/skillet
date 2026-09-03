@@ -41,7 +41,9 @@ To install the authoring skill with dotagents directly:
 npx -y @sentry/dotagents@latest --user add getsentry/skillet skillet-authoring
 ```
 
-`add` records and installs the skill immediately. The Skillet CLI can recommend a newer package, but it does not rewrite installed agent skills. After a Skillet upgrade, run `npx -y @sentry/dotagents@latest --user install` to refresh the authoring skill.
+`add` records and installs the skill immediately. The latest `skillet status` checks the standard `~/.agents/skills/skillet-authoring` installation against the authoring contract bundled with the CLI. When it is stale and the exact dotagents source is declared, `status.next` tells the agent to rerun the scoped `add` command, read the refreshed SKILL.md, and rerun status before continuing. Skillet does not silently change user-scoped configuration.
+
+Custom installation locations cannot be discovered universally. Refresh those with their original installation method after upgrading; if the host snapshots skills at session start and cannot reread the changed file, start a new agent session.
 
 Or ask your agent to install the [`skillet-authoring` skill](https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring) for you.
 

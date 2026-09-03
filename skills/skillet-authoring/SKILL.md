@@ -1,7 +1,7 @@
 ---
 name: skillet-authoring
 description: Authors, improves, or migrates agent skills with the Skillet CLI; use when asked to create or write a skill, improve its instructions or evals, diagnose failing evals, or migrate a legacy SKILL.md, uppercase SPEC.md, or spec.yaml skill, but not when merely using an existing skill.
-spec_hash: 684bcb30b439
+spec_hash: f66844f5ca6d
 ---
 
 # Skillet Authoring
@@ -11,6 +11,7 @@ Run every Skillet command through the current package: `npx -y @sentry/skillet@l
 ## Steps
 
 1. Run `npx -y @sentry/skillet@latest status <dir> --json` and do what `next` says. For a brand-new skill, run `npx -y @sentry/skillet@latest new <name>` first. Never guess a skill's state or start over when artifacts already exist.
+   - If status says the installed skillet-authoring instructions are stale, stop artifact work, follow its refresh direction, read the refreshed SKILL.md, and rerun status before continuing.
    - When status reports uppercase `SPEC.md`, preserve or rename that legacy document before creating lowercase `spec.md`; never parse it as the active Skillet spec.
    - When status marks lowercase `spec.md` invalid, preserve or rename legacy content and derive a valid Skillet spec before rendering `SKILL.md`.
 2. When migrating, inventory behavior-bearing material before drafting: triggers, ordered workflow, exact lists, protocols and output formats, thresholds, failure and stop rules, constraints, runtime references, and maintenance docs that describe active behavior. Every accepted behavioral rule must land in `spec.md`; verbose execution detail may additionally remain in a linked runtime reference after the spec defines the observable contract. Explicitly supersede or reject non-behavior content.

@@ -7,9 +7,11 @@
 - Evals are now opt-in. Ordinary authoring completes with a valid `spec.md` and
   current `SKILL.md`; `skillet new` no longer creates empty eval directories,
   and `skillet status` no longer requires eval generation.
-- Existing users must refresh the installed authoring skill after upgrading:
-  `npx -y @sentry/dotagents@latest --user install`. The CLI update notice does
-  not rewrite agent skills automatically.
+- The latest `skillet status` now detects stale standard user-scoped
+  `skillet-authoring` installations before artifact work. It gives exact
+  dotagents dependencies a scoped refresh command and otherwise points to the
+  original installation method, then requires rereading the skill and rerunning
+  status. Skillet does not silently rewrite user configuration.
 
 ### Features 🚀
 

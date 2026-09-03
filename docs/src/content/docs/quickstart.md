@@ -47,13 +47,15 @@ npx -y @sentry/dotagents@latest --user add getsentry/skillet skillet-authoring
 
 The `add` command records the dependency in `~/.agents/agents.toml` and installs it immediately for supported agents. No separate install command is required.
 
-Run `install` later to refresh declared skills:
+Re-add this dependency later to refresh only the authoring skill:
 
 ```bash
-npx -y @sentry/dotagents@latest --user install
+npx -y @sentry/dotagents@latest --user add getsentry/skillet skillet-authoring
 ```
 
-The Skillet CLI can recommend a newer package, but it does not rewrite installed agent skills. Run this refresh command after upgrading Skillet so the authoring workflow matches the current CLI.
+The latest `skillet status` compares the standard installed skill with its bundled authoring contract. If the exact dotagents dependency is stale, `status.next` gives the scoped command above, tells the agent to read the refreshed SKILL.md, and requires another status check before artifact work. The check is read-only; Skillet never silently rewrites user-scoped configuration.
+
+If you installed into a custom location, refresh it with the original method because the CLI cannot discover every client layout. Start a new session when a host snapshots skill contents and cannot reread the refreshed file in place.
 
 ### Ask Your Agent to Install It
 
