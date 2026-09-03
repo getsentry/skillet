@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.8.0
 
 ### Breaking changes 🔥
 
@@ -21,6 +21,11 @@
   without warning about behaviors that have no cases.
 - The bundled authoring skill creates or runs evals only when the user explicitly
   requests evaluation work.
+
+### Internal
+
+- Refreshed transitive CLI and documentation dependencies to resolve the current
+  Dependabot advisories.
 
 ## 1.7.0
 
