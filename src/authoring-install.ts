@@ -5,7 +5,8 @@ import { parseFrontmatter } from "./skill/frontmatter.js";
 
 const SKILL = "skillet-authoring";
 const SOURCE = "getsentry/skillet";
-const CURRENT_SPEC_HASH = "2758ed731778";
+// Increment with bundled authoring-contract changes so older CLIs accept newer installs.
+const CURRENT_AUTHORING_REVISION = 1;
 const REINSTALL_COMMAND = `npx -y @sentry/dotagents@latest --user add ${SOURCE} ${SKILL}`;
 const INSTALLED_SKILL = `~/.agents/skills/${SKILL}/SKILL.md`;
 
@@ -28,8 +29,14 @@ export const authoringReinstallAction = (agentsDir = join(homedir(), ".agents"))
   if (!existsSync(skillPath)) return null;
 
   const { meta } = parseFrontmatter(readFileSync(skillPath, "utf8"));
-  const installedHash = meta["spec_hash"];
-  if (String(installedHash ?? "") === CURRENT_SPEC_HASH) return null;
+  const installedRevision = meta["authoring_revision"];
+  if (
+    typeof installedRevision === "number" &&
+    Number.isInteger(installedRevision) &&
+    installedRevision >= CURRENT_AUTHORING_REVISION
+  ) {
+    return null;
+  }
 
   const tomlPath = join(agentsDir, "agents.toml");
   const dotagentsManaged =

@@ -45,15 +45,17 @@ Making missing coverage warnings conditional on the presence of at least one cas
 
 ### D4. The authoring agent requires explicit eval intent
 
-The bundled authoring skill always writes and validates the spec and runtime skill. It writes or runs evals only when the user's request explicitly includes eval creation, evaluation, failing-eval diagnosis, or equivalent intent. Eval instructions remain available through `skillet instructions evals` for that branch.
+The bundled authoring skill always writes and validates the spec and runtime skill. It writes, repairs, or runs evals only when the user's request explicitly includes eval creation, evaluation, failing-eval diagnosis, or equivalent intent. Existing optional eval errors are reported and require opt-in before repair; they still block claiming full validation. Eval instructions remain available through `skillet instructions evals` for that branch.
 
-Inferring eval intent from an existing `evals/` directory was rejected: legacy directories may be empty or stale, and filesystem presence is not user authorization to spend model usage.
+Inferring eval intent from existing `evals/` artifacts was rejected: legacy directories may be empty and cases may be stale or invalid, but filesystem presence is not user authorization to change them or spend model usage.
 
 ### D5. Status gates work on a stale installed authoring skill
 
-The published CLI embeds the current bundled authoring-spec hash. Before returning the target skill's next artifact step, `status` compares that hash with the standard user-scoped `~/.agents/skills/skillet-authoring/SKILL.md` installation. A missing standard installation or a matching hash leaves status unchanged.
+The published CLI embeds the current monotonic authoring revision. Before returning the target skill's next artifact step, `status` compares that revision with `authoring_revision` in the standard user-scoped `~/.agents/skills/skillet-authoring/SKILL.md` installation. A missing standard installation or an equal or newer revision leaves status unchanged; a missing or older marker requires reinstallation. The bundled skill and CLI revision advance together whenever the install-visible authoring contract changes.
 
-When the installed hash is stale, `status.next` first directs the agent to reinstall the skill and rerun status. If `~/.agents/agents.toml` contains the exact `skillet-authoring` / `getsentry/skillet` declaration, the direction uses dotagents' scoped `add` command so unrelated dependencies are not reinstalled. Otherwise it directs reinstallation through the original installation method because the CLI cannot safely infer ownership. Rereading SKILL.md is a separate current-session concern: the agent reads the reinstalled file to continue in place, or starts a new session when the host snapshots skills.
+When the installed revision is stale, `status.next` first directs the agent to reinstall the skill and rerun status. If `~/.agents/agents.toml` contains the exact `skillet-authoring` / `getsentry/skillet` declaration, the direction uses dotagents' scoped `add` command so unrelated dependencies are not reinstalled. Otherwise it directs reinstallation through the original installation method because the CLI cannot safely infer ownership. Rereading SKILL.md is a separate current-session concern: the agent reads the reinstalled file to continue in place, or starts a new session when the host snapshots skills.
+
+A content-hash mismatch was rejected for install freshness because hashes cannot order releases. An older published CLI would otherwise treat a newer repository-installed skill as stale, repeatedly reinstall the same newer content, and block authoring until the next npm release.
 
 Automatic reinstallation was rejected because `status` is otherwise read-only and an installation may be owned by dotagents, another manager, or a manual copy. This advisory still reaches older bundled skills: they already invoke `@sentry/skillet@latest status` and promise to follow its `next` field.
 
@@ -73,7 +75,7 @@ Automatic reinstallation was rejected because `status` is otherwise read-only an
 4. Add the read-only installed-skill reinstall advisory and document automatic detection versus custom-install guidance.
 5. Build the current CLI, run status/instructions/validate/eval-dry dogfood checks, then run repository and docs gates.
 
-Existing authored skills require no file migration. Empty eval directories may remain, and existing eval cases keep their current behavior. Existing standard authoring-skill installations are prompted to reinstall the first time the latest `status` observes their stale hash.
+Existing authored skills require no file migration. Empty eval directories may remain, and existing eval cases keep their current behavior. Existing standard authoring-skill installations are prompted to reinstall the first time the latest `status` observes their missing or older authoring revision.
 
 ## Open Questions
 

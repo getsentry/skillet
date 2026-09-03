@@ -36,7 +36,7 @@ Existing-skill migration:
 - Represent every accepted behavioral rule in spec.md. Verbose protocols and template text may additionally remain in or move to linked runtime references after the spec defines the observable contract; explicitly supersede or reject non-behavior content.
 - After drafting, compare the inventory with spec.md and fix omissions before rendering SKILL.md. Preserve legacy source files until the new contract has been validated.
 
-After writing: run '${CURRENT_SKILLET} validate' and fix every error; warnings are judgment calls.`;
+After writing: run '${CURRENT_SKILLET} validate' and fix every spec error; warnings are judgment calls. If existing optional eval artifacts fail validation and the user did not request eval maintenance, report those errors and ask before changing them.`;
 
 const SKILL_INSTRUCTIONS = `Render SKILL.md from spec.md. The spec states intent; SKILL.md is the instruction text an agent actually loads. Rewrite, don't copy — spec grammar (SHALL, scenarios) is for validation, not for the agent reading the skill.
 
@@ -58,7 +58,7 @@ Existing-skill migration:
 - Compare the rendered runtime with the legacy SKILL.md and account for every removed rule. If the new spec does not justify the removal, fix spec.md before continuing.
 - Search nearby README or provenance docs for old artifact paths, prompt locations, runtime-section claims, frontmatter descriptions, and coverage claims; update every stale statement instead of only adding a migration note.
 
-After writing: run '${CURRENT_SKILLET} validate' and fix every error. This completes ordinary authoring. Do not create or run evals unless the user explicitly requests evaluation work.`;
+After writing: run '${CURRENT_SKILLET} validate' and fix every core spec.md or SKILL.md error. This completes ordinary authoring. Do not create, repair, or run evals unless the user explicitly requests evaluation work. If existing optional eval artifacts fail validation, report those errors and ask before changing them; do not claim full validation while errors remain.`;
 
 const EVALS_INSTRUCTIONS = `Write optional eval cases under evals/cases/ only when the user explicitly chooses evaluation work. Add one YAML file per high-value scenario selected for repeatable measurement; behaviors without cases remain valid. Name each file after the behavior it tests (e.g. commit-message-format.yaml).
 

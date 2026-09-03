@@ -31,7 +31,7 @@ Run `skillet <command> --help` for the complete current option list.
 
 ## `status`
 
-`status` normally reports the next artifact step from the target skill's files. It first checks the standard user-scoped `~/.agents/skills/skillet-authoring/SKILL.md` hash against the current CLI. If that installation is stale, `next` directs reinstallation through scoped dotagents when the exact source declaration is present, or through the original installation method otherwise. The agent then reruns status. Reading the reinstalled skill is only needed to continue in the same session; otherwise the agent starts a new session. This check never changes files and cannot discover arbitrary custom installation paths.
+`status` normally reports the next artifact step from the target skill's files. It first compares the standard user-scoped `~/.agents/skills/skillet-authoring/SKILL.md` authoring revision with the current CLI. Missing or older revisions are stale; equal or newer revisions are left alone. For a stale installation, `next` directs reinstallation through scoped dotagents when the exact source declaration is present, or through the original installation method otherwise. The agent then reruns status. Reading the reinstalled skill is only needed to continue in the same session; otherwise the agent starts a new session. This check never changes files and cannot discover arbitrary custom installation paths.
 
 ## `init`
 

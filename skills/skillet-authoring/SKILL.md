@@ -1,7 +1,8 @@
 ---
 name: skillet-authoring
 description: Authors, improves, or migrates agent skills with the Skillet CLI; use when asked to create or write a skill, improve its instructions or evals, diagnose failing evals, or migrate a legacy SKILL.md, uppercase SPEC.md, or spec.yaml skill, but not when merely using an existing skill.
-spec_hash: 2758ed731778
+spec_hash: 68491d6f2df4
+authoring_revision: 1
 ---
 
 # Skillet Authoring
@@ -17,7 +18,7 @@ Run every Skillet command through the current package: `npx -y @sentry/skillet@l
 2. When migrating, inventory behavior-bearing material before drafting: triggers, ordered workflow, exact lists, protocols and output formats, thresholds, failure and stop rules, constraints, runtime references, and maintenance docs that describe active behavior. Every accepted behavioral rule must land in `spec.md`; verbose execution detail may additionally remain in a linked runtime reference after the spec defines the observable contract. Explicitly supersede or reject non-behavior content.
 3. When `spec.md` is next, fetch `npx -y @sentry/skillet@latest instructions spec <dir> --json`. If intent remains ambiguous after inspecting the available evidence, ask 2–4 pointed questions before writing. Then write the spec with the served Skillet version footer as its final non-empty line, run `npx -y @sentry/skillet@latest validate <dir>`, and fix every spec error before deriving anything.
 4. When `SKILL.md` is next, fetch `npx -y @sentry/skillet@latest instructions skill <dir> --json` and render it from the validated spec. When migrating, do not weaken exact formats, enumerations, thresholds, delegation rules, or stop conditions. Move long protocols to `references/` when useful, link them from `SKILL.md`, then compare the old and new runtime surfaces and account for every removed rule. Search README and provenance docs for stale artifact paths, prompt locations, runtime-section claims, frontmatter descriptions, and coverage claims.
-5. Run `npx -y @sentry/skillet@latest validate <dir>` and fix every error. A valid spec and current SKILL.md complete ordinary creation, improvement, or migration. Do not create eval cases or start an eval harness unless the user explicitly requested that work. An existing empty `evals/` directory is not a request.
+5. Run `npx -y @sentry/skillet@latest validate <dir>` and fix every core spec.md or SKILL.md error. A valid spec and current SKILL.md complete ordinary creation, improvement, or migration. Do not create, repair, or run eval cases unless the user explicitly requested that work. If existing optional eval artifacts fail validation, report the errors and ask before fixing them; do not call the skill fully validated while errors remain. Existing eval files or directories are not a request.
 
 ## Optional eval work
 

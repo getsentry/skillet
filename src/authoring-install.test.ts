@@ -1,9 +1,19 @@
-import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { authoringReinstallAction } from "./authoring-install.js";
+import { parseFrontmatter } from "./skill/frontmatter.js";
+
+const BUNDLED_SKILL = readFileSync(
+  join(process.cwd(), "skills", "skillet-authoring", "SKILL.md"),
+  "utf8",
+);
+const bundledRevision = (): number => {
+  const revision = parseFrontmatter(BUNDLED_SKILL).meta["authoring_revision"];
+  if (typeof revision !== "number") throw new Error("bundled skill has no authoring_revision");
+  return revision;
+};
 
 const dirs: string[] = [];
 const makeAgentsDir = (): string => {
@@ -18,8 +28,8 @@ const installSkill = (agentsDir: string, content: string): void => {
   writeFileSync(join(root, "SKILL.md"), content);
 };
 
-const skillWithHash = (hash: string): string =>
-  `---\nname: skillet-authoring\ndescription: test\nspec_hash: ${hash}\n---\n`;
+const skillWithRevision = (revision?: number): string =>
+  `---\nname: skillet-authoring\ndescription: test\nspec_hash: test\n${revision == null ? "" : `authoring_revision: ${revision}\n`}---\n`;
 
 afterEach(() => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
@@ -30,20 +40,27 @@ describe("authoringReinstallAction", () => {
     expect(authoringReinstallAction(makeAgentsDir())).toBeNull();
   });
 
-  it("keeps the embedded hash synchronized with the bundled authoring spec", () => {
+  it("keeps the embedded revision synchronized with the bundled authoring skill", () => {
     const agentsDir = makeAgentsDir();
-    const spec = readFileSync(
-      join(process.cwd(), "skills", "skillet-authoring", "spec.md"),
-      "utf8",
-    );
-    const hash = createHash("sha256").update(spec).digest("hex").slice(0, 12);
-    installSkill(agentsDir, skillWithHash(hash));
+    installSkill(agentsDir, BUNDLED_SKILL);
     expect(authoringReinstallAction(agentsDir)).toBeNull();
+  });
+
+  it("does not tell a newer authoring installation to downgrade", () => {
+    const agentsDir = makeAgentsDir();
+    installSkill(agentsDir, skillWithRevision(bundledRevision() + 1));
+    expect(authoringReinstallAction(agentsDir)).toBeNull();
+  });
+
+  it("advises reinstalling an older numeric authoring revision", () => {
+    const agentsDir = makeAgentsDir();
+    installSkill(agentsDir, skillWithRevision(bundledRevision() - 1));
+    expect(authoringReinstallAction(agentsDir)).toContain("reinstall skillet-authoring");
   });
 
   it("gives dotagents-managed installations a scoped reinstall command", () => {
     const agentsDir = makeAgentsDir();
-    installSkill(agentsDir, skillWithHash("old"));
+    installSkill(agentsDir, skillWithRevision());
     writeFileSync(
       join(agentsDir, "agents.toml"),
       '[[skills]]\nname = "skillet-authoring"\nsource = "getsentry/skillet"\n',
@@ -61,7 +78,7 @@ describe("authoringReinstallAction", () => {
 
   it("uses original-method guidance for an unmanaged standard installation", () => {
     const agentsDir = makeAgentsDir();
-    installSkill(agentsDir, skillWithHash("old"));
+    installSkill(agentsDir, skillWithRevision());
     writeFileSync(
       join(agentsDir, "agents.toml"),
       '[[skills]]\nname = "skillet-authoring"\nsource = "someone/else"\n',
@@ -74,7 +91,7 @@ describe("authoringReinstallAction", () => {
 
   it("does not combine a matching name and source from different declarations", () => {
     const agentsDir = makeAgentsDir();
-    installSkill(agentsDir, skillWithHash("old"));
+    installSkill(agentsDir, skillWithRevision());
     writeFileSync(
       join(agentsDir, "agents.toml"),
       [

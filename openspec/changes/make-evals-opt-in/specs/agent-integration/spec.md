@@ -2,7 +2,7 @@
 
 ### Requirement: Explicit eval opt-in
 
-The skillet-authoring skill SHALL complete ordinary skill creation, improvement, and migration by writing and validating `spec.md` and SKILL.md. It SHALL write eval cases or run `skillet eval` only when the user explicitly requests eval creation, execution, improvement, or diagnosis. Requesting an ordinary skill or encountering an existing empty eval directory SHALL NOT imply eval opt-in.
+The skillet-authoring skill SHALL complete ordinary skill creation, improvement, and migration by writing and validating `spec.md` and SKILL.md. It SHALL write or repair eval cases or run `skillet eval` only when the user explicitly requests eval creation, execution, improvement, or diagnosis. Requesting an ordinary skill or encountering existing eval artifacts SHALL NOT imply eval opt-in. When existing optional eval errors prevent full validation, the agent SHALL report them and request eval-maintenance opt-in rather than changing those artifacts or claiming completion.
 
 #### Scenario: Ordinary skill creation
 
@@ -18,6 +18,11 @@ The skillet-authoring skill SHALL complete ordinary skill creation, improvement,
 
 - **WHEN** an ordinary authoring request targets a skill that already contains an empty `evals/` directory
 - **THEN** the agent does not treat the directory as authorization to generate or run evals
+
+#### Scenario: Existing invalid optional eval
+
+- **WHEN** ordinary authoring leaves the core spec.md and SKILL.md current but an existing optional eval case fails validation
+- **THEN** the agent reports the eval error and requests permission before repairing it, without claiming the skill is fully validated while the error remains
 
 ### Requirement: Installed authoring skill reinstallation
 

@@ -19,11 +19,11 @@ The CLI SHALL support exactly seven commands, all mechanical (no LLM calls): `in
 
 ### Requirement: Stale authoring skill advisory
 
-Before reporting the target skill's artifact step, `skillet status` SHALL compare a standard user-scoped `~/.agents/skills/skillet-authoring/SKILL.md` installation with the authoring-spec hash bundled into the current CLI. When stale, `status.next` SHALL direct the agent to reinstall the skill through the installation's owning mechanism and rerun status before continuing. It SHALL distinguish rereading the reinstalled SKILL.md as necessary only to continue in the current session; otherwise it SHALL direct starting a new session. Status SHALL NOT modify the installation or user configuration.
+Before reporting the target skill's artifact step, `skillet status` SHALL compare the monotonic `authoring_revision` in a standard user-scoped `~/.agents/skills/skillet-authoring/SKILL.md` installation with the revision bundled into the current CLI. A missing or older revision SHALL be stale; an equal or newer revision SHALL NOT. When stale, `status.next` SHALL direct the agent to reinstall the skill through the installation's owning mechanism and rerun status before continuing. It SHALL distinguish rereading the reinstalled SKILL.md as necessary only to continue in the current session; otherwise it SHALL direct starting a new session. Status SHALL NOT modify the installation or user configuration.
 
-#### Scenario: Current or absent standard installation
+#### Scenario: Current, newer, or absent standard installation
 
-- **WHEN** the standard authoring skill installation is absent or records the current bundled spec hash
+- **WHEN** the standard authoring skill installation is absent or records an authoring revision equal to or newer than the current CLI
 - **THEN** status reports the target skill's filesystem-derived next step without an authoring reinstall advisory
 
 #### Scenario: Stale dotagents-managed installation

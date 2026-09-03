@@ -90,7 +90,7 @@ The agent SHALL fetch `npx -y @sentry/skillet@latest instructions <artifact> <di
 
 ### Behavior: Eval work is explicit
 
-The agent SHALL complete ordinary skill authoring by writing and validating spec.md and SKILL.md without creating or running evals. It SHALL write eval cases, execute them, or diagnose their failures only when the user explicitly requests that evaluation work; existing empty eval directories do not imply consent.
+The agent SHALL complete ordinary skill authoring by writing and validating spec.md and SKILL.md without creating or running evals. It SHALL write eval cases, execute them, diagnose their failures, or repair existing invalid cases only when the user explicitly requests that evaluation work; existing eval artifacts do not imply consent. When unrequested optional eval errors prevent full validation, the agent SHALL report them and request eval-maintenance opt-in rather than changing those artifacts or claiming completion.
 
 #### Scenario: Ordinary skill creation
 
@@ -112,6 +112,12 @@ The agent SHALL complete ordinary skill authoring by writing and validating spec
 - **GIVEN** an ordinary authoring request targets a skill with an empty evals directory
 - **WHEN** the agent completes the spec and SKILL.md workflow
 - **THEN** it does not create cases or start an eval harness solely because the directory exists
+
+#### Scenario: Existing optional eval is invalid
+
+- **GIVEN** an ordinary authoring request targets a skill whose existing optional eval case fails validation
+- **WHEN** the agent validates the updated core spec.md and SKILL.md
+- **THEN** it reports the optional eval error and requests permission before repairing the case, and it does not claim the skill is fully validated while the error remains
 
 ### Behavior: Failures fixed at the right layer
 

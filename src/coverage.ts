@@ -1,6 +1,6 @@
 import type { ParsedSpec, Issue } from "./spec/types.js";
 
-/** The slice of an eval case that coverage checking needs. */
+/** The slice of an eval case that optional link validation needs. */
 export interface CaseRef {
   /** Path of the case file, for error messages. */
   file: string;
