@@ -5,13 +5,15 @@ type: tutorial
 summary: Use checks that directly verify an outcome, and judges for semantic requirements.
 ---
 
-Use checks that directly verify the required result. Use a judge when the requirement depends on meaning, design, or relationships between files.
+Evals are optional. Add them only for selected scenarios where repeatable measurement is worth the authoring and model cost; partial suites are valid. Use checks that directly verify the required result, and a judge when the requirement depends on meaning, design, or relationships between files.
 
 Fetch the current case-writing contract before authoring:
 
 ```bash
 skillet instructions evals --json
 ```
+
+`skillet new` does not create eval directories. Create `evals/cases/` only after choosing to add a case, and create `evals/fixtures/` only when a case needs a committed starting workspace.
 
 ## Start From a Scenario
 

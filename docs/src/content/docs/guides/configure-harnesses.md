@@ -5,6 +5,8 @@ type: tutorial
 summary: Select a built-in harness per run or define a custom command template in .skillet.yaml.
 ---
 
+Harness configuration applies only after you opt into running eval cases. Ordinary spec and SKILL.md authoring does not start a harness or require harness configuration.
+
 A harness installs the skill into a fresh workspace, runs the case prompt through an agent CLI, and captures the result for checks.
 
 ## Built-In Harnesses

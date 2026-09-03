@@ -5,7 +5,7 @@ type: reference
 summary: Skillet loads the nearest configuration file by walking up from the skill directory.
 ---
 
-Skillet searches for `.skillet.yaml` from the skill directory upward. CLI flags override file settings.
+`.skillet.yaml` configures optional eval execution; the core spec-to-SKILL.md workflow does not require it. Skillet searches for the file from the skill directory upward, and CLI flags override its settings.
 
 ## Built-In Harness
 

@@ -1,8 +1,8 @@
 ---
 title: Adopt an Existing Skill
-description: Add a Skillet behavior spec and eval coverage to an existing SKILL.md.
+description: Add a Skillet behavior spec to an existing SKILL.md without losing runtime contracts.
 type: tutorial
-summary: Preserve legacy skill docs, derive lowercase spec.md, render the skill, and add behavior coverage.
+summary: Preserve legacy skill docs, derive lowercase spec.md, and render a current skill.
 ---
 
 Start with the existing skill directory:
@@ -19,7 +19,7 @@ Skillet recognizes exact artifact names:
 
 An uppercase `SPEC.md` is useful migration input, but Skillet does not parse it as the active spec.
 
-An existing lowercase `spec.md` is not automatically a Skillet spec either. If it does not contain valid Intent, Triggers, Behaviors, and WHEN/THEN scenarios, `skillet status` marks it invalid and stops before `SKILL.md` rendering or coverage work.
+An existing lowercase `spec.md` is not automatically a Skillet spec either. If it does not contain valid Intent, Triggers, Behaviors, and WHEN/THEN scenarios, `skillet status` marks it invalid and stops before `SKILL.md` rendering.
 
 ## Preserve the Existing Files
 
@@ -54,7 +54,7 @@ Every accepted behavioral rule must appear in the new `spec.md`. Verbose executi
 
 Give your coding agent this request:
 
-> Adopt this existing skill into Skillet. Run `skillet status` first. Preserve the current `SKILL.md` and any legacy `SPEC.md`. Inventory its triggers, workflow, exact lists and protocols, thresholds, stop rules, constraints, and runtime references. Derive lowercase `spec.md` using `skillet instructions spec`, reconcile the inventory against it, validate it, re-render `SKILL.md` with the current `spec_hash`, account for removed rules, then add eval coverage for every behavior.
+> Adopt this existing skill into Skillet. Run `skillet status` first. Preserve the current `SKILL.md` and any legacy `SPEC.md`. Inventory its triggers, workflow, exact lists and protocols, thresholds, stop rules, constraints, and runtime references. Derive lowercase `spec.md` using `skillet instructions spec`, reconcile the inventory against it, validate it, re-render `SKILL.md` with the current `spec_hash`, and account for removed rules.
 
 The authoring skill should follow the next step reported by the CLI instead of starting over.
 
@@ -66,13 +66,13 @@ After writing `spec.md`:
 skillet validate path/to/skill
 ```
 
-At this point, missing eval cases become coverage warnings because Skillet now knows the behavior IDs.
+Missing eval cases do not produce warnings. If optional cases already exist, Skillet validates their behavior links once the spec is valid.
 
-Before lowercase `spec.md` exists, Skillet can still check `SKILL.md` frontmatter and any eval case YAML files, but it cannot check behavior coverage. The validation report shows:
+Before lowercase `spec.md` exists, Skillet can still check `SKILL.md` frontmatter and any eval case YAML files, but it cannot check their behavior links. The validation report shows:
 
 ```text
-eval cases (0 files): ok
-coverage: not checked (valid spec.md required)
+optional eval cases (0 files): ok
+eval links: not checked (valid spec.md required)
 ```
 
 An empty behavior list in JSON does not mean the skill has zero valid behaviors. Check `coverageChecked`:
@@ -90,12 +90,11 @@ An empty behavior list in JSON does not mean the skill has zero valid behaviors.
 ```bash
 skillet status path/to/skill
 skillet validate path/to/skill
-skillet eval path/to/skill --dry
 ```
 
 The skill is structurally complete when:
 
 - `spec.md` follows the Skillet grammar
 - `SKILL.md` records the current `spec_hash`
-- every spec behavior has at least one eval case
-- the dry eval finds no case that passes without agent work, except deliberate no-action cases
+
+Existing evals remain valid optional artifacts. Ask your agent to add or run them only if evaluation is useful for selected scenarios.

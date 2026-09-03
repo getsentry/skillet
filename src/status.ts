@@ -102,9 +102,10 @@ export const skillStatus = (root: string): SkillStatus => {
   } else if (skill.present && skill.stale) {
     next = `spec.md changed after SKILL.md — re-render it ('${CURRENT_SKILLET} instructions skill').`;
   } else if (caseCount === 0) {
-    next = `Add eval cases for the spec behaviors ('${CURRENT_SKILLET} instructions evals').`;
+    next = `Run '${CURRENT_SKILLET} validate'; the skill is ready when validation passes. Evals are optional ('${CURRENT_SKILLET} instructions evals').`;
   } else {
-    next = `Run '${CURRENT_SKILLET} validate' and '${CURRENT_SKILLET} eval'; diagnose failures from '${CURRENT_SKILLET} eval --json' transcripts.`;
+    const caseWord = caseCount === 1 ? "case" : "cases";
+    next = `Run '${CURRENT_SKILLET} validate'; the skill is ready when validation passes. ${caseCount} optional eval ${caseWord} can be run with '${CURRENT_SKILLET} eval'.`;
   }
 
   return { root, spec, skill, evals, legacy, next };

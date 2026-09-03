@@ -94,14 +94,29 @@ describe("skillStatus next-step ladder", () => {
     expect(status.next).toContain("before rendering SKILL.md");
   });
 
-  it("asks for eval cases when SKILL.md carries the current spec_hash", () => {
+  it("completes the core workflow when SKILL.md carries the current spec_hash", () => {
     const root = makeRoot();
     writeFileSync(join(root, "spec.md"), SPEC);
     const hash = skillStatus(root).spec.hash ?? "";
     writeFileSync(join(root, "SKILL.md"), skillMd(hash));
     const status = skillStatus(root);
     expect(status.skill).toMatchObject({ present: true, stale: false });
-    expect(status.next).toContain("Add eval cases");
+    expect(status.next).toContain("skill is ready when validation passes");
+    expect(status.next).toContain("Evals are optional");
+    expect(status.next).not.toContain("Add eval cases");
+  });
+
+  it("does not treat existing empty eval directories as unfinished work", () => {
+    const root = makeRoot();
+    writeFileSync(join(root, "spec.md"), SPEC);
+    const hash = skillStatus(root).spec.hash ?? "";
+    writeFileSync(join(root, "SKILL.md"), skillMd(hash));
+    mkdirSync(join(root, "evals", "cases"), { recursive: true });
+
+    const status = skillStatus(root);
+    expect(status.evals.caseCount).toBe(0);
+    expect(status.next).toContain("skill is ready when validation passes");
+    expect(status.next).toContain("Evals are optional");
   });
 
   it("marks SKILL.md stale when its spec_hash diverges from spec.md", () => {
@@ -130,7 +145,7 @@ describe("skillStatus next-step ladder", () => {
     expect(skillStatus(root).skill).toMatchObject({ present: true, stale: true });
   });
 
-  it("reaches the eval/improve step with spec, fresh skill, and cases", () => {
+  it("reports existing eval cases as optional after the core workflow", () => {
     const root = makeRoot();
     writeFileSync(join(root, "spec.md"), SPEC);
     writeFileSync(join(root, "SKILL.md"), skillMd(skillStatus(root).spec.hash ?? ""));
@@ -138,6 +153,8 @@ describe("skillStatus next-step ladder", () => {
     writeFileSync(join(root, "evals", "cases", "b.yaml"), CASE);
     const status = skillStatus(root);
     expect(status.evals.caseCount).toBe(1);
+    expect(status.next).toContain("skill is ready when validation passes");
+    expect(status.next).toContain("1 optional eval case");
     expect(status.next).toContain("npx -y @sentry/skillet@latest eval");
   });
 });

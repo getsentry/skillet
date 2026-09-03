@@ -1,23 +1,31 @@
 ---
 name: skillet-authoring
 description: Authors, improves, or migrates agent skills with the Skillet CLI; use when asked to create or write a skill, improve its instructions or evals, diagnose failing evals, or migrate a legacy SKILL.md, uppercase SPEC.md, or spec.yaml skill, but not when merely using an existing skill.
-spec_hash: 3b86b9ec11a6
+spec_hash: 68491d6f2df4
+authoring_revision: 1
 ---
 
 # Skillet Authoring
 
-Run every Skillet command through the current package: `npx -y @sentry/skillet@latest`, or `pnpx @sentry/skillet@latest` in a pnpm environment. Never prefer a bare `skillet` executable from PATH; if one reports an update, rerun that command through the explicit latest package before continuing. Treat `spec.md` as the behavior contract, `SKILL.md` as the agent instructions, and eval cases as repeatable runs of the spec scenarios. Never write these files from a remembered format.
+Run every Skillet command through the current package: `npx -y @sentry/skillet@latest`, or `pnpx @sentry/skillet@latest` in a pnpm environment. Never prefer a bare `skillet` executable from PATH; if one reports an update, rerun that command through the explicit latest package before continuing. Treat `spec.md` as the behavior contract and `SKILL.md` as the agent instructions. Evals are an optional extension, not part of ordinary authoring. Never write these files from a remembered format.
 
 ## Steps
 
 1. Run `npx -y @sentry/skillet@latest status <dir> --json` and do what `next` says. For a brand-new skill, run `npx -y @sentry/skillet@latest new <name>` first. Never guess a skill's state or start over when artifacts already exist.
+   - If status says the installed skillet-authoring instructions are stale, stop artifact work and reinstall the skill through the method it reports. To continue in this session, read the reinstalled SKILL.md; otherwise start a new session. Then rerun status.
    - When status reports uppercase `SPEC.md`, preserve or rename that legacy document before creating lowercase `spec.md`; never parse it as the active Skillet spec.
-   - When status marks lowercase `spec.md` invalid, preserve or rename legacy content and derive a valid Skillet spec before rendering `SKILL.md` or adding coverage.
+   - When status marks lowercase `spec.md` invalid, preserve or rename legacy content and derive a valid Skillet spec before rendering `SKILL.md`.
 2. When migrating, inventory behavior-bearing material before drafting: triggers, ordered workflow, exact lists, protocols and output formats, thresholds, failure and stop rules, constraints, runtime references, and maintenance docs that describe active behavior. Every accepted behavioral rule must land in `spec.md`; verbose execution detail may additionally remain in a linked runtime reference after the spec defines the observable contract. Explicitly supersede or reject non-behavior content.
 3. When `spec.md` is next, fetch `npx -y @sentry/skillet@latest instructions spec <dir> --json`. If intent remains ambiguous after inspecting the available evidence, ask 2–4 pointed questions before writing. Then write the spec with the served Skillet version footer as its final non-empty line, run `npx -y @sentry/skillet@latest validate <dir>`, and fix every spec error before deriving anything.
-4. When `SKILL.md` is next, fetch `npx -y @sentry/skillet@latest instructions skill <dir> --json` and render it from the validated spec. When migrating, do not weaken exact formats, enumerations, thresholds, delegation rules, or stop conditions. Move long protocols to `references/` when useful, link them from `SKILL.md`, then compare the old and new runtime surfaces and account for every removed rule. Search README and provenance docs for stale artifact paths, prompt locations, runtime-section claims, frontmatter descriptions, and coverage claims. Validate again before adding evals.
-5. When eval coverage is next, fetch `npx -y @sentry/skillet@latest instructions evals <dir> --json`, add at least one case per behavior, then validate with the same package command until no errors or uncovered-behavior warnings remain.
-6. Run `npx -y @sentry/skillet@latest eval <dir> --dry` to find checks that pass before the agent runs. Then run `npx -y @sentry/skillet@latest eval <dir> --baseline` to compare the tested results with and without the skill. Add `--trials <n>` only when repeated observations are useful, and `--report <file>` when the user wants a shareable run artifact (`npx vitest-evals serve <file>` renders it).
+4. When `SKILL.md` is next, fetch `npx -y @sentry/skillet@latest instructions skill <dir> --json` and render it from the validated spec. When migrating, do not weaken exact formats, enumerations, thresholds, delegation rules, or stop conditions. Move long protocols to `references/` when useful, link them from `SKILL.md`, then compare the old and new runtime surfaces and account for every removed rule. Search README and provenance docs for stale artifact paths, prompt locations, runtime-section claims, frontmatter descriptions, and coverage claims.
+5. Run `npx -y @sentry/skillet@latest validate <dir>` and fix every core spec.md or SKILL.md error. A valid spec and current SKILL.md complete ordinary creation, improvement, or migration. Do not create, repair, or run eval cases unless the user explicitly requested that work. If existing optional eval artifacts fail validation, report the errors and ask before fixing them; do not call the skill fully validated while errors remain. Existing eval files or directories are not a request.
+
+## Optional eval work
+
+Enter this branch only when the user explicitly asks to create, run, improve, or diagnose evals.
+
+- To create or update cases, fetch `npx -y @sentry/skillet@latest instructions evals <dir> --json`, write cases for the selected high-value scenarios, and validate their schemas and spec links. Behaviors without cases remain valid; do not add cases merely to claim complete coverage.
+- To execute cases, run only the dry, normal, baseline, trial, or report workflow the user requested. `npx -y @sentry/skillet@latest eval <dir> --dry` checks pristine workspaces; `eval <dir>` runs with the skill; `eval <dir> --baseline` also measures the results without it. Use `--trials <n>` only when repeated observations are useful, and `--report <file>` only when the user wants a shareable result (`npx vitest-evals serve <file>` renders it).
 
 ## When evals fail
 

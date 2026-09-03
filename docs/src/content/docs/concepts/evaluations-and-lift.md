@@ -5,7 +5,7 @@ type: conceptual
 summary: Baseline runs use the same cases without the skill. Lift is the difference between the two pass rates.
 ---
 
-Skillet evals run prompts through a coding-agent CLI in fresh workspaces. Results apply only to the prompts, checks, harness, configuration, and trials in that run. Use them to compare tested outcomes and decide what to inspect next, not to grade the overall quality or accuracy of a skill.
+Evals are optional. Choose them when repeatable evidence for selected high-value scenarios justifies the authoring and model cost; most skills do not need complete behavior coverage. Skillet runs chosen prompts through a coding-agent CLI in fresh workspaces. Results apply only to the prompts, checks, harness, configuration, and trials in that run. Use them to compare tested outcomes and decide what to inspect next, not to grade the overall quality or accuracy of a skill.
 
 ## Trials
 

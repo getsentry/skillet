@@ -1,8 +1,8 @@
 ---
 title: Artifact Lifecycle
-description: Understand how a Skillet skill moves from intent to measured behavior.
+description: Understand the core spec-to-skill flow and its optional evaluation branch.
 type: conceptual
-summary: The specification defines behavior; the skill instructions and eval cases are written from it.
+summary: The specification defines behavior; runtime instructions are required, while eval cases are optional.
 ---
 
 A Skillet skill is a directory of reviewable files. No Skillet command asks a model to generate those files internally.
@@ -12,7 +12,7 @@ my-skill/
   spec.md
   SKILL.md
   references/
-  evals/
+  evals/       # optional
     cases/
     fixtures/
 ```
@@ -31,9 +31,9 @@ Its frontmatter records a hash of `spec.md`. `skillet status` uses that hash to 
 
 See [Write Agent Instructions](/guides/write-agent-instructions/).
 
-## Eval Cases
+## Optional Eval Cases
 
-Each file under `evals/cases/` links to a behavior or constraint by its stable slug. Cases run through a configured agent harness in fresh workspaces.
+When repeatable measurement is useful, each file under `evals/cases/` links to a selected behavior or constraint by its stable slug. Cases run through a configured agent harness in fresh workspaces. A skill does not need a case for every behavior—or any cases at all—to be complete.
 
 Checks inspect the workspace after the agent finishes:
 
@@ -53,13 +53,14 @@ skillet status path/to/my-skill
 
 This makes agent and human edits interchangeable. A new session can continue from the repository without reconstructing previous conversation state.
 
-## Improve a Skill
+## Core and Optional Flows
 
 ```text
-specify → render → evaluate → diagnose → improve
+specify → render → validate
+                    └─ optional: evaluate → diagnose → improve
 ```
 
-Classify failures before editing:
+If you choose evals, classify failures before editing:
 
 1. **Wrong intent:** update `spec.md`, then re-render derived artifacts.
 2. **Weak instructions:** improve `SKILL.md` without changing a fair eval.

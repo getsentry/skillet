@@ -5,7 +5,9 @@ type: tutorial
 summary: Direct execution is the trusted default; Docker contains agent and judge processes for untrusted skills.
 ---
 
-Skillet runs agent CLIs directly on the host by default. Trial workspaces are temporary, but the agent process itself has full machine access.
+This page applies to optional eval execution. Ordinary authoring and `skillet validate` do not start an eval agent or require a sandbox.
+
+When you run evals, Skillet runs agent CLIs directly on the host by default. Trial workspaces are temporary, but the agent process itself has full machine access.
 
 Use direct execution only for skills and eval cases you trust.
 
@@ -48,10 +50,15 @@ Claude Code can store OAuth credentials in macOS Keychain, which cannot be mount
 
 ## CI Validation
 
-Run the mechanical checks first:
+Run core validation first:
 
 ```bash
 skillet validate
+```
+
+If optional eval cases are part of this CI job, check them before starting an agent:
+
+```bash
 skillet eval --dry
 ```
 

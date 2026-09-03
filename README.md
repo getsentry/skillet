@@ -4,15 +4,14 @@
 
 # Skillet
 
-Build agent skills from a reviewable spec, evaluate their behavior, and improve them over time.
+Build agent skills from a reviewable spec, with optional evals when repeatable measurement is worth the investment.
 
-A Skillet skill has three parts:
+A Skillet skill has two core artifacts:
 
 - `spec.md` defines the skill's intent and required behaviors.
 - `SKILL.md` gives the agent its instructions.
-- `evals/cases/*.yaml` tests those behaviors in fresh workspaces.
 
-Skillet scaffolds, validates, and evaluates those files. It never calls a model API or handles API keys; it invokes your existing agent CLI for authoring and evals.
+When a skill benefits from evaluation, optional `evals/cases/*.yaml` files test selected scenarios in fresh workspaces. Skillet scaffolds the spec, validates every artifact that exists, and runs cases only when you choose to. It never calls a model API or handles API keys; evals invoke your existing agent CLI.
 
 ## Get Started
 
@@ -42,7 +41,9 @@ To install the authoring skill with dotagents directly:
 npx -y @sentry/dotagents@latest --user add getsentry/skillet skillet-authoring
 ```
 
-`add` records and installs the skill immediately. Run `npx -y @sentry/dotagents@latest --user install` later to refresh it.
+`add` records and installs the skill immediately. The latest `skillet status` checks the standard `~/.agents/skills/skillet-authoring` installation against the authoring contract bundled with the CLI. When it is stale and the exact dotagents source is declared, `status.next` tells the agent to reinstall it through the scoped `add` command and rerun status. To continue in the same agent session, the agent reads the reinstalled SKILL.md first; otherwise it starts a new session. Skillet does not silently change user-scoped configuration.
+
+Custom installation locations cannot be discovered universally. Reinstall those with the same method that originally installed them after upgrading.
 
 Or ask your agent to install the [`skillet-authoring` skill](https://github.com/getsentry/skillet/tree/main/skills/skillet-authoring) for you.
 
@@ -52,7 +53,7 @@ Ask your agent:
 
 > Create a skill that enforces our commit conventions.
 
-The authoring skill handles the workflow: scaffold the files, clarify the behavior, write the spec, render the agent instructions, add eval cases, validate everything, and run the evals.
+The authoring skill handles the workflow: scaffold the spec, clarify the behavior, render the agent instructions, and validate the skill. It does not create or run evals unless you explicitly ask.
 
 To start manually instead:
 
@@ -62,19 +63,27 @@ cd commit-conventions
 npx -y @sentry/skillet@latest status
 ```
 
-`skillet status` reads the files on disk and tells you the next step. When writing an artifact yourself, use `skillet instructions spec`, `skillet instructions skill`, or `skillet instructions evals` for its current format and rules.
+`skillet status` reads the files on disk and tells you the next core step. When writing an artifact yourself, use `skillet instructions spec` or `skillet instructions skill` for its current format and rules. Use `skillet instructions evals` only after choosing to add cases.
 
-For an existing skill, run `skillet status <path>`. Uppercase `SPEC.md` and structurally invalid lowercase `spec.md` are treated as migration input; preserve or rename the legacy content, then derive a valid lowercase `spec.md` before adding eval coverage. Inventory the old skill's triggers, workflow, exact lists and protocols, thresholds, stop rules, constraints, and runtime references first, then reconcile that inventory against the new spec and rendered skill instead of assuming a shorter rewrite is equivalent.
+For an existing skill, run `skillet status <path>`. Uppercase `SPEC.md` and structurally invalid lowercase `spec.md` are treated as migration input; preserve or rename the legacy content, then derive a valid lowercase `spec.md` before rendering SKILL.md. Inventory the old skill's triggers, workflow, exact lists and protocols, thresholds, stop rules, constraints, and runtime references first, then reconcile that inventory against the new spec and rendered skill instead of assuming a shorter rewrite is equivalent.
 
-## Validate and evaluate
+## Validate
 
 ```bash
 npx -y @sentry/skillet@latest validate
+```
+
+`validate` checks the spec grammar and `SKILL.md` frontmatter. If optional eval cases exist, it also checks their schemas, behavior references, and fixtures. Behaviors without cases remain valid.
+
+## Evaluate when useful
+
+Ask your agent to add evals when a skill has high-value behavior that benefits from repeatable harness runs, or start manually with `skillet instructions evals`. You can evaluate selected behaviors without building a case for every behavior.
+
+```bash
 npx -y @sentry/skillet@latest eval --dry
 npx -y @sentry/skillet@latest eval --baseline
 ```
 
-- `validate` checks the spec grammar, `SKILL.md` frontmatter, eval schemas, and behavior coverage.
 - `eval --dry` finds cases that a do-nothing agent would pass.
 - `eval --baseline` runs each case with and without the skill and reports the difference as lift.
 
@@ -90,7 +99,7 @@ Behaviors:
 
 Lift answers a concrete question: did this skill improve the agent's behavior? Zero lift is useful too—it means the configured agent already passed without the skill.
 
-## Write an eval case
+## Write an optional eval case
 
 A behavior in `spec.md`:
 
@@ -105,7 +114,7 @@ The agent SHALL write commit subjects as `<type>(<scope>): <description>`.
 - **THEN** the commit subject starts with `fix` and stays under 70 characters
 ```
 
-One case that covers it:
+If this behavior is worth measuring, one case could cover it:
 
 ```yaml
 behavior: conventional-subject
@@ -129,9 +138,9 @@ Checks inspect the resulting workspace, not just the agent's response. Use `file
 | `skillet new <name>` | Create a skill scaffold |
 | `skillet status [path]` | Show artifact state and the next step |
 | `skillet instructions <artifact>` | Print the format and rules for `spec`, `skill`, or `evals` |
-| `skillet validate [path]` | Validate the complete skill |
-| `skillet eval [path]` | Run eval cases through an agent CLI |
-| `skillet show [path]` | Print the parsed spec and coverage |
+| `skillet validate [path]` | Validate the skill and any optional eval artifacts |
+| `skillet eval [path]` | Run optional eval cases through an agent CLI |
+| `skillet show [path]` | Print the parsed spec and optional case mapping |
 
 Every command supports `--json`. Agent-driven workflows use
 `npx -y @sentry/skillet@latest <command>` (or the `pnpx` equivalent); the table

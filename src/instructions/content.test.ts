@@ -16,6 +16,21 @@ describe("eval instructions", () => {
     expect(instructions).not.toContain("lift is positive");
   });
 
+  it("keeps eval authoring and execution opt-in", () => {
+    const skillInstructions = instructionsFor("skill").instructions;
+    const evalInstructions = instructionsFor("evals").instructions;
+
+    expect(skillInstructions).toContain("This completes ordinary authoring");
+    expect(skillInstructions).toContain(
+      "Do not create, repair, or run evals unless the user explicitly requests",
+    );
+    expect(skillInstructions).toContain("report those errors and ask before changing them");
+    expect(evalInstructions).toContain("only when the user explicitly chooses evaluation work");
+    expect(evalInstructions).toContain("behaviors without cases remain valid");
+    expect(evalInstructions).toContain("Run 'npx -y @sentry/skillet@latest eval' only when");
+    expect(evalInstructions).not.toContain("at least one case per behavior");
+  });
+
   it("allows authoring meta-content when the skill owns that domain", () => {
     const instructions = instructionsFor("skill").instructions;
 

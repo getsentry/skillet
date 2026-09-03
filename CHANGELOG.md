@@ -1,5 +1,27 @@
 # Changelog
 
+## Unreleased
+
+### Breaking changes 🔥
+
+- Evals are now opt-in. Ordinary authoring completes with a valid `spec.md` and
+  current `SKILL.md`; `skillet new` no longer creates empty eval directories,
+  and `skillet status` no longer requires eval generation.
+- The latest `skillet status` now detects stale standard user-scoped
+  `skillet-authoring` installations before artifact work. It directs exact
+  dotagents dependencies through a scoped reinstall and otherwise points to the
+  original installation method, then requires another status check. Rereading
+  the reinstalled skill is only for same-session continuation; other hosts start
+  a new session. Skillet does not silently rewrite user configuration.
+
+### Features 🚀
+
+- Existing and newly chosen eval cases remain supported, but partial suites are
+  valid: validation checks case schemas, behavior references, and fixtures
+  without warning about behaviors that have no cases.
+- The bundled authoring skill creates or runs evals only when the user explicitly
+  requests evaluation work.
+
 ## 1.7.0
 
 ### Features 🚀

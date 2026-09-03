@@ -1,6 +1,6 @@
 ---
 title: Skillet
-description: Build agent skills from a reviewable specification, evaluate their behavior, and improve them over time.
+description: Build agent skills from a reviewable specification, with optional evals for selected behavior.
 url: /
 ---
 
@@ -8,23 +8,23 @@ url: /
 
 Skillet helps you build skills without guessing:
 
-Ask your coding agent to create or improve a skill. The authoring skill uses the Skillet CLI to draft the files and run the checks while you review the spec and eval results.
+Ask your coding agent to create or improve a skill. The authoring skill uses the Skillet CLI to draft and validate the spec and runtime instructions.
 
 The authoring skill runs Skillet through `npx -y @sentry/skillet@latest` (or the pnpm equivalent) so it receives the current file formats and writing guidance.
 
 1. Define the contract in `spec.md`.
 2. Render the contract into agent instructions.
-3. Run realistic eval cases through a coding-agent CLI.
-4. Diagnose failures and improve the spec, instructions, or eval.
+3. Validate the skill.
+4. Optionally run selected scenarios through a coding-agent CLI when measurement is useful.
 
-Skillet does not claim that a passing eval makes a skill universally correct. Evals give you repeatable evidence for the scenarios you define and a way to keep improving the skill.
+The authoring skill does not create or run evals unless you explicitly ask. When chosen, evals give repeatable evidence for selected scenarios; they do not grade a skill's universal quality.
 
 ## Set Up Skillet
 
 Paste this into your coding agent:
 
 ```text
-Install the skillet-authoring skill globally from https://github.com/getsentry/skillet.
+Install or reinstall the skillet-authoring skill globally from https://github.com/getsentry/skillet.
 ```
 
 If you are the agent handling that request:
@@ -34,6 +34,8 @@ If you are the agent handling that request:
 3. Do not create project-local skill files or modify the user's repository.
 4. Use `npx -y @sentry/skillet@latest` or `pnpx @sentry/skillet@latest` for later Skillet commands.
 5. If installation fails, stop and explain the failure instead of changing the source or scope.
+
+The latest `skillet status` detects when the standard user-scoped installation has an older authoring contract. For the exact dotagents dependency it directs the agent to reinstall through the scoped `add` command and rerun status. Other standard installations point back to the method that originally installed them, while custom locations require manual reinstallation through that method. Reading the reinstalled SKILL.md supports continuing in the same session; hosts that snapshot skills start a new session instead. Skillet never silently changes user-scoped configuration.
 
 ## Start Here
 

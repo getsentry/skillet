@@ -1,4 +1,5 @@
 import { parseArgs } from "node:util";
+import { authoringReinstallAction } from "../authoring-install.js";
 import type { StatusJson } from "../json.js";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
@@ -11,8 +12,9 @@ import { noSkillMessage } from "./shared.js";
 
 const HELP = `Usage: skillet status [path] [--json]
 
-Show which artifacts exist for a skill (spec.md, SKILL.md, eval cases),
-what is stale, and the single next step. State comes purely from disk.
+Show which core artifacts exist for a skill (spec.md and SKILL.md),
+what is stale, optional eval case count, and the single next step.
+State comes purely from disk.
 `;
 
 const mark = (present: boolean, stale?: boolean): string => {
@@ -43,7 +45,7 @@ export const run = (argv: string[]): number => {
   const root = findSkillRoot(start);
   if (root == null) {
     if (findConfig(start) != null) {
-      const next = `'${CURRENT_SKILLET} new <name>' scaffolds one.`;
+      const next = authoringReinstallAction() ?? `'${CURRENT_SKILLET} new <name>' scaffolds one.`;
       if (json) {
         const payload: StatusJson = { root: null, next };
         emitJson(payload);
@@ -56,9 +58,10 @@ export const run = (argv: string[]): number => {
     return fail(noSkillMessage(start), { json });
   }
   const status = skillStatus(root);
+  const next = authoringReinstallAction() ?? status.next;
 
   if (json) {
-    const payload: StatusJson = status;
+    const payload: StatusJson = { ...status, next };
     emitJson(payload);
     return 0;
   }
@@ -73,7 +76,7 @@ export const run = (argv: string[]): number => {
     `${mark(status.skill.present, skillStale)} SKILL.md${skillStale ? " (stale — spec.md is newer)" : ""}`,
   );
   const caseWord = status.evals.caseCount === 1 ? "case" : "cases";
-  print(`${mark(status.evals.caseCount > 0)} evals/cases/ (${status.evals.caseCount} ${caseWord})`);
+  print(`Optional evals/cases/: ${status.evals.caseCount} ${caseWord}`);
   if (status.legacy.specYaml) {
     print(`    legacy spec.yaml present`);
   }
@@ -81,6 +84,6 @@ export const run = (argv: string[]): number => {
     print(`    legacy SPEC.md present (not Skillet format)`);
   }
   print(``);
-  print(`Next: ${status.next}`);
+  print(`Next: ${next}`);
   return 0;
 };

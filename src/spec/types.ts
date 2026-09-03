@@ -6,7 +6,7 @@ export interface SpecScenario {
 }
 
 export interface SpecBehavior {
-  /** Kebab-case slug of the name — the join key eval cases reference. */
+  /** Kebab-case slug of the name — the join key optional eval cases reference. */
   id: string;
   name: string;
   line: number;

@@ -5,7 +5,7 @@ type: tutorial
 summary: Install the CLI, add the authoring skill, and start a skill from a plain-language request.
 ---
 
-Skillet uses the coding-agent CLI you already run. The Skillet CLI manages files, validates contracts, and runs evals; your agent writes the specification, instructions, and cases.
+Skillet uses the coding-agent CLI you already run. The Skillet CLI manages files and validates contracts; your agent writes the specification and instructions. Optional evals are available when you choose to measure selected scenarios.
 
 ## Prerequisites
 
@@ -47,11 +47,15 @@ npx -y @sentry/dotagents@latest --user add getsentry/skillet skillet-authoring
 
 The `add` command records the dependency in `~/.agents/agents.toml` and installs it immediately for supported agents. No separate install command is required.
 
-Run `install` later to refresh declared skills:
+Re-add this dependency later to reinstall only the authoring skill:
 
 ```bash
-npx -y @sentry/dotagents@latest --user install
+npx -y @sentry/dotagents@latest --user add getsentry/skillet skillet-authoring
 ```
+
+The latest `skillet status` compares the standard installed skill with its bundled authoring contract. If the exact dotagents dependency is stale, `status.next` tells the agent to reinstall through the scoped command above and rerun status before artifact work. To continue in the same session, the agent reads the reinstalled SKILL.md first; otherwise it starts a new session. The check is read-only; Skillet never silently rewrites user-scoped configuration.
+
+If you installed into a custom location, reinstall it with the same method that originally installed it because the CLI cannot discover every client layout.
 
 ### Ask Your Agent to Install It
 
@@ -71,12 +75,9 @@ The authoring skill will:
 2. Clarify ambiguous behavior.
 3. Write and validate `spec.md`.
 4. Render `SKILL.md`.
-5. Add eval cases.
-6. Run validation and evals.
+5. Validate the completed skill.
 
-Full evals and baselines start authenticated agent CLI sessions. They can take time and consume model usage.
-Built-in harnesses use low effort and run up to four trials or skill/baseline
-variants within one case in parallel. Baseline remains opt-in.
+The authoring skill does not create or run evals unless you explicitly request them.
 
 ## Check the Result
 
@@ -85,15 +86,15 @@ From the new skill directory:
 ```bash
 npx -y @sentry/skillet@latest status
 npx -y @sentry/skillet@latest validate
-npx -y @sentry/skillet@latest eval --dry
-npx -y @sentry/skillet@latest eval --baseline
 ```
 
-`status` reports the next step, `validate` checks the complete contract, `eval --dry` finds checks that pass before the agent runs, and `--baseline` compares pass rates with and without the skill.
+`status` reports the next core step, and `validate` checks the complete contract.
+
+If you later ask your agent to add or run evals, authenticated agent CLI sessions can take time and consume model usage. Read [Write Honest Evals](/guides/write-honest-evals/) before choosing cases and [Understand Eval Results](/concepts/evaluations-and-lift/) before interpreting trials, baselines, or lift.
 
 ## Next
 
 1. Follow [Create Your First Skill](/first-skill/) for the complete artifact flow.
 2. Read [Specifications](/concepts/specifications/) before changing skill behavior.
-3. Read [Write Agent Instructions](/guides/write-agent-instructions/) and [Write Honest Evals](/guides/write-honest-evals/) before editing derived files.
-4. Read [Understand Eval Results](/concepts/evaluations-and-lift/) before interpreting trials, baselines, or lift.
+3. Read [Write Agent Instructions](/guides/write-agent-instructions/) before editing the runtime skill.
+4. If evaluation would add value, continue with [Write Honest Evals](/guides/write-honest-evals/).

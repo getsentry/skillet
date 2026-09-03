@@ -2,7 +2,7 @@
   "name": "@sentry/skillet",
   "version": "1.7.0",
   "packageManager": "npm@11.15.0",
-  "description": "Spec-driven agent skills with mechanical evals",
+  "description": "Spec-driven agent skills with optional mechanical evals",
   "type": "module",
   "bin": {
     "skillet": "./dist/cli.js"

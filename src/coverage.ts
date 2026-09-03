@@ -1,6 +1,6 @@
 import type { ParsedSpec, Issue } from "./spec/types.js";
 
-/** The slice of an eval case that coverage checking needs. */
+/** The slice of an eval case that optional link validation needs. */
 export interface CaseRef {
   /** Path of the case file, for error messages. */
   file: string;
@@ -9,11 +9,10 @@ export interface CaseRef {
 }
 
 /**
- * Cross-check spec behaviors against eval cases (skill-spec spec,
- * "Behavior-to-eval coverage"): unknown behavior refs and missing
- * fixtures are errors; uncovered behaviors are warnings. Constraint
- * ids are valid linkage keys too (suppression-style cases), but only
- * behaviors demand coverage.
+ * Validate optional eval links against the spec: unknown behavior
+ * references and missing fixtures are errors. Constraint ids are
+ * valid linkage keys too for suppression-style cases. Behaviors do
+ * not require eval coverage.
  */
 export const checkCoverage = (
   spec: ParsedSpec,
@@ -23,12 +22,9 @@ export const checkCoverage = (
   const issues: Issue[] = [];
   const behaviorIds = new Set(spec.behaviors.map((b) => b.id));
   const constraintIds = new Set(spec.constraints.map((c) => c.id));
-  const covered = new Set<string>();
 
   for (const c of cases) {
-    if (behaviorIds.has(c.behavior)) {
-      covered.add(c.behavior);
-    } else if (!constraintIds.has(c.behavior)) {
+    if (!behaviorIds.has(c.behavior) && !constraintIds.has(c.behavior)) {
       const known = [...behaviorIds, ...constraintIds];
       issues.push({
         severity: "error",
@@ -44,17 +40,6 @@ export const checkCoverage = (
         severity: "error",
         message: `${c.file}: references missing fixture "${c.fixture}"`,
         hint: `Create evals/fixtures/${c.fixture}/ or fix the slug.`,
-      });
-    }
-  }
-
-  for (const b of spec.behaviors) {
-    if (!covered.has(b.id)) {
-      issues.push({
-        severity: "warning",
-        message: `Behavior "${b.id}" has no eval case`,
-        line: b.line,
-        hint: `Add an evals/cases/*.yaml with "behavior: ${b.id}".`,
       });
     }
   }
