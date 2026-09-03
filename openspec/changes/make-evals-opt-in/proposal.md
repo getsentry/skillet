@@ -10,7 +10,7 @@ Skillet currently treats eval coverage as part of every skill's required authori
 - Keep eval authoring, schema validation, coverage reporting, and execution available when a user explicitly chooses to add or run evals.
 - Stop warning that uncovered spec behaviors need eval cases; continue rejecting eval cases that reference unknown behaviors or missing fixtures.
 - Update the authoring skill and documentation to present evals as a deliberate opt-in workflow.
-- Make the latest `skillet status` detect a stale standard installation of the authoring skill and direct the agent to refresh and reread it before continuing.
+- Make the latest `skillet status` detect a stale standard installation of the authoring skill and direct the agent to reinstall it through its owning mechanism before continuing; rereading supports same-session continuation.
 
 ## Capabilities
 
@@ -27,4 +27,4 @@ None.
 
 ## Impact
 
-This changes the filesystem state machine, scaffold output, coverage diagnostics, authoring instructions, bundled authoring skill, CLI copy, lifecycle reference, README, and documentation site. Existing eval suites and the `eval` command remain compatible; consumers that expect `skillet new --json` to list eval directories or `status.next` to require evals must adapt. A stale user-scoped authoring skill can temporarily take priority in `status.next` until it is refreshed and status is rerun.
+This changes the filesystem state machine, scaffold output, coverage diagnostics, authoring instructions, bundled authoring skill, CLI copy, lifecycle reference, README, and documentation site. Existing eval suites and the `eval` command remain compatible; consumers that expect `skillet new --json` to list eval directories or `status.next` to require evals must adapt. A stale user-scoped authoring skill can temporarily take priority in `status.next` until it is reinstalled and status is rerun.

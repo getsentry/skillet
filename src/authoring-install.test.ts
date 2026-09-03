@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { authoringRefreshAction } from "./authoring-install.js";
+import { authoringReinstallAction } from "./authoring-install.js";
 
 const dirs: string[] = [];
 const makeAgentsDir = (): string => {
@@ -25,12 +25,12 @@ afterEach(() => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
-describe("authoringRefreshAction", () => {
+describe("authoringReinstallAction", () => {
   it("does not advise when the standard installation is absent", () => {
-    expect(authoringRefreshAction(makeAgentsDir())).toBeNull();
+    expect(authoringReinstallAction(makeAgentsDir())).toBeNull();
   });
 
-  it("keeps the embedded hash synchronized with the bundled authoring skill", () => {
+  it("keeps the embedded hash synchronized with the bundled authoring spec", () => {
     const agentsDir = makeAgentsDir();
     const spec = readFileSync(
       join(process.cwd(), "skills", "skillet-authoring", "spec.md"),
@@ -38,10 +38,10 @@ describe("authoringRefreshAction", () => {
     );
     const hash = createHash("sha256").update(spec).digest("hex").slice(0, 12);
     installSkill(agentsDir, skillWithHash(hash));
-    expect(authoringRefreshAction(agentsDir)).toBeNull();
+    expect(authoringReinstallAction(agentsDir)).toBeNull();
   });
 
-  it("gives dotagents-managed installations a scoped refresh command", () => {
+  it("gives dotagents-managed installations a scoped reinstall command", () => {
     const agentsDir = makeAgentsDir();
     installSkill(agentsDir, skillWithHash("old"));
     writeFileSync(
@@ -49,11 +49,13 @@ describe("authoringRefreshAction", () => {
       '[[skills]]\nname = "skillet-authoring"\nsource = "getsentry/skillet"\n',
     );
 
-    const action = authoringRefreshAction(agentsDir);
+    const action = authoringReinstallAction(agentsDir);
     expect(action).toContain(
       "npx -y @sentry/dotagents@latest --user add getsentry/skillet skillet-authoring",
     );
-    expect(action).toContain("read the refreshed ~/.agents/skills/skillet-authoring/SKILL.md");
+    expect(action).toContain("reinstall skillet-authoring through dotagents");
+    expect(action).toContain("read the reinstalled ~/.agents/skills/skillet-authoring/SKILL.md");
+    expect(action).toContain("otherwise start a new session");
     expect(action).toContain("rerun this status command");
   });
 
@@ -65,8 +67,8 @@ describe("authoringRefreshAction", () => {
       '[[skills]]\nname = "skillet-authoring"\nsource = "someone/else"\n',
     );
 
-    const action = authoringRefreshAction(agentsDir);
-    expect(action).toContain("original installation method");
+    const action = authoringReinstallAction(agentsDir);
+    expect(action).toContain("same installation method that originally installed it");
     expect(action).not.toContain("dotagents@latest");
   });
 
@@ -81,6 +83,8 @@ describe("authoringRefreshAction", () => {
       ].join("\n\n"),
     );
 
-    expect(authoringRefreshAction(agentsDir)).toContain("original installation method");
+    expect(authoringReinstallAction(agentsDir)).toContain(
+      "same installation method that originally installed it",
+    );
   });
 });

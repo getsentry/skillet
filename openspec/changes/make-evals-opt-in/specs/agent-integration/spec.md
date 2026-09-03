@@ -19,14 +19,14 @@ The skillet-authoring skill SHALL complete ordinary skill creation, improvement,
 - **WHEN** an ordinary authoring request targets a skill that already contains an empty `evals/` directory
 - **THEN** the agent does not treat the directory as authorization to generate or run evals
 
-### Requirement: Installed authoring skill refresh
+### Requirement: Installed authoring skill reinstallation
 
-The skillet-authoring skill SHALL follow a stale-install advisory from the latest `skillet status` before authoring artifacts. It SHALL use the reported refresh method, read the refreshed SKILL.md, and rerun status before continuing.
+The skillet-authoring skill SHALL follow a stale-install advisory from the latest `skillet status` before authoring artifacts. It SHALL reinstall the skill through the reported installation method and rerun status before continuing. It SHALL read the reinstalled SKILL.md only to continue in the same session; otherwise it SHALL begin a new session.
 
 #### Scenario: Latest CLI reports stale instructions
 
 - **WHEN** `skillet status --json` reports that the installed skillet-authoring instructions are stale
-- **THEN** the agent refreshes them as directed, reads the refreshed SKILL.md, and reruns status before writing or changing skill artifacts
+- **THEN** the agent reinstalls the skill as directed and either reads the reinstalled SKILL.md in the same session or begins a new session before rerunning status and changing skill artifacts
 
 ## MODIFIED Requirements
 

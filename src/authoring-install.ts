@@ -5,8 +5,8 @@ import { parseFrontmatter } from "./skill/frontmatter.js";
 
 const SKILL = "skillet-authoring";
 const SOURCE = "getsentry/skillet";
-const CURRENT_SPEC_HASH = "f66844f5ca6d";
-const REFRESH_COMMAND = `npx -y @sentry/dotagents@latest --user add ${SOURCE} ${SKILL}`;
+const CURRENT_SPEC_HASH = "2758ed731778";
+const REINSTALL_COMMAND = `npx -y @sentry/dotagents@latest --user add ${SOURCE} ${SKILL}`;
 const INSTALLED_SKILL = `~/.agents/skills/${SKILL}/SKILL.md`;
 
 const tomlString = (block: string, key: string): string | null => {
@@ -22,8 +22,8 @@ const managedByDotagents = (toml: string): boolean => {
   });
 };
 
-/** Direct stale standard installations to refresh before artifact work continues. */
-export const authoringRefreshAction = (agentsDir = join(homedir(), ".agents")): string | null => {
+/** Direct stale standard installations to reinstall before artifact work continues. */
+export const authoringReinstallAction = (agentsDir = join(homedir(), ".agents")): string | null => {
   const skillPath = join(agentsDir, "skills", SKILL, "SKILL.md");
   if (!existsSync(skillPath)) return null;
 
@@ -34,9 +34,9 @@ export const authoringRefreshAction = (agentsDir = join(homedir(), ".agents")): 
   const tomlPath = join(agentsDir, "agents.toml");
   const dotagentsManaged =
     existsSync(tomlPath) && managedByDotagents(readFileSync(tomlPath, "utf8"));
-  const refresh = dotagentsManaged
-    ? `run '${REFRESH_COMMAND}'`
-    : "refresh it using its original installation method";
+  const reinstall = dotagentsManaged
+    ? `reinstall ${SKILL} through dotagents by running '${REINSTALL_COMMAND}'`
+    : `reinstall ${SKILL} with the same installation method that originally installed it`;
 
-  return `The installed ${SKILL} instructions are stale for this Skillet release. Before continuing, ${refresh}, read the refreshed ${INSTALLED_SKILL}, then rerun this status command.`;
+  return `The installed ${SKILL} instructions are stale for this Skillet release. Before continuing, ${reinstall}. To continue in this agent session, read the reinstalled ${INSTALLED_SKILL}; otherwise start a new session. Then rerun this status command.`;
 };

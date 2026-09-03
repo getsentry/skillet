@@ -8,10 +8,11 @@
   current `SKILL.md`; `skillet new` no longer creates empty eval directories,
   and `skillet status` no longer requires eval generation.
 - The latest `skillet status` now detects stale standard user-scoped
-  `skillet-authoring` installations before artifact work. It gives exact
-  dotagents dependencies a scoped refresh command and otherwise points to the
-  original installation method, then requires rereading the skill and rerunning
-  status. Skillet does not silently rewrite user configuration.
+  `skillet-authoring` installations before artifact work. It directs exact
+  dotagents dependencies through a scoped reinstall and otherwise points to the
+  original installation method, then requires another status check. Rereading
+  the reinstalled skill is only for same-session continuation; other hosts start
+  a new session. Skillet does not silently rewrite user configuration.
 
 ### Features 🚀
 

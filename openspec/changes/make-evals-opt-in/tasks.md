@@ -10,15 +10,15 @@
 - [x] 2.1 Update the skillet-authoring `spec.md` so ordinary authoring completes without eval generation or execution and explicit eval requests retain the existing quality rules.
 - [x] 2.2 Re-render skillet-authoring `SKILL.md` from the updated spec with the current hash and adapt its dogfood cases to the opt-in behavior.
 - [x] 2.3 Build and dogfood the authoring artifacts with current CLI status, instructions, validation, and dry-eval checks.
-- [x] 2.4 Detect stale standard authoring-skill installations in `status`, provide ownership-aware refresh guidance, and add regression coverage.
-- [x] 2.5 Extend the authoring contract to obey refresh advisories, then re-render and dogfood the bundled skill.
+- [x] 2.4 Detect stale standard authoring-skill installations in `status`, provide ownership-aware reinstall guidance, and add regression coverage.
+- [x] 2.5 Extend the authoring contract to obey reinstall advisories, then re-render and dogfood the bundled skill.
 
 ## 3. Documentation
 
 - [x] 3.1 Update README, CHANGELOG, LIFECYCLE, and lifecycle policy to define the core spec-to-skill path and optional eval branch.
 - [x] 3.2 Update the documentation landing page, tutorials, concepts, guides, and CLI reference to make evaluation an explicit choice.
 - [x] 3.3 Refresh agent-readable generated documentation and verify the documentation site.
-- [x] 3.4 Document automatic stale-install detection, scoped dotagents refresh, and the fallback for custom installs or session-snapshotted skills.
+- [x] 3.4 Document automatic stale-install detection, scoped dotagents reinstallation, and the fallback for custom installs or session-snapshotted skills.
 
 ## 4. Verification
 

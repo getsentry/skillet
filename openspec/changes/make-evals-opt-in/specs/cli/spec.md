@@ -19,21 +19,21 @@ The CLI SHALL support exactly seven commands, all mechanical (no LLM calls): `in
 
 ### Requirement: Stale authoring skill advisory
 
-Before reporting the target skill's artifact step, `skillet status` SHALL compare a standard user-scoped `~/.agents/skills/skillet-authoring/SKILL.md` installation with the authoring-spec hash bundled into the current CLI. When stale, `status.next` SHALL direct the agent to refresh the installation, read the refreshed SKILL.md, and rerun status before continuing. Status SHALL NOT modify the installation or user configuration.
+Before reporting the target skill's artifact step, `skillet status` SHALL compare a standard user-scoped `~/.agents/skills/skillet-authoring/SKILL.md` installation with the authoring-spec hash bundled into the current CLI. When stale, `status.next` SHALL direct the agent to reinstall the skill through the installation's owning mechanism and rerun status before continuing. It SHALL distinguish rereading the reinstalled SKILL.md as necessary only to continue in the current session; otherwise it SHALL direct starting a new session. Status SHALL NOT modify the installation or user configuration.
 
 #### Scenario: Current or absent standard installation
 
 - **WHEN** the standard authoring skill installation is absent or records the current bundled spec hash
-- **THEN** status reports the target skill's filesystem-derived next step without an authoring refresh advisory
+- **THEN** status reports the target skill's filesystem-derived next step without an authoring reinstall advisory
 
 #### Scenario: Stale dotagents-managed installation
 
 - **GIVEN** the standard authoring skill is stale and `~/.agents/agents.toml` declares `skillet-authoring` from `getsentry/skillet`
 - **WHEN** status runs
-- **THEN** `status.next` directs the agent to run `npx -y @sentry/dotagents@latest --user add getsentry/skillet skillet-authoring`, read the refreshed SKILL.md, and rerun status
+- **THEN** `status.next` directs the agent to reinstall the skill by running `npx -y @sentry/dotagents@latest --user add getsentry/skillet skillet-authoring` and rerun status, reading the reinstalled SKILL.md only when continuing in the same session
 
 #### Scenario: Stale installation with unknown ownership
 
 - **GIVEN** the standard authoring skill is stale but its exact dotagents declaration is absent
 - **WHEN** status runs
-- **THEN** `status.next` directs the agent to use the original installation method, read the refreshed SKILL.md, and rerun status
+- **THEN** `status.next` directs the agent to reinstall the skill through the original installation method and rerun status, reading the reinstalled SKILL.md only when continuing in the same session

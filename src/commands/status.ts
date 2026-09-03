@@ -1,5 +1,5 @@
 import { parseArgs } from "node:util";
-import { authoringRefreshAction } from "../authoring-install.js";
+import { authoringReinstallAction } from "../authoring-install.js";
 import type { StatusJson } from "../json.js";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
@@ -45,7 +45,7 @@ export const run = (argv: string[]): number => {
   const root = findSkillRoot(start);
   if (root == null) {
     if (findConfig(start) != null) {
-      const next = authoringRefreshAction() ?? `'${CURRENT_SKILLET} new <name>' scaffolds one.`;
+      const next = authoringReinstallAction() ?? `'${CURRENT_SKILLET} new <name>' scaffolds one.`;
       if (json) {
         const payload: StatusJson = { root: null, next };
         emitJson(payload);
@@ -58,7 +58,7 @@ export const run = (argv: string[]): number => {
     return fail(noSkillMessage(start), { json });
   }
   const status = skillStatus(root);
-  const next = authoringRefreshAction() ?? status.next;
+  const next = authoringReinstallAction() ?? status.next;
 
   if (json) {
     const payload: StatusJson = { ...status, next };
